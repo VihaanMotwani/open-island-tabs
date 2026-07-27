@@ -550,6 +550,105 @@ struct AppModelSessionListTests {
     }
 
     @Test
+    func startupDiscoveredRunningCodexTaskCountsAlongsideLiveTask() async throws {
+        let now = Date()
+        let testDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("open-island-startup-discovery-\(UUID().uuidString)", isDirectory: true)
+        let store = CodexSessionStore(
+            fileURL: testDirectory.appendingPathComponent("session-terminals.json")
+        )
+        defer { try? FileManager.default.removeItem(at: testDirectory) }
+
+        var liveSession = AgentSession(
+            id: "live-codex-thread",
+            title: "Live Codex task",
+            tool: .codex,
+            origin: .live,
+            attachmentState: .attached,
+            phase: .running,
+            summary: "Thinking.",
+            updatedAt: now,
+            jumpTarget: JumpTarget(
+                terminalApp: "Codex.app",
+                workspaceName: "project",
+                paneTitle: "Live Codex task",
+                workingDirectory: "/tmp/project",
+                codexThreadID: "live-codex-thread"
+            ),
+            codexMetadata: CodexSessionMetadata(
+                transcriptPath: "/tmp/live-codex-rollout.jsonl"
+            )
+        )
+        liveSession.isCodexAppSession = true
+        liveSession.isProcessAlive = true
+        var state = SessionState(sessions: [liveSession])
+
+        let discovery = SessionDiscoveryCoordinator(codexSessionStore: store)
+        discovery.stateAccessor = { state }
+        discovery.stateUpdater = { state = $0 }
+        discovery.applyStartupDiscoveryPayload(
+            SessionDiscoveryCoordinator.StartupDiscoveryPayload(
+                codexRecords: [],
+                codexRecordsNeedPrune: false,
+                claudeRecords: [],
+                claudeRecordsNeedPrune: false,
+                openCodeRecords: [],
+                openCodeRecordsNeedPrune: false,
+                cursorRecords: [],
+                cursorRecordsNeedPrune: false,
+                discoveredCodexRecords: [
+                    CodexTrackedSessionRecord(
+                        sessionID: "startup-codex-thread",
+                        title: "Startup-discovered Codex task",
+                        origin: .live,
+                        attachmentState: .stale,
+                        summary: "Thinking.",
+                        phase: .running,
+                        updatedAt: now,
+                        codexMetadata: CodexSessionMetadata(
+                            transcriptPath: "/tmp/startup-codex-rollout.jsonl"
+                        )
+                    ),
+                ],
+                discoveredClaudeSessions: [],
+                hooksBinaryURL: nil
+            )
+        )
+
+        let monitoring = ProcessMonitoringCoordinator()
+        monitoring.stateAccessor = { state }
+        monitoring.stateUpdater = { state = $0 }
+        monitoring.reconcileSessionAttachments(
+            activeProcesses: [],
+            ghosttyAvailability: .available([], appIsRunning: false),
+            terminalAvailability: .available([], appIsRunning: false),
+            preResolvedJumpTargets: [:],
+            observedCodexAppRunning: true
+        )
+        monitoring.reconcileSessionAttachments(
+            activeProcesses: [],
+            ghosttyAvailability: .available([], appIsRunning: false),
+            terminalAvailability: .available([], appIsRunning: false),
+            preResolvedJumpTargets: [:],
+            observedCodexAppRunning: true
+        )
+
+        let model = AppModel()
+        model.overlayPlacementDiagnostics = placementDiagnostics(mode: .notch)
+        model.state = state
+
+        #expect(Set(model.islandListSessions.map(\.id)) == [
+            "live-codex-thread",
+            "startup-codex-thread",
+        ])
+        #expect(model.liveSessionCount == 2)
+
+        // Allow the coordinator's debounced persistence task to finish before
+        // removing its isolated temporary store.
+        try await Task.sleep(for: .milliseconds(300))
+    }
+
+    @Test
     func newerRolloutActivityRestartsACompletedCodexTurn() {
         let completedAt = Date(timeIntervalSince1970: 2_000)
         let resumedAt = completedAt.addingTimeInterval(1)

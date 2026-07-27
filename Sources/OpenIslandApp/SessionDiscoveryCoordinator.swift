@@ -40,7 +40,7 @@ final class SessionDiscoveryCoordinator {
     var onAgentEvent: ((AgentEvent) -> Void)?
 
     @ObservationIgnored
-    private let codexSessionStore = CodexSessionStore()
+    private let codexSessionStore: CodexSessionStore
 
     @ObservationIgnored
     private let claudeSessionRegistry = ClaudeSessionRegistry()
@@ -76,6 +76,10 @@ final class SessionDiscoveryCoordinator {
 
     @ObservationIgnored
     private var cursorSessionPersistenceTask: Task<Void, Never>?
+
+    init(codexSessionStore: CodexSessionStore = CodexSessionStore()) {
+        self.codexSessionStore = codexSessionStore
+    }
 
     private var state: SessionState {
         get { stateAccessor?() ?? SessionState() }
@@ -202,7 +206,9 @@ final class SessionDiscoveryCoordinator {
 
         // Merge discovered Codex sessions.
         if !payload.discoveredCodexRecords.isEmpty {
-            let mergedSessions = mergeDiscoveredSessions(payload.discoveredCodexRecords.map(\.session))
+            let mergedSessions = mergeDiscoveredSessions(
+                payload.discoveredCodexRecords.map(rediscoveredSession(from:))
+            )
             state = SessionState(sessions: mergedSessions)
             scheduleCodexSessionPersistence()
             onStatusMessage?("Discovered \(payload.discoveredCodexRecords.count) recent Codex session(s) from local rollouts.")

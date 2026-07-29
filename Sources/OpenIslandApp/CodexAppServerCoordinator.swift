@@ -162,8 +162,14 @@ final class CodexAppServerCoordinator {
         for thread in threads where !thread.ephemeral {
             if isSessionTracked?(thread.id) == true {
                 emitTitleUpdated(sessionID: thread.id, title: preferredTitle(for: thread))
-                emitJumpTargetUpdated(for: thread)
+                if CodexRuntimeSurface.classify(source: thread.source) == .desktopApp {
+                    emitJumpTargetUpdated(for: thread)
+                }
                 emitConfigurationUpdated(for: thread)
+                continue
+            }
+
+            guard CodexRuntimeSurface.classify(source: thread.source) == .desktopApp else {
                 continue
             }
 
@@ -185,8 +191,13 @@ final class CodexAppServerCoordinator {
             guard !thread.ephemeral else { return }
             if isSessionTracked?(thread.id) == true {
                 emitTitleUpdated(sessionID: thread.id, title: preferredTitle(for: thread))
-                emitJumpTargetUpdated(for: thread)
+                if CodexRuntimeSurface.classify(source: thread.source) == .desktopApp {
+                    emitJumpTargetUpdated(for: thread)
+                }
                 emitConfigurationUpdated(for: thread)
+                return
+            }
+            guard CodexRuntimeSurface.classify(source: thread.source) == .desktopApp else {
                 return
             }
             emitSessionStarted(from: thread)

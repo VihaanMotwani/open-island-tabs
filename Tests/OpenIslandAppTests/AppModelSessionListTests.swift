@@ -550,7 +550,7 @@ struct AppModelSessionListTests {
     }
 
     @Test
-    func startupDiscoveredRunningCodexTaskCountsAlongsideLiveTask() async throws {
+    func startupDiscoveredDesktopCodexTaskCountsAlongsideLiveTask() async {
         let now = Date()
         let testDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("open-island-startup-discovery-\(UUID().uuidString)", isDirectory: true)
@@ -600,6 +600,7 @@ struct AppModelSessionListTests {
                     CodexTrackedSessionRecord(
                         sessionID: "startup-codex-thread",
                         title: "Startup-discovered Codex task",
+                        runtimeSurface: .desktopApp,
                         origin: .live,
                         attachmentState: .stale,
                         summary: "Thinking.",
@@ -643,9 +644,157 @@ struct AppModelSessionListTests {
         ])
         #expect(model.liveSessionCount == 2)
 
-        // Allow the coordinator's debounced persistence task to finish before
-        // removing its isolated temporary store.
-        try await Task.sleep(for: .milliseconds(300))
+        await discovery.waitForCodexSessionPersistence()
+    }
+
+    @Test
+    func startupDiscoveredCodexCLITaskKeepsTerminalTargetAndProcessLiveness() async {
+        let now = Date()
+        let testDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("open-island-startup-cli-\(UUID().uuidString)", isDirectory: true)
+        let store = CodexSessionStore(
+            fileURL: testDirectory.appendingPathComponent("session-terminals.json")
+        )
+        defer { try? FileManager.default.removeItem(at: testDirectory) }
+
+        var state = SessionState()
+        let discovery = SessionDiscoveryCoordinator(codexSessionStore: store)
+        discovery.stateAccessor = { state }
+        discovery.stateUpdater = { state = $0 }
+        discovery.applyStartupDiscoveryPayload(
+            SessionDiscoveryCoordinator.StartupDiscoveryPayload(
+                codexRecords: [],
+                codexRecordsNeedPrune: false,
+                claudeRecords: [],
+                claudeRecordsNeedPrune: false,
+                openCodeRecords: [],
+                openCodeRecordsNeedPrune: false,
+                cursorRecords: [],
+                cursorRecordsNeedPrune: false,
+                discoveredCodexRecords: [
+                    CodexTrackedSessionRecord(
+                        sessionID: "startup-cli-thread",
+                        title: "Startup-discovered CLI task",
+                        runtimeSurface: .external,
+                        origin: .live,
+                        attachmentState: .stale,
+                        summary: "Thinking.",
+                        phase: .running,
+                        updatedAt: now,
+                        jumpTarget: JumpTarget(
+                            terminalApp: "Terminal",
+                            workspaceName: "project",
+                            paneTitle: "Codex CLI",
+                            workingDirectory: "/tmp/project",
+                            terminalSessionID: "terminal-tab-1",
+                            terminalTTY: "/dev/ttys001"
+                        ),
+                        codexMetadata: CodexSessionMetadata(
+                            transcriptPath: "/tmp/startup-cli-rollout.jsonl"
+                        )
+                    ),
+                ],
+                discoveredClaudeSessions: [],
+                hooksBinaryURL: nil
+            )
+        )
+
+        let monitoring = ProcessMonitoringCoordinator()
+        monitoring.stateAccessor = { state }
+        monitoring.stateUpdater = { state = $0 }
+        monitoring.reconcileSessionAttachments(
+            activeProcesses: [
+                .init(
+                    tool: .codex,
+                    sessionID: "startup-cli-thread",
+                    workingDirectory: "/tmp/project",
+                    terminalTTY: "/dev/ttys001",
+                    terminalApp: "Terminal"
+                ),
+            ],
+            ghosttyAvailability: .available([], appIsRunning: false),
+            terminalAvailability: .available([], appIsRunning: true),
+            preResolvedJumpTargets: [:],
+            observedCodexAppRunning: false
+        )
+
+        let session = state.session(id: "startup-cli-thread")
+        #expect(session != nil)
+        #expect(session?.isCodexAppSession == false)
+        #expect(session?.isProcessAlive == true)
+        #expect(session?.jumpTarget?.terminalApp == "Terminal")
+        #expect(session?.jumpTarget?.codexThreadID == nil)
+
+        await discovery.waitForCodexSessionPersistence()
+    }
+
+    @Test
+    func startupDiscoveredCodexCLITaskAgesOutWhileCodexAppRuns() async {
+        let now = Date()
+        let testDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("open-island-startup-cli-liveness-\(UUID().uuidString)", isDirectory: true)
+        let store = CodexSessionStore(
+            fileURL: testDirectory.appendingPathComponent("session-terminals.json")
+        )
+        defer { try? FileManager.default.removeItem(at: testDirectory) }
+
+        var state = SessionState()
+        let discovery = SessionDiscoveryCoordinator(codexSessionStore: store)
+        discovery.stateAccessor = { state }
+        discovery.stateUpdater = { state = $0 }
+        discovery.applyStartupDiscoveryPayload(
+            SessionDiscoveryCoordinator.StartupDiscoveryPayload(
+                codexRecords: [],
+                codexRecordsNeedPrune: false,
+                claudeRecords: [],
+                claudeRecordsNeedPrune: false,
+                openCodeRecords: [],
+                openCodeRecordsNeedPrune: false,
+                cursorRecords: [],
+                cursorRecordsNeedPrune: false,
+                discoveredCodexRecords: [
+                    CodexTrackedSessionRecord(
+                        sessionID: "stale-cli-thread",
+                        title: "Stale CLI task",
+                        runtimeSurface: .external,
+                        origin: .live,
+                        attachmentState: .stale,
+                        summary: "Thinking.",
+                        phase: .running,
+                        updatedAt: now,
+                        jumpTarget: JumpTarget(
+                            terminalApp: "Terminal",
+                            workspaceName: "project",
+                            paneTitle: "Codex CLI",
+                            workingDirectory: "/tmp/project",
+                            terminalTTY: "/dev/ttys001"
+                        ),
+                        codexMetadata: CodexSessionMetadata(
+                            transcriptPath: "/tmp/stale-cli-rollout.jsonl"
+                        )
+                    ),
+                ],
+                discoveredClaudeSessions: [],
+                hooksBinaryURL: nil
+            )
+        )
+
+        let monitoring = ProcessMonitoringCoordinator()
+        monitoring.stateAccessor = { state }
+        monitoring.stateUpdater = { state = $0 }
+        for _ in 0..<2 {
+            monitoring.reconcileSessionAttachments(
+                activeProcesses: [],
+                ghosttyAvailability: .available([], appIsRunning: false),
+                terminalAvailability: .available([], appIsRunning: false),
+                preResolvedJumpTargets: [:],
+                observedCodexAppRunning: true
+            )
+        }
+
+        #expect(state.session(id: "stale-cli-thread") == nil)
+
+        await discovery.waitForCodexSessionPersistence()
     }
 
     @Test

@@ -207,7 +207,7 @@ final class SessionDiscoveryCoordinator {
         // Merge discovered Codex sessions.
         if !payload.discoveredCodexRecords.isEmpty {
             let mergedSessions = mergeDiscoveredSessions(
-                payload.discoveredCodexRecords.map(rediscoveredSession(from:))
+                payload.discoveredCodexRecords.map(classifiedRediscoveredSession(from:))
             )
             state = SessionState(sessions: mergedSessions)
             scheduleCodexSessionPersistence()
@@ -579,11 +579,14 @@ final class SessionDiscoveryCoordinator {
             && session.codexMetadata?.transcriptPath?.isEmpty == false
     }
 
-    private func rediscoveredSession(
+    private func classifiedRediscoveredSession(
         from record: CodexTrackedSessionRecord
     ) -> AgentSession {
         var session = record.session
-        session.isCodexAppSession = true
+        guard session.isCodexAppSession else {
+            return session
+        }
+
         session.isProcessAlive = true
         let cwd = record.jumpTarget?.workingDirectory ?? ""
         if session.jumpTarget == nil {
@@ -622,7 +625,7 @@ final class SessionDiscoveryCoordinator {
         let recordsToMerge = newRecords + backfillRecords
         guard !recordsToMerge.isEmpty else { return }
 
-        let merged = mergeDiscoveredSessions(recordsToMerge.map(rediscoveredSession(from:)))
+        let merged = mergeDiscoveredSessions(recordsToMerge.map(classifiedRediscoveredSession(from:)))
         state = SessionState(sessions: merged)
         refreshCodexRolloutTracking()
         scheduleCodexSessionPersistence()
@@ -672,6 +675,10 @@ final class SessionDiscoveryCoordinator {
             }
             try store.save(Array(recordsByID.values))
         }
+    }
+
+    func waitForCodexSessionPersistence() async {
+        await codexSessionPersistenceTask?.value
     }
 
     func scheduleClaudeSessionPersistence() {

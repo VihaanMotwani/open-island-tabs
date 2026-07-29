@@ -87,6 +87,24 @@ struct CodexAppServerCoordinatorTests {
 
     @MainActor
     @Test
+    func trackedCLIThreadIsNotStampedAsCodexDesktopByAppServerSync() throws {
+        let coordinator = CodexAppServerCoordinator()
+        var events: [AgentEvent] = []
+        coordinator.onEvent = { events.append($0) }
+        coordinator.isSessionTracked = { $0 == "codex-cli-thread" }
+
+        let thread = try JSONDecoder().decode(CodexThread.self, from: Data("""
+        {"id":"codex-cli-thread","cwd":"/tmp/git","name":"CLI task","preview":"Prompt","modelProvider":"openai","createdAt":1,"updatedAt":2,"ephemeral":false,"path":"/tmp/rollout.jsonl","status":{"type":"active","activeFlags":[]},"source":"cli","turns":[]}
+        """.utf8))
+
+        coordinator.syncThreads([thread])
+
+        #expect(!events.contains { if case .jumpTargetUpdated = $0 { true } else { false } })
+        #expect(!events.contains { if case .sessionStarted = $0 { true } else { false } })
+    }
+
+    @MainActor
+    @Test
     func threadNameNotificationEmitsTitleUpdate() {
         let coordinator = CodexAppServerCoordinator()
         var events: [AgentEvent] = []

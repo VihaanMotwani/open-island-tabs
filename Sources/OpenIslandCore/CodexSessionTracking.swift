@@ -237,9 +237,7 @@ public struct CodexTrackedSessionRecord: Equatable, Codable, Sendable {
         self.init(
             sessionID: session.id,
             title: session.title,
-            runtimeSurface: session.isCodexAppSession || session.jumpTarget?.terminalApp == "Codex.app"
-                ? .desktopApp
-                : .external,
+            runtimeSurface: session.codexRuntimeSurface,
             origin: session.origin,
             attachmentState: session.attachmentState,
             summary: session.summary,
@@ -251,7 +249,7 @@ public struct CodexTrackedSessionRecord: Equatable, Codable, Sendable {
     }
 
     public var session: AgentSession {
-        var session = AgentSession(
+        AgentSession(
             id: sessionID,
             title: title,
             tool: .codex,
@@ -261,14 +259,9 @@ public struct CodexTrackedSessionRecord: Equatable, Codable, Sendable {
             summary: summary,
             updatedAt: updatedAt,
             jumpTarget: jumpTarget,
-            codexMetadata: codexMetadata
+            codexMetadata: codexMetadata,
+            codexRuntimeSurface: runtimeSurface
         )
-        // Re-derive the Codex.app flag from explicit rollout ownership or
-        // the persisted terminal target so restarted Desktop tasks keep using
-        // app-level liveness without converting CLI/IDE tasks.
-        session.isCodexAppSession = runtimeSurface == .desktopApp
-            || jumpTarget?.terminalApp == "Codex.app"
-        return session
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -747,24 +740,39 @@ public final class CodexRolloutDiscovery: @unchecked Sendable {
     /// subagent. Only the initial chunk is needed because `session_meta` is
     /// written at the beginning of every rollout.
     public static func isInternalSubagentTranscript(atPath path: String?) -> Bool {
+        sessionMeta(atPath: path, fileManager: .default)?.isInternalSubagent ?? false
+    }
+
+    /// Resolves runtime ownership from the rollout header at an exact cached
+    /// transcript path. This is intentionally separate from discovery so
+    /// legacy cache entries can be migrated before exclusion is calculated.
+    public func runtimeSurface(atTranscriptPath path: String?) -> CodexRuntimeSurface? {
+        Self.sessionMeta(atPath: path, fileManager: fileManager)?.runtimeSurface
+    }
+
+    private static func sessionMeta(
+        atPath path: String?,
+        fileManager: FileManager
+    ) -> SessionMeta? {
         guard let path, !path.isEmpty,
+              fileManager.fileExists(atPath: path),
               let fileHandle = try? FileHandle(forReadingFrom: URL(fileURLWithPath: path)) else {
-            return false
+            return nil
         }
         defer { try? fileHandle.close() }
 
         guard let data = try? fileHandle.read(upToCount: streamingChunkSize),
               !data.isEmpty else {
-            return false
+            return nil
         }
 
         let contents = String(decoding: data, as: UTF8.self)
         for line in contents.split(separator: "\n", omittingEmptySubsequences: true) {
             if let sessionMeta = parseSessionMeta(fromLine: String(line)) {
-                return sessionMeta.isInternalSubagent
+                return sessionMeta
             }
         }
-        return false
+        return nil
     }
 
     private static func parseSessionMeta(fromLine line: String) -> SessionMeta? {

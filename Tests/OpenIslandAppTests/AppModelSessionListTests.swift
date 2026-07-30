@@ -550,6 +550,147 @@ struct AppModelSessionListTests {
     }
 
     @Test
+    func startupReclassifiesLegacyCachedDesktopOwnershipFromRolloutHeader() throws {
+        let now = Date()
+        let testDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("open-island-legacy-runtime-\(UUID().uuidString)", isDirectory: true)
+        let rolloutRootURL = testDirectory.appendingPathComponent("sessions", isDirectory: true)
+        let rolloutURL = rolloutRootURL.appendingPathComponent("rollout-desktop.jsonl")
+        let store = CodexSessionStore(
+            fileURL: testDirectory.appendingPathComponent("session-terminals.json")
+        )
+        defer { try? FileManager.default.removeItem(at: testDirectory) }
+
+        try FileManager.default.createDirectory(
+            at: rolloutRootURL,
+            withIntermediateDirectories: true
+        )
+        try """
+        {"timestamp":"2026-07-30T03:30:00.000Z","type":"session_meta","payload":{"id":"legacy-desktop-thread","timestamp":"2026-07-30T03:30:00.000Z","cwd":"/tmp/project","originator":"Codex Desktop","source":"vscode"}}
+        """.appending("\n").write(to: rolloutURL, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes(
+            [.modificationDate: now],
+            ofItemAtPath: rolloutURL.path
+        )
+
+        try store.save([
+            CodexTrackedSessionRecord(
+                sessionID: "legacy-desktop-thread",
+                title: "Legacy Desktop task",
+                runtimeSurface: .unknown,
+                origin: .live,
+                attachmentState: .stale,
+                summary: "Cached before runtime ownership was persisted.",
+                phase: .completed,
+                updatedAt: now,
+                codexMetadata: CodexSessionMetadata(transcriptPath: rolloutURL.path)
+            ),
+        ])
+        let legacyData = try Data(contentsOf: store.fileURL)
+        var legacyJSON = try #require(
+            JSONSerialization.jsonObject(with: legacyData) as? [[String: Any]]
+        )
+        legacyJSON[0].removeValue(forKey: "runtimeSurface")
+        try JSONSerialization.data(
+            withJSONObject: legacyJSON,
+            options: [.prettyPrinted, .sortedKeys]
+        ).write(to: store.fileURL, options: .atomic)
+
+        var state = SessionState()
+        let discovery = SessionDiscoveryCoordinator(
+            codexSessionStore: store,
+            codexRolloutDiscovery: CodexRolloutDiscovery(
+                rootURL: rolloutRootURL,
+                maxAge: 86_400,
+                maxFiles: 10,
+                persistedThreadTitles: { _ in [:] }
+            )
+        )
+        discovery.stateAccessor = { state }
+        discovery.stateUpdater = { state = $0 }
+
+        let payload = discovery.loadStartupDiscoveryPayload()
+
+        #expect(payload.codexRecords.first?.runtimeSurface == .desktopApp)
+        #expect(payload.codexRecordsNeedPrune)
+        #expect(payload.discoveredCodexRecords.isEmpty)
+
+        discovery.applyStartupDiscoveryPayload(payload)
+
+        #expect(state.session(id: "legacy-desktop-thread")?.codexRuntimeSurface == .desktopApp)
+        #expect(try store.load().first?.runtimeSurface == .desktopApp)
+    }
+
+    @Test
+    func rolloutMergeUpgradesUnknownOwnershipWithoutErasingKnownOwnership() {
+        let now = Date()
+        var state = SessionState(sessions: [
+            AgentSession(
+                id: "unknown-thread",
+                title: "Unknown task",
+                tool: .codex,
+                origin: .live,
+                phase: .running,
+                summary: "Waiting for rollout ownership.",
+                updatedAt: now,
+                codexMetadata: CodexSessionMetadata(
+                    transcriptPath: "/tmp/unknown-rollout.jsonl"
+                ),
+                codexRuntimeSurface: .unknown
+            ),
+            AgentSession(
+                id: "external-thread",
+                title: "External task",
+                tool: .codex,
+                origin: .live,
+                phase: .running,
+                summary: "Known VS Code task.",
+                updatedAt: now,
+                codexMetadata: CodexSessionMetadata(
+                    transcriptPath: "/tmp/external-rollout.jsonl"
+                ),
+                codexRuntimeSurface: .external
+            ),
+        ])
+        let discovery = SessionDiscoveryCoordinator()
+        discovery.stateAccessor = { state }
+        discovery.stateUpdater = { state = $0 }
+
+        let merged = discovery.mergeDiscoveredSessions([
+            AgentSession(
+                id: "unknown-thread",
+                title: "Desktop task",
+                tool: .codex,
+                origin: .live,
+                phase: .running,
+                summary: "Classified by rollout.",
+                updatedAt: now,
+                codexMetadata: CodexSessionMetadata(
+                    transcriptPath: "/tmp/unknown-rollout.jsonl"
+                ),
+                codexRuntimeSurface: .desktopApp
+            ),
+            AgentSession(
+                id: "external-thread",
+                title: "External task",
+                tool: .codex,
+                origin: .live,
+                phase: .running,
+                summary: "No new ownership data.",
+                updatedAt: now,
+                codexMetadata: CodexSessionMetadata(
+                    transcriptPath: "/tmp/external-rollout.jsonl"
+                ),
+                codexRuntimeSurface: .unknown
+            ),
+        ])
+        let mergedByID = Dictionary(uniqueKeysWithValues: merged.map { ($0.id, $0) })
+
+        #expect(mergedByID["unknown-thread"]?.codexRuntimeSurface == .desktopApp)
+        #expect(mergedByID["external-thread"]?.codexRuntimeSurface == .external)
+    }
+
+    @Test
     func startupDiscoveredDesktopCodexTaskCountsAlongsideLiveTask() async {
         let now = Date()
         let testDirectory = FileManager.default.temporaryDirectory

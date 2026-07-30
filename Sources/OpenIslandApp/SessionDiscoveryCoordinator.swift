@@ -55,7 +55,7 @@ final class SessionDiscoveryCoordinator {
     let codexRolloutWatcher = CodexRolloutWatcher()
 
     @ObservationIgnored
-    private let codexRolloutDiscovery = CodexRolloutDiscovery()
+    private let codexRolloutDiscovery: CodexRolloutDiscovery
 
     @ObservationIgnored
     var persistedCodexThreadTitles: ((Set<String>) -> [String: String]) = { threadIDs in
@@ -77,8 +77,12 @@ final class SessionDiscoveryCoordinator {
     @ObservationIgnored
     private var cursorSessionPersistenceTask: Task<Void, Never>?
 
-    init(codexSessionStore: CodexSessionStore = CodexSessionStore()) {
+    init(
+        codexSessionStore: CodexSessionStore = CodexSessionStore(),
+        codexRolloutDiscovery: CodexRolloutDiscovery = CodexRolloutDiscovery()
+    ) {
         self.codexSessionStore = codexSessionStore
+        self.codexRolloutDiscovery = codexRolloutDiscovery
     }
 
     private var state: SessionState {
@@ -95,7 +99,8 @@ final class SessionDiscoveryCoordinator {
     nonisolated func loadStartupDiscoveryPayload() -> StartupDiscoveryPayload {
         let cutoff = Date.now.addingTimeInterval(-86_400)
 
-        let allCodex = (try? codexSessionStore.load()) ?? []
+        let loadedCodex = (try? codexSessionStore.load()) ?? []
+        let allCodex = loadedCodex.map(reclassifiedCachedCodexRecord)
         let codexRecords = Self.restorableCodexRecords(from: allCodex, cutoff: cutoff)
 
         let allClaude = (try? claudeSessionRegistry.load()) ?? []
@@ -112,7 +117,8 @@ final class SessionDiscoveryCoordinator {
         // full backfill; a stored zero marks that migration as complete.
         let cachedCodexTranscriptPaths = Set<String>(
             allCodex.compactMap { record in
-                guard !Self.needsCodexProcessingDurationBackfill(record) else {
+                guard record.runtimeSurface != .unknown,
+                      !Self.needsCodexProcessingDurationBackfill(record) else {
                     return nil
                 }
                 return record.codexMetadata?.transcriptPath
@@ -125,7 +131,7 @@ final class SessionDiscoveryCoordinator {
 
         return StartupDiscoveryPayload(
             codexRecords: codexRecords,
-            codexRecordsNeedPrune: codexRecords != allCodex,
+            codexRecordsNeedPrune: codexRecords != loadedCodex,
             claudeRecords: claudeRecords,
             claudeRecordsNeedPrune: claudeRecords != allClaude,
             openCodeRecords: openCodeRecords,
@@ -138,6 +144,26 @@ final class SessionDiscoveryCoordinator {
                 executableDirectory: Bundle.main.executableURL?.deletingLastPathComponent()
             )
         )
+    }
+
+    nonisolated private func reclassifiedCachedCodexRecord(
+        _ record: CodexTrackedSessionRecord
+    ) -> CodexTrackedSessionRecord {
+        guard record.runtimeSurface == .unknown,
+              let runtimeSurface = codexRolloutDiscovery.runtimeSurface(
+                atTranscriptPath: record.codexMetadata?.transcriptPath
+              ),
+              runtimeSurface != .unknown else {
+            return record
+        }
+
+        var migrated = record
+        migrated.runtimeSurface = runtimeSurface
+        if runtimeSurface == .external,
+           migrated.jumpTarget?.terminalApp == "Codex.app" {
+            migrated.jumpTarget = nil
+        }
+        return migrated
     }
 
     nonisolated static func restorableCodexRecords(
@@ -278,10 +304,11 @@ final class SessionDiscoveryCoordinator {
         merged.claudeMetadata = mergeClaudeMetadata(existing.claudeMetadata, discovered.claudeMetadata)
         merged.openCodeMetadata = mergeOpenCodeMetadata(existing.openCodeMetadata, discovered.openCodeMetadata)
         merged.cursorMetadata = mergeCursorMetadata(existing.cursorMetadata, discovered.cursorMetadata)
-        // Once a session is identified as a Codex.app session by any source
-        // (hook or rediscovery), preserve that flag so liveness uses the
-        // app-level check instead of subprocess polling.
-        merged.isCodexAppSession = existing.isCodexAppSession || discovered.isCodexAppSession
+        // Rollout ownership is authoritative when known. Unknown discovery
+        // data must not erase ownership already established for the session.
+        if discovered.codexRuntimeSurface != .unknown {
+            merged.codexRuntimeSurface = discovered.codexRuntimeSurface
+        }
 
         return merged
     }
@@ -538,11 +565,22 @@ final class SessionDiscoveryCoordinator {
                 return session.codexMetadata?.transcriptPath
             }
         )
+        let pathsNeedingOwnership = Set<String>(
+            state.sessions.compactMap { session in
+                guard session.tool == .codex,
+                      session.codexRuntimeSurface == .unknown else {
+                    return nil
+                }
+                return session.codexMetadata?.transcriptPath
+            }
+        )
+        let pathsNeedingRediscovery = pathsNeedingBackfill.union(pathsNeedingOwnership)
         let existingTranscriptPaths = knownCodexTranscriptPaths
-            .subtracting(pathsNeedingBackfill)
+            .subtracting(pathsNeedingRediscovery)
             .union(
                 state.sessions.compactMap { session in
-                    guard !Self.needsCodexProcessingDurationBackfill(session) else {
+                    guard !Self.needsCodexProcessingDurationBackfill(session),
+                          session.codexRuntimeSurface != .unknown else {
                         return nil
                     }
                     return session.codexMetadata?.transcriptPath
@@ -622,7 +660,16 @@ final class SessionDiscoveryCoordinator {
                         && Self.needsCodexProcessingDurationBackfill($0)
                 })
         }
-        let recordsToMerge = newRecords + backfillRecords
+        let ownershipRecords = records.filter { record in
+            record.runtimeSurface != .unknown
+                && existingIDs.contains(record.sessionID)
+                && state.session(id: record.sessionID)?.codexRuntimeSurface == .unknown
+        }
+        var recordsToMergeByID: [String: CodexTrackedSessionRecord] = [:]
+        for record in newRecords + backfillRecords + ownershipRecords {
+            recordsToMergeByID[record.sessionID] = record
+        }
+        let recordsToMerge = Array(recordsToMergeByID.values)
         guard !recordsToMerge.isEmpty else { return }
 
         let merged = mergeDiscoveredSessions(recordsToMerge.map(classifiedRediscoveredSession(from:)))
@@ -633,6 +680,8 @@ final class SessionDiscoveryCoordinator {
             onStatusMessage?("Discovered \(newRecords.count) new Codex.app session(s) via rollout re-scan.")
         } else if !backfillRecords.isEmpty {
             onStatusMessage?("Updated processing time for \(backfillRecords.count) active Codex.app session(s).")
+        } else if !ownershipRecords.isEmpty {
+            onStatusMessage?("Classified \(ownershipRecords.count) Codex session runtime(s) from rollout metadata.")
         }
     }
 

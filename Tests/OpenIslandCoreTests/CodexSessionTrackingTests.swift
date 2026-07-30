@@ -226,7 +226,30 @@ struct CodexSessionTrackingTests {
 
         #expect(records.count == 1)
         #expect(records.first?.attachmentState == .stale)
+        #expect(records.first?.runtimeSurface == .unknown)
         #expect(records.first?.session.attachmentState == .stale)
+    }
+
+    @Test
+    func unknownRuntimeSurfaceSurvivesSessionRoundTrip() {
+        let record = CodexTrackedSessionRecord(
+            sessionID: "codex-session-unknown",
+            title: "Codex · unknown",
+            runtimeSurface: .unknown,
+            origin: .live,
+            attachmentState: .stale,
+            summary: "Ownership has not been classified yet.",
+            phase: .completed,
+            updatedAt: Date(timeIntervalSince1970: 1_000),
+            codexMetadata: CodexSessionMetadata(
+                transcriptPath: "/tmp/rollout-unknown.jsonl"
+            )
+        )
+
+        let reencoded = CodexTrackedSessionRecord(session: record.session)
+
+        #expect(record.session.codexRuntimeSurface == .unknown)
+        #expect(reencoded.runtimeSurface == .unknown)
     }
 
     @Test

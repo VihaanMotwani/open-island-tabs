@@ -9,9 +9,9 @@ struct ExpandedNotchLayoutMetricsTests {
         )
         let layout = ExpandedNotchLayoutMetrics.spotifyLayout(availableWidth: availableWidth)
 
-        #expect(layout.artworkSize == 104)
+        #expect(layout.artworkSize == 96)
         #expect(layout.spacing == 16)
-        #expect(layout.detailWidth == 360)
+        #expect(layout.detailWidth == 368)
         #expect(availableWidth == 480)
     }
 
@@ -33,7 +33,7 @@ struct ExpandedNotchLayoutMetricsTests {
         #expect(ExpandedNotchLayoutMetrics.tabControlHeight == 22)
         #expect(ExpandedNotchLayoutMetrics.sessionHeaderHeight == 32)
         #expect(ExpandedNotchLayoutMetrics.sessionFooterHeight == 22)
-        #expect(ExpandedNotchLayoutMetrics.spotifyContentHeight == 132)
+        #expect(ExpandedNotchLayoutMetrics.spotifyContentHeight == 124)
     }
 
     @Test
@@ -63,21 +63,21 @@ struct ExpandedNotchLayoutMetricsTests {
     func agentsContentHeightReservesSetupHintOutsideTheSessionViewport() {
         #expect(
             ExpandedNotchLayoutMetrics.agentsContentHeight(
-                rowHeights: [114, 40],
+                rowHeights: [106, 40],
                 showsInstallHooksHint: false
-            ) == 238
+            ) == 230
         )
         #expect(
             ExpandedNotchLayoutMetrics.agentsContentHeight(
-                rowHeights: [114, 40],
+                rowHeights: [106, 40],
                 showsInstallHooksHint: true
-            ) == 296
+            ) == 278
         )
         #expect(
             ExpandedNotchLayoutMetrics.agentsContentHeight(
                 rowHeights: [],
                 showsInstallHooksHint: true
-            ) == 166
+            ) == 156
         )
     }
 }

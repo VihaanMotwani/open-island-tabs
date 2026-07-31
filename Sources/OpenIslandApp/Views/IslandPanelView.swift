@@ -403,7 +403,7 @@ struct IslandPanelView: View {
             }
 
             headerIconButton(
-                systemName: "gearshape.fill",
+                systemName: "gearshape",
                 tint: .white.opacity(0.62),
                 accessibilityLabel: "Open settings"
             ) {
@@ -426,10 +426,10 @@ struct IslandPanelView: View {
             openedTabButton(.spotify, accessibilityLabel: "Spotify")
         }
         .padding(2)
-        .background(.white.opacity(0.045), in: Capsule())
+        .background(.white.opacity(0.025), in: Capsule())
         .overlay {
             Capsule()
-                .stroke(.white.opacity(0.07), lineWidth: 1)
+                .stroke(.white.opacity(0.055), lineWidth: 1)
         }
         .frame(height: ExpandedNotchLayoutMetrics.tabControlHeight + 4)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -455,11 +455,11 @@ struct IslandPanelView: View {
         } label: {
             ZStack(alignment: .topTrailing) {
                 HStack(spacing: 5) {
-                    tabIcon(tab, size: tab == .spotify ? 11 : 12)
+                    tabIcon(tab, size: tab == .spotify ? 10.5 : 11)
                     Text(tab == .agents ? "Agents" : "Spotify")
-                        .font(.caption2.weight(.medium))
+                        .font(.caption2.weight(isSelected ? .semibold : .medium))
                 }
-                .foregroundStyle(.white.opacity(isSelected ? 0.9 : (isHovered ? 0.66 : 0.46)))
+                .foregroundStyle(.white.opacity(isSelected ? 0.88 : (isHovered ? 0.64 : 0.42)))
                 .opacity(isUnavailableSpotify ? 0.62 : 1)
                 .frame(
                     minWidth: tab == .agents ? 68 : 70,
@@ -477,24 +477,16 @@ struct IslandPanelView: View {
                 }
             }
             .background(
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
                     .fill(
                         isSelected
-                            ? .white.opacity(0.115)
-                            : .white.opacity(isHovered ? 0.045 : 0)
+                            ? .white.opacity(0.09)
+                            : .white.opacity(isHovered ? 0.035 : 0)
                     )
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 7, style: .continuous)
-                            .stroke(
-                                .white.opacity(isSelected ? 0.09 : 0),
-                                lineWidth: 1
-                            )
-                    }
             )
-            .shadow(color: .black.opacity(isSelected ? 0.18 : 0), radius: 2, y: 1)
         }
         .buttonStyle(.plain)
-        .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
         .zIndex(isSelected ? 1 : 0)
         .onHover { hovering in
             withAnimation(reduceMotion ? nil : .easeOut(duration: 0.1)) {
@@ -580,32 +572,36 @@ struct IslandPanelView: View {
         Button {
             model.showOnboarding()
         } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Color.accentColor)
-                Text(model.lang.t("island.hint.installHooks"))
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.85))
-                    .lineLimit(2)
+            HStack(spacing: 7) {
+                Image(systemName: "exclamationmark.circle.fill")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(Color.accentColor.opacity(0.78))
+                    .accessibilityHidden(true)
+                Text(model.lang.t("island.hint.installHooksShort"))
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.7))
+                    .lineLimit(1)
                     .multilineTextAlignment(.leading)
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.4))
+                    .font(.system(size: 8.5, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.28))
+                    .accessibilityHidden(true)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
             .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.accentColor.opacity(0.14))
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(.white.opacity(0.032))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(Color.accentColor.opacity(0.35), lineWidth: 0.5)
+                        RoundedRectangle(cornerRadius: 7, style: .continuous)
+                            .stroke(.white.opacity(0.06), lineWidth: 0.5)
                     )
             )
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(model.lang.t("island.hint.installHooks"))
+        .help(model.lang.t("island.hint.installHooks"))
     }
 
     private var sessionBootstrapPlaceholder: some View {
@@ -1256,10 +1252,14 @@ private struct IslandHeaderControlButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: systemName)
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(tint.opacity(isHovered ? 1 : 0.9))
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(tint.opacity(isHovered ? 1 : 0.82))
                 .frame(width: size, height: size)
-                .background(.white.opacity(isHovered ? 0.13 : 0.065), in: Circle())
+                .background(.white.opacity(isHovered ? 0.085 : 0), in: Circle())
+                .overlay {
+                    Circle()
+                        .stroke(.white.opacity(isHovered ? 0.055 : 0), lineWidth: 0.5)
+                }
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
@@ -1584,21 +1584,17 @@ private struct IslandSessionRow: View {
     private var agentBadge: some View {
         let tint = Color(hex: session.tool.brandColorHex) ?? V6Palette.paper
         return Text(agentBadgeTitle)
-            .font(.system(size: 10.5, weight: .semibold, design: .monospaced))
+            .font(.caption2.monospaced().weight(.semibold))
             .foregroundStyle(tint.opacity(notificationChromeOpacity))
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(tint.opacity(notificationBadgeFillOpacity), in: Capsule())
-            .overlay(Capsule().stroke(tint.opacity(notificationBadgeStrokeOpacity), lineWidth: 1))
+            .padding(.horizontal, 7)
+            .padding(.vertical, 2)
+            .background(tint.opacity(notificationBadgeFillOpacity * 0.72), in: Capsule())
     }
 
     private func sideBadge(_ title: String) -> some View {
         Text(title)
-            .font(.system(size: 10.5, weight: .medium, design: .monospaced))
-            .foregroundStyle(V6Palette.paper.opacity(presentation == .notification ? 0.52 : 0.7))
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(.white.opacity(presentation == .notification ? 0.045 : 0.06), in: Capsule())
+            .font(.caption2.monospaced().weight(.medium))
+            .foregroundStyle(V6Palette.paper.opacity(presentation == .notification ? 0.46 : 0.52))
             .lineLimit(1)
             .fixedSize(horizontal: true, vertical: false)
     }
@@ -1717,10 +1713,6 @@ private struct IslandSessionRow: View {
         presentation == .notification ? 0.08 : 0.13
     }
 
-    private var notificationBadgeStrokeOpacity: Double {
-        presentation == .notification ? 0.24 : 0.35
-    }
-
     private func titleColor(for presence: IslandSessionPresence) -> Color {
         if stateIndicator == .tint && presence != .inactive {
             return statusTint(for: presence)
@@ -1788,32 +1780,22 @@ private struct IslandSessionRow: View {
     private var runningDetailBody: some View {
         if !session.spotlightElapsedTimers.isEmpty {
             TimelineView(.periodic(from: .now, by: 1)) { timeline in
-                HStack(spacing: 7) {
+                HStack(spacing: 12) {
                     ForEach(session.spotlightElapsedTimers) { timer in
                         elapsedTimerChip(timer, at: timeline.date)
                     }
                 }
             }
-            .padding(.vertical, 2)
+            .padding(.vertical, 4)
             .frame(maxWidth: .infinity, alignment: .leading)
         } else if let runningDetailText {
             Text(runningDetailText)
-                .font(.system(size: 11.5, weight: .semibold, design: .monospaced))
-                .foregroundStyle(.white.opacity(0.82))
+                .font(.caption2.monospaced().weight(.medium))
+                .foregroundStyle(.white.opacity(0.58))
                 .lineLimit(1)
                 .truncationMode(.tail)
-                .padding(.horizontal, 9)
-                .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .fill(Color.white.opacity(0.045))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .strokeBorder(.white.opacity(0.10))
-                )
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.vertical, 2)
+                .padding(.vertical, 4)
         }
     }
 
@@ -1823,27 +1805,16 @@ private struct IslandSessionRow: View {
     ) -> some View {
         HStack(spacing: 5) {
             Text(lang.t(timer.kind.localizationKey))
-                .fontWeight(.semibold)
+                .foregroundStyle(.white.opacity(0.4))
             Text(
                 AgentSession.compactElapsedDuration(
                     timer.elapsed(at: referenceDate),
                     includingSecondsWhenHours: timer.kind == .thinking
                 )
             )
-                .foregroundStyle(.white.opacity(0.62))
+                .foregroundStyle(.white.opacity(0.7))
         }
-        .font(.system(size: 11.5, design: .monospaced))
-        .foregroundStyle(.white.opacity(0.84))
-        .padding(.horizontal, 9)
-        .padding(.vertical, 6)
-        .background(
-            RoundedRectangle(cornerRadius: 7, style: .continuous)
-                .fill(Color.white.opacity(0.045))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 7, style: .continuous)
-                .strokeBorder(.white.opacity(0.10))
-        )
+        .font(.caption2.monospacedDigit().weight(.medium))
         .fixedSize(horizontal: true, vertical: false)
     }
 
@@ -2090,7 +2061,11 @@ private struct IslandSessionRow: View {
         let tint = statusTint(for: presence)
         switch stateIndicator {
         case .animatedDot:
-            if stateIndicator.usesLayerAnimation(presence: presence, isActionable: isActionable) {
+            if stateIndicator.usesLayerAnimation(
+                presence: presence,
+                isActionable: isActionable,
+                reduceMotion: reduceMotion
+            ) {
                 PulsingStatusDot(tint: tint)
                     .frame(width: 8, height: 22, alignment: .top)
             } else {
@@ -2120,10 +2095,10 @@ private struct IslandSessionRow: View {
         Circle()
             .fill(tint)
             .frame(width: 7, height: 7)
-            .scaleEffect(1 + (pulse * 0.14))
+            .scaleEffect(1 + (pulse * 0.08))
             .shadow(
-                color: tint.opacity(presence == .inactive ? 0 : 0.2 + (pulse * 0.16)),
-                radius: 2 + (pulse * 2)
+                color: tint.opacity(presence == .inactive ? 0 : 0.1 + (pulse * 0.1)),
+                radius: 1.5 + pulse
             )
             .padding(.top, 6)
     }
@@ -2192,26 +2167,27 @@ private struct IslandSessionRow: View {
             }
         } label: {
             Image(systemName: "chevron.down")
-                .font(.system(size: 9, weight: .semibold))
-                .foregroundStyle(isOpen || isHighlighted ? .white.opacity(0.64) : .white.opacity(0.36))
-                .frame(width: 24, height: 24)
+                .font(.system(size: 8.5, weight: .semibold))
+                .foregroundStyle(isOpen || isHighlighted ? .white.opacity(0.58) : .white.opacity(0.3))
+                .frame(width: 22, height: 22)
                 .background(
                     Circle()
                         .fill(.white.opacity(detailToggleFillOpacity(isOpen: isOpen)))
                 )
                 .rotationEffect(.degrees(isOpen ? 180 : 0))
-                .contentShape(Rectangle())
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(isOpen ? "Collapse session detail" : "Expand session detail")
+        .help(isOpen ? "Collapse session detail" : "Expand session detail")
     }
 
     private func detailToggleFillOpacity(isOpen: Bool) -> Double {
         if isHighlighted {
-            return isOpen ? 0.075 : 0.055
+            return isOpen ? 0.055 : 0.04
         }
 
-        return isOpen ? 0.045 : 0.02
+        return isOpen ? 0.025 : 0
     }
 
     private func compactBadge(

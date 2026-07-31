@@ -41,7 +41,7 @@ struct SpotifyPlayerView: View {
                 artwork
                     .frame(width: layout.artworkSize, height: layout.artworkSize)
 
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 8) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(snapshot.title.isEmpty ? "Spotify" : snapshot.title)
                             .font(.headline)
@@ -50,7 +50,7 @@ struct SpotifyPlayerView: View {
 
                         Text(snapshot.artist.isEmpty ? "Ready to play" : snapshot.artist)
                             .font(.subheadline)
-                            .foregroundStyle(.white.opacity(0.5))
+                            .foregroundStyle(.white.opacity(0.44))
                             .lineLimit(1)
                     }
 
@@ -65,7 +65,7 @@ struct SpotifyPlayerView: View {
                                 }
                             }
                         )
-                        .tint(SpotifyPalette.green.opacity(0.82))
+                        .tint(SpotifyPalette.green.opacity(0.7))
                         .controlSize(.mini)
                         .accessibilityLabel("Playback position")
                         .accessibilityValue(
@@ -78,12 +78,12 @@ struct SpotifyPlayerView: View {
                             Text(timeLabel(snapshot.duration))
                         }
                         .font(.caption2.monospacedDigit())
-                        .foregroundStyle(.white.opacity(0.32))
+                        .foregroundStyle(.white.opacity(0.28))
                         .accessibilityHidden(true)
                     }
 
                     ZStack {
-                        HStack(spacing: 12) {
+                        HStack(spacing: 10) {
                             SpotifyTransportButton(
                                 systemName: "backward.fill",
                                 accessibilityLabel: "Previous track"
@@ -109,8 +109,8 @@ struct SpotifyPlayerView: View {
                             Spacer()
 
                             Image(systemName: volume < 0.02 ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                                .font(.caption2.weight(.semibold))
-                                .foregroundStyle(.white.opacity(0.34))
+                                .font(.caption2.weight(.medium))
+                                .foregroundStyle(.white.opacity(0.28))
                                 .accessibilityHidden(true)
 
                             Slider(
@@ -123,9 +123,9 @@ struct SpotifyPlayerView: View {
                                     }
                                 }
                             )
-                            .tint(.white.opacity(0.58))
+                            .tint(.white.opacity(0.44))
                             .controlSize(.mini)
-                            .frame(width: 88)
+                            .frame(width: 80)
                             .accessibilityLabel("Spotify volume")
                         }
                     }
@@ -155,19 +155,19 @@ struct SpotifyPlayerView: View {
                     .scaledToFill()
             default:
                 ZStack {
-                    Color.white.opacity(0.055)
+                    Color.white.opacity(0.035)
                     SpotifyGlyph()
-                        .frame(width: 42, height: 42)
-                        .opacity(0.72)
+                        .frame(width: 36, height: 36)
+                        .opacity(0.56)
                 }
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(.white.opacity(0.07), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(.white.opacity(0.055), lineWidth: 0.5)
         }
-        .shadow(color: .black.opacity(0.22), radius: 5, y: 2)
+        .shadow(color: .black.opacity(0.18), radius: 4, y: 2)
         .accessibilityHidden(true)
     }
 
@@ -232,9 +232,9 @@ private struct SpotifyTransportButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: systemName)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.white.opacity(isHovered ? 0.82 : 0.58))
-                .frame(width: 28, height: 28)
+                .font(.system(size: 10.5, weight: .medium))
+                .foregroundStyle(.white.opacity(isHovered ? 0.78 : 0.48))
+                .frame(width: 26, height: 26)
                 .background(.white.opacity(isHovered ? 0.055 : 0), in: Circle())
                 .contentShape(Circle())
         }
@@ -263,17 +263,17 @@ private struct SpotifyPlayPauseButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(.black.opacity(0.84))
-                .frame(width: 32, height: 32)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.white.opacity(isHovered ? 0.92 : 0.82))
+                .frame(width: 30, height: 30)
                 .background(
-                    SpotifyPalette.green.opacity(isHovered ? 1 : 0.9),
+                    .white.opacity(isHovered ? 0.16 : 0.10),
                     in: Circle()
                 )
-                .shadow(
-                    color: SpotifyPalette.green.opacity(isHovered ? 0.16 : 0.08),
-                    radius: isHovered ? 5 : 3
-                )
+                .overlay {
+                    Circle()
+                        .stroke(.white.opacity(isHovered ? 0.10 : 0.065), lineWidth: 0.5)
+                }
         }
         .buttonStyle(.plain)
         .onHover { hovering in

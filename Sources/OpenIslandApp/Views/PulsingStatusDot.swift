@@ -57,7 +57,7 @@ struct PulsingStatusDot: NSViewRepresentable {
 
         override func layout() {
             super.layout()
-            let diameter: CGFloat = 9
+            let diameter: CGFloat = 7
             let dotBounds = CGRect(x: 0, y: 0, width: diameter, height: diameter)
 
             CATransaction.begin()
@@ -76,8 +76,8 @@ struct PulsingStatusDot: NSViewRepresentable {
             CATransaction.setDisableActions(true)
             dotLayer.fillColor = tintColor.cgColor
             dotLayer.shadowColor = tintColor.cgColor
-            dotLayer.shadowOpacity = 0.36
-            dotLayer.shadowRadius = 4
+            dotLayer.shadowOpacity = 0.12
+            dotLayer.shadowRadius = 2
             dotLayer.shadowOffset = .zero
             CATransaction.commit()
         }
@@ -87,19 +87,19 @@ struct PulsingStatusDot: NSViewRepresentable {
 
             let scale = CABasicAnimation(keyPath: "transform.scale")
             scale.fromValue = 1
-            scale.toValue = 1.18
+            scale.toValue = 1.08
 
             let shadowOpacity = CABasicAnimation(keyPath: "shadowOpacity")
-            shadowOpacity.fromValue = 0.36
-            shadowOpacity.toValue = 0.62
+            shadowOpacity.fromValue = 0.12
+            shadowOpacity.toValue = 0.22
 
             let shadowRadius = CABasicAnimation(keyPath: "shadowRadius")
-            shadowRadius.fromValue = 4
-            shadowRadius.toValue = 7
+            shadowRadius.fromValue = 2
+            shadowRadius.toValue = 3
 
             let group = CAAnimationGroup()
             group.animations = [scale, shadowOpacity, shadowRadius]
-            group.duration = 0.98
+            group.duration = 1.4
             group.autoreverses = true
             group.repeatCount = .infinity
             group.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)

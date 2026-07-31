@@ -183,6 +183,7 @@
 "island.startAgent" = "在终端中启动编码代理";
 "island.recentSessions" = "最近的会话将保留在这里，直到终端重新打开";
 "island.hint.installHooks" = "尚未安装任何代理 hook，会话不会触发事件 · 点击配置";
+"island.hint.installHooksShort" = "设置代理 hook";
 
 /* Island Panel - Session List */
 "island.sessionList.title" = "会话";

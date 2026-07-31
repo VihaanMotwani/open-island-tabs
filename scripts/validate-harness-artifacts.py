@@ -250,7 +250,7 @@ def main() -> None:
             fail(f"expected approvalCard/actionable session surface, got {island_surface!r}")
         require_frame_between(
             overlay_frame,
-            width=(520, 780),
+            width=(420, 520),
             height=(240, 390),
             context="approvalCard overlay frame",
         )
@@ -266,8 +266,8 @@ def main() -> None:
             fail(f"expected questionCard/actionable session surface, got {island_surface!r}")
         require_frame_between(
             overlay_frame,
-            width=(520, 780),
-            height=(180, 430),
+            width=(420, 520),
+            height=(180, 520),
             context="questionCard overlay frame",
         )
         if selected_session_phase(report) != "waitingForAnswer":
@@ -280,7 +280,7 @@ def main() -> None:
             fail(f"expected completionCard/actionable session surface, got {island_surface!r}")
         require_frame_between(
             overlay_frame,
-            width=(520, 780),
+            width=(420, 520),
             height=(180, 460),
             context="completionCard overlay frame",
         )
@@ -294,7 +294,7 @@ def main() -> None:
             fail(f"expected longCompletionCard to remain on completion/actionable session surface, got {island_surface!r}")
         require_frame_between(
             overlay_frame,
-            width=(520, 780),
+            width=(420, 520),
             height=(180, 460),
             context="longCompletionCard overlay frame",
         )

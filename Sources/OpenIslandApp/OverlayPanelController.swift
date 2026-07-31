@@ -566,14 +566,14 @@ final class OverlayPanelController {
         let visibleSessions = openedVisibleSessions(
             sessions: model.islandListSessions
         )
-        let installHooksHintHeight = model.hasAnyInstalledAgent
-            ? 0
-            : ExpandedNotchLayoutMetrics.installHooksHintReservedHeight
+        let installHooksHintHeight = model.shouldShowInstallHooksHint
+            ? ExpandedNotchLayoutMetrics.installHooksHintReservedHeight
+            : 0
 
         if visibleSessions.isEmpty {
             return ExpandedNotchLayoutMetrics.agentsContentHeight(
                 rowHeights: [],
-                showsInstallHooksHint: !model.hasAnyInstalledAgent
+                showsInstallHooksHint: model.shouldShowInstallHooksHint
             )
         }
 
@@ -616,7 +616,7 @@ final class OverlayPanelController {
 
         return ExpandedNotchLayoutMetrics.agentsContentHeight(
             rowHeights: rowHeights,
-            showsInstallHooksHint: !model.hasAnyInstalledAgent
+            showsInstallHooksHint: model.shouldShowInstallHooksHint
         )
     }
 

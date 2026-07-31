@@ -548,7 +548,7 @@ struct IslandPanelView: View {
                     .transition(.opacity)
             } else {
                 VStack(spacing: 8) {
-                    if !model.hasAnyInstalledAgent {
+                    if model.shouldShowInstallHooksHint {
                         installHooksHint
                             .padding(.horizontal, ExpandedNotchLayoutMetrics.safeContentHorizontalInset)
                             .padding(.top, 8)

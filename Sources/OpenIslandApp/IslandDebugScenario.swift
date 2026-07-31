@@ -42,6 +42,7 @@ struct IslandDebugSnapshot {
 enum IslandDebugScenario: String, CaseIterable, Identifiable {
     case closed
     case sessionList
+    case claudeDemo
     case approvalCard
     case questionCard
     case completionCard
@@ -56,6 +57,8 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
             "Closed Notch"
         case .sessionList:
             "Session List"
+        case .claudeDemo:
+            "Claude Launch Demo"
         case .approvalCard:
             "Approval Card"
         case .questionCard:
@@ -75,6 +78,8 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
             "Collapsed idle/running notch with live count and attention affordance."
         case .sessionList:
             "Manual expanded list with running, active, and inactive session rows."
+        case .claudeDemo:
+            "Recording-ready Claude sessions with parallel active work, subagents, tasks, and a recent completion."
         case .approvalCard:
             "Auto-expanded permission surface with approve and deny actions."
         case .questionCard:
@@ -106,6 +111,19 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
 
         case .sessionList:
             let sessions = DebugSessionFactory.listSessions(now: now)
+            return IslandDebugSnapshot(
+                title: title,
+                summary: summary,
+                previewHeight: 430,
+                notchStatus: .opened,
+                notchOpenReason: .click,
+                islandSurface: .sessionList(),
+                sessions: sessions,
+                selectedSessionID: sessions.first?.id
+            )
+
+        case .claudeDemo:
+            let sessions = DebugSessionFactory.claudeDemoSessions(now: now)
             return IslandDebugSnapshot(
                 title: title,
                 summary: summary,
@@ -276,6 +294,131 @@ private enum DebugSessionFactory {
         }
         sessions[0] = lead
         return sessions
+    }
+
+    static func claudeDemoSessions(now: Date) -> [AgentSession] {
+        [
+            claudeRunningSession(now: now),
+            claudeVerificationSession(now: now),
+            claudeCompletedSession(now: now),
+        ]
+    }
+
+    static func claudeRunningSession(now: Date) -> AgentSession {
+        AgentSession(
+            id: "claude-demo-running",
+            title: "Claude · launch-film",
+            tool: .claudeCode,
+            origin: .demo,
+            attachmentState: .attached,
+            phase: .running,
+            summary: "Refining the launch sequence and checking the final capture.",
+            updatedAt: now.addingTimeInterval(-35),
+            jumpTarget: JumpTarget(
+                terminalApp: "Terminal",
+                workspaceName: "launch-film",
+                paneTitle: "claude ~/Projects/launch-film",
+                workingDirectory: "/Users/demo/Projects/launch-film",
+                terminalTTY: "/dev/ttys-demo-1"
+            ),
+            claudeMetadata: ClaudeSessionMetadata(
+                initialUserPrompt: "Polish the Open Island launch sequence and prepare a clean 4K product cut.",
+                lastUserPrompt: "Keep the motion subtle and let the product UI breathe.",
+                lastAssistantMessage: "Reviewing the final timing pass and capture framing.",
+                currentTool: "Bash",
+                currentToolInputPreview: "swift test --filter LaunchSequenceTests",
+                model: "claude-opus-4-1",
+                worktreeBranch: "feat/launch-film",
+                activeSubagents: [
+                    ClaudeSubagentInfo(
+                        agentID: "visual-review",
+                        agentType: "Visual review",
+                        taskDescription: "Check spacing and motion",
+                        startedAt: now.addingTimeInterval(-75)
+                    ),
+                    ClaudeSubagentInfo(
+                        agentID: "copy-review",
+                        agentType: "Copy review",
+                        summary: "Launch captions are concise and consistent.",
+                        taskDescription: "Tighten launch captions",
+                        startedAt: now.addingTimeInterval(-140)
+                    ),
+                ],
+                activeTasks: [
+                    ClaudeTaskInfo(
+                        id: "storyboard",
+                        title: "Lock the product storyboard",
+                        status: .completed
+                    ),
+                    ClaudeTaskInfo(
+                        id: "capture",
+                        title: "Record the expanded Agents surface",
+                        status: .inProgress
+                    ),
+                    ClaudeTaskInfo(
+                        id: "export",
+                        title: "Export the 4K launch cut",
+                        status: .pending
+                    ),
+                ]
+            )
+        )
+    }
+
+    static func claudeVerificationSession(now: Date) -> AgentSession {
+        AgentSession(
+            id: "claude-demo-verification",
+            title: "Claude · open-island",
+            tool: .claudeCode,
+            origin: .demo,
+            attachmentState: .attached,
+            phase: .running,
+            summary: "Running the final release verification.",
+            updatedAt: now.addingTimeInterval(-18),
+            jumpTarget: JumpTarget(
+                terminalApp: "Terminal",
+                workspaceName: "open-island",
+                paneTitle: "claude ~/Projects/open-island",
+                workingDirectory: "/Users/demo/Projects/open-island",
+                terminalTTY: "/dev/ttys-demo-2"
+            ),
+            claudeMetadata: ClaudeSessionMetadata(
+                initialUserPrompt: "Prepare Open Island for the launch recording.",
+                lastUserPrompt: "Run the final checks before we record.",
+                lastAssistantMessage: "The release verification suite is running now.",
+                currentTool: "Bash",
+                currentToolInputPreview: "zsh scripts/harness.sh ci",
+                model: "claude-sonnet-4",
+                worktreeBranch: "feat/launch-demo"
+            )
+        )
+    }
+
+    static func claudeCompletedSession(now: Date) -> AgentSession {
+        AgentSession(
+            id: "claude-demo-completed",
+            title: "Claude · product-copy",
+            tool: .claudeCode,
+            origin: .demo,
+            attachmentState: .attached,
+            phase: .completed,
+            summary: "Launch captions and product copy are ready.",
+            updatedAt: now.addingTimeInterval(-2 * 60),
+            jumpTarget: JumpTarget(
+                terminalApp: "Terminal",
+                workspaceName: "product-copy",
+                paneTitle: "claude ~/Projects/product-copy",
+                workingDirectory: "/Users/demo/Projects/product-copy",
+                terminalTTY: "/dev/ttys-demo-3"
+            ),
+            claudeMetadata: ClaudeSessionMetadata(
+                initialUserPrompt: "Write concise launch captions for the Open Island product video.",
+                lastUserPrompt: "Keep every line direct and product-led.",
+                lastAssistantMessage: "The final captions are tightened and ready for the edit.",
+                model: "claude-sonnet-4",
+                worktreeBranch: "feat/launch-copy"
+            )
+        )
     }
 
     static func runningSession(now: Date) -> AgentSession {

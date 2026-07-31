@@ -243,6 +243,36 @@ def main() -> None:
         if report.get("sessionCount") != 9:
             assert_contains_any(text_values, ["sessions hidden", "9 "], "sessionList text values")
 
+    elif scenario == "claudeDemo":
+        if notch_status != "opened":
+            fail(f"expected opened notch for claudeDemo, got {notch_status!r}")
+        if island_surface != "sessionList":
+            fail(f"expected claudeDemo to use sessionList, got {island_surface!r}")
+        require_frame_between(
+            overlay_frame,
+            width=(420, 520),
+            height=(260, 620),
+            context="claudeDemo overlay frame",
+        )
+
+        sessions = report.get("sessions") or []
+        if len(sessions) != 3:
+            fail(f"expected three Claude demo sessions, got {len(sessions)}")
+        if any(session.get("tool") != "claudeCode" for session in sessions):
+            fail("claudeDemo contains a non-Claude session")
+
+        phases = {session.get("phase") for session in sessions}
+        required_phases = {"running", "completed"}
+        if not required_phases.issubset(phases):
+            fail(f"claudeDemo is missing launch states {sorted(required_phases - phases)}")
+        if sum(session.get("phase") == "running" for session in sessions) != 2:
+            fail("claudeDemo should show two active Claude sessions")
+
+        if not any("launch-film" in str(session.get("title", "")) for session in sessions):
+            fail("claudeDemo report is missing the launch-film session")
+        if any("Set up agent hooks" in value for value in labels | text_values):
+            fail("claudeDemo should not show the real hook setup hint")
+
     elif scenario == "approvalCard":
         if notch_status != "opened":
             fail(f"expected opened notch for approvalCard, got {notch_status!r}")

@@ -30,15 +30,19 @@ final class OpenIslandAppDelegate: NSObject, NSApplicationDelegate {
             )
             harnessRuntimeMonitor.recordMilestone("modelStarted")
 
-            if let scenario = harnessLaunchConfiguration.scenario {
-                model.loadDebugSnapshot(
-                    scenario.snapshot(),
-                    presentOverlay: harnessLaunchConfiguration.presentOverlay
-                )
+            for step in harnessLaunchConfiguration.windowBootstrapSteps {
+                switch step {
+                case .hideExistingWindows:
+                    // Hide settings and other stale windows before a harness
+                    // scenario presents its recording surface.
+                    OpenIslandAppDelegate.hideAllAppWindows()
+                case let .loadScenario(scenario):
+                    model.loadDebugSnapshot(
+                        scenario.snapshot(),
+                        presentOverlay: harnessLaunchConfiguration.presentOverlay
+                    )
+                }
             }
-
-            // Hide all windows on launch — settings opens on demand only.
-            OpenIslandAppDelegate.hideAllAppWindows()
 
             harnessRuntimeMonitor.recordMilestone("bootstrapCompleted")
 

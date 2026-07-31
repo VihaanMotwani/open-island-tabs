@@ -14,6 +14,7 @@
 - Live volume-popover capture: `/Users/vihaan/.codex/visualizations/2026/07/31/019fb6d5-150b-7ef0-900e-3daa5206e134/open-island-expanded-notch-audit/20-dynamic-island-after/spotify-volume-popover-final.jpeg`
 - Live Agents capture: `/Users/vihaan/.codex/visualizations/2026/07/31/019fb6d5-150b-7ef0-900e-3daa5206e134/open-island-expanded-notch-audit/20-dynamic-island-after/agents-tab-prompt-icon-final.jpeg`
 - Deterministic Agents capture: `/Users/vihaan/.codex/worktrees/a54d/notch/output/harness/agents-flat-status-final/overlay.png`
+- Deterministic Claude launch-demo capture: `/Users/vihaan/.codex/worktrees/a54d/notch/output/harness/claude-demo-verified/overlay.png`
 - Long-completion regression capture: `/Users/vihaan/.codex/worktrees/a54d/notch/output/harness/long-completion-height-contract-184/overlay.png`
 - Implementation pixels: 1200 × 512 for the deterministic 600 × 256 point Retina capture.
 - State: Spotify selected and playing, dark appearance, built-in Retina display with notch-aware placement.
@@ -61,6 +62,10 @@
 6. Agents typography and status color
    - Raised the tab labels from `caption2` to `caption`, muted the status palette, removed the static and animated colored shadows, and neutralized the install-hooks icon.
    - Evidence: `/Users/vihaan/.codex/worktrees/a54d/notch/output/harness/agents-flat-status-final/overlay.png`.
+7. Claude launch-demo surface
+   - Added a local-only fixture with two running Claude sessions, one completed session, two subagents, and three task states. The synthetic sessions suppress the real hook-setup prompt and remain fully visible in the expanded notch.
+   - The recording launcher uses a separately identified temporary app bundle, so it does not collide with or replace the normal development app.
+   - Evidence: `/Users/vihaan/.codex/worktrees/a54d/notch/output/harness/claude-demo-verified/overlay.png`; the same surface was verified live in `Open Island Claude Demo`.
 
 ## Intentional platform adaptations
 

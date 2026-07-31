@@ -167,6 +167,11 @@ final class AppModel {
             || hooks.geminiHooksInstalled
             || hooks.kimiHooksInstalled
     }
+
+    var shouldShowInstallHooksHint: Bool {
+        !hasAnyInstalledAgent
+            && !state.sessions.contains(where: \.isDemoSession)
+    }
     func refreshCodexHookStatus() { hooks.refreshCodexHookStatus() }
     func refreshClaudeHookStatus() { hooks.refreshClaudeHookStatus() }
     func refreshOpenCodePluginStatus() { hooks.refreshOpenCodePluginStatus() }

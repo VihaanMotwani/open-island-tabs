@@ -5,7 +5,7 @@ struct ExpandedNotchLayoutMetricsTests {
     @Test
     func spotifyLayoutKeepsComfortableMetadataWidthAtPreferredPanelSize() {
         let availableWidth = ExpandedNotchLayoutMetrics.spotifyPlayerContentWidth(
-            containerWidth: 520
+            containerWidth: 564
         )
         let layout = ExpandedNotchLayoutMetrics.spotifyLayout(availableWidth: availableWidth)
 
@@ -27,6 +27,8 @@ struct ExpandedNotchLayoutMetricsTests {
     @Test
     func expandedChromeUsesOneCompactSpacingSystem() {
         #expect(ExpandedNotchLayoutMetrics.contentHorizontalInset == 20)
+        #expect(ExpandedNotchLayoutMetrics.silhouetteHorizontalInset == 22)
+        #expect(ExpandedNotchLayoutMetrics.safeContentHorizontalInset == 42)
         #expect(ExpandedNotchLayoutMetrics.tabSwitcherHeight == 28)
         #expect(ExpandedNotchLayoutMetrics.tabControlHeight == 22)
         #expect(ExpandedNotchLayoutMetrics.sessionHeaderHeight == 32)
@@ -35,14 +37,47 @@ struct ExpandedNotchLayoutMetricsTests {
     }
 
     @Test
-    func expandedSurfacesStayCompactOnAFullWidthMacBookDisplay() {
-        #expect(ExpandedNotchLayoutMetrics.agentsContentWidth(availableScreenWidth: 1_440) == 420)
-        #expect(ExpandedNotchLayoutMetrics.spotifyContentWidth(availableScreenWidth: 1_440) == 520)
+    func expandedSurfacesReserveTheConcaveSilhouetteOutsideVisibleContent() {
+        let agentsWidth = ExpandedNotchLayoutMetrics.agentsSurfaceWidth(
+            availableScreenWidth: 1_440
+        )
+        let spotifyWidth = ExpandedNotchLayoutMetrics.spotifySurfaceWidth(
+            availableScreenWidth: 1_440
+        )
+
+        #expect(agentsWidth == 464)
+        #expect(spotifyWidth == 564)
+        #expect(ExpandedNotchLayoutMetrics.visibleBodyWidth(surfaceWidth: agentsWidth) == 420)
+        #expect(ExpandedNotchLayoutMetrics.visibleBodyWidth(surfaceWidth: spotifyWidth) == 520)
+        #expect(ExpandedNotchLayoutMetrics.spotifyPlayerContentWidth(containerWidth: spotifyWidth) == 480)
     }
 
     @Test
     func expandedSurfacesKeepSafeMarginsOnNarrowDisplays() {
-        #expect(ExpandedNotchLayoutMetrics.agentsContentWidth(availableScreenWidth: 390) == 358)
-        #expect(ExpandedNotchLayoutMetrics.spotifyContentWidth(availableScreenWidth: 390) == 358)
+        #expect(ExpandedNotchLayoutMetrics.agentsSurfaceWidth(availableScreenWidth: 390) == 358)
+        #expect(ExpandedNotchLayoutMetrics.spotifySurfaceWidth(availableScreenWidth: 390) == 358)
+        #expect(ExpandedNotchLayoutMetrics.visibleBodyWidth(surfaceWidth: 358) == 314)
+    }
+
+    @Test
+    func agentsContentHeightReservesSetupHintOutsideTheSessionViewport() {
+        #expect(
+            ExpandedNotchLayoutMetrics.agentsContentHeight(
+                rowHeights: [114, 40],
+                showsInstallHooksHint: false
+            ) == 238
+        )
+        #expect(
+            ExpandedNotchLayoutMetrics.agentsContentHeight(
+                rowHeights: [114, 40],
+                showsInstallHooksHint: true
+            ) == 296
+        )
+        #expect(
+            ExpandedNotchLayoutMetrics.agentsContentHeight(
+                rowHeights: [],
+                showsInstallHooksHint: true
+            ) == 166
+        )
     }
 }

@@ -59,7 +59,11 @@ extension AgentSession {
         let includesDetail = showsDetail ?? showsDetailByDefaultInIslandList(at: date)
         guard presence != .inactive, includesDetail else { return height }
         if spotlightPromptLineText != nil { height += 32 }
-        if spotlightActivityLineText != nil { height += 30 }
+        if !spotlightElapsedTimers.isEmpty {
+            height += ExpandedNotchLayoutMetrics.runningTimerDetailHeight
+        } else if spotlightActivityLineText != nil {
+            height += 30
+        }
         if let subagents = claudeMetadata?.activeSubagents, !subagents.isEmpty {
             height += 18
             height += CGFloat(subagents.count) * 18  // each subagent row (spacing 4 + text 14)
@@ -544,17 +548,17 @@ struct IslandPanelView: View {
                 VStack(spacing: 8) {
                     if !model.hasAnyInstalledAgent {
                         installHooksHint
-                            .padding(.horizontal, ExpandedNotchLayoutMetrics.contentHorizontalInset)
+                            .padding(.horizontal, ExpandedNotchLayoutMetrics.safeContentHorizontalInset)
                             .padding(.top, 8)
                     }
 
                     if model.shouldShowSessionBootstrapPlaceholder {
                         sessionBootstrapPlaceholder
-                            .padding(.horizontal, ExpandedNotchLayoutMetrics.contentHorizontalInset)
+                            .padding(.horizontal, ExpandedNotchLayoutMetrics.safeContentHorizontalInset)
                             .padding(.top, 8)
                     } else if model.islandListSessions.isEmpty {
                         emptyState
-                            .padding(.horizontal, ExpandedNotchLayoutMetrics.contentHorizontalInset)
+                            .padding(.horizontal, ExpandedNotchLayoutMetrics.safeContentHorizontalInset)
                             .padding(.top, 8)
                     } else {
                         sessionList
@@ -650,7 +654,7 @@ struct IslandPanelView: View {
     private static let maxSessionListHeight: CGFloat = 560
 
     private var sessionListSideInset: CGFloat {
-        ExpandedNotchLayoutMetrics.contentHorizontalInset
+        ExpandedNotchLayoutMetrics.safeContentHorizontalInset
     }
 
     private var sessionList: some View {

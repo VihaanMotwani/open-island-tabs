@@ -18,7 +18,7 @@ struct SpotifyPlayerView: View {
                 player
             } else {
                 unavailableState
-                    .padding(.horizontal, ExpandedNotchLayoutMetrics.contentHorizontalInset)
+                    .padding(.horizontal, ExpandedNotchLayoutMetrics.safeContentHorizontalInset)
             }
         }
         .padding(.top, 6)

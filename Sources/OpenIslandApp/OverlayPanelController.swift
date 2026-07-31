@@ -9,16 +9,9 @@ final class OverlayPanelController {
     private static let preferredNotificationPanelWidth: CGFloat = 620
     private static let openedContentWidthPadding: CGFloat = 0
     private static let openedContentBottomPadding: CGFloat = 0
-    /// Must match `IslandPanelView.maxSessionListHeight` — the AutoHeightScrollView cap.
-    private static let maxSessionListHeight: CGFloat = 560
     private static let maxVisibleSessionRows: Int = 6
-    private static let openedRowSpacing: CGFloat = 0
-    // Content padding top + scroll padding + v8 list header/footer + bottom inset.
-    // Rows are now full-width scan rows, so the old inter-card spacing is gone.
-    private static let openedContentVerticalInsets: CGFloat = 84
     private static let notificationMeasuredContentPadding: CGFloat = 8
     private static let notificationEstimatedVerticalInsets: CGFloat = 36
-    private static let openedEmptyStateHeight: CGFloat = 108
     private static let questionCardBaseHeight: CGFloat = 110
     private static let questionCardMaxHeight: CGFloat = 420
     // Completion card chrome breakdown (everything except the scrollable text):
@@ -387,9 +380,10 @@ final class OverlayPanelController {
 
     func openedPanelWidth(for screen: NSScreen?) -> CGFloat {
         guard let screen else {
-            return ExpandedNotchLayoutMetrics.preferredAgentsContentWidth
+            return ExpandedNotchLayoutMetrics.preferredAgentsVisibleBodyWidth
+                + (ExpandedNotchLayoutMetrics.silhouetteHorizontalInset * 2)
         }
-        return ExpandedNotchLayoutMetrics.agentsContentWidth(
+        return ExpandedNotchLayoutMetrics.agentsSurfaceWidth(
             availableScreenWidth: screen.visibleFrame.width
         )
     }
@@ -523,7 +517,7 @@ final class OverlayPanelController {
                 width: openedPanelWidth(for: screen) + Self.openedContentWidthPadding + (insets.horizontal * 2),
                 height: screen.notchSize.height
                     + Self.openedTabStripHeight
-                    + Self.openedEmptyStateHeight
+                    + ExpandedNotchLayoutMetrics.agentsEmptyStateHeight
                     + Self.openedContentBottomPadding
                     + insets.bottom
             )
@@ -535,7 +529,7 @@ final class OverlayPanelController {
         // when sessions come and go while opened.
         let height = screen.notchSize.height
             + Self.openedTabStripHeight
-            + max(contentHeight, Self.openedEmptyStateHeight)
+            + max(contentHeight, ExpandedNotchLayoutMetrics.agentsEmptyStateHeight)
             + Self.openedContentBottomPadding
             + insets.bottom
 
@@ -572,9 +566,15 @@ final class OverlayPanelController {
         let visibleSessions = openedVisibleSessions(
             sessions: model.islandListSessions
         )
+        let installHooksHintHeight = model.hasAnyInstalledAgent
+            ? 0
+            : ExpandedNotchLayoutMetrics.installHooksHintReservedHeight
 
         if visibleSessions.isEmpty {
-            return Self.openedEmptyStateHeight
+            return ExpandedNotchLayoutMetrics.agentsContentHeight(
+                rowHeights: [],
+                showsInstallHooksHint: !model.hasAnyInstalledAgent
+            )
         }
 
         let actionableID = model.islandSurface.sessionID
@@ -583,7 +583,9 @@ final class OverlayPanelController {
         if isNotificationMode {
             // Use SwiftUI-measured height when available (accurate after first render).
             if model.measuredNotificationContentHeight > 0 {
-                return model.measuredNotificationContentHeight + Self.notificationMeasuredContentPadding
+                return model.measuredNotificationContentHeight
+                    + Self.notificationMeasuredContentPadding
+                    + installHooksHintHeight
             }
             // First render: estimate from the actionable session's content so the
             // initial window is close to the final size. This avoids a large blank
@@ -596,9 +598,12 @@ final class OverlayPanelController {
                     showsDetail: true
                 )
                 let bodyHeight = actionableBodyHeight(for: session, model: model)
-                return rowHeight + bodyHeight + Self.notificationEstimatedVerticalInsets
+                return rowHeight
+                    + bodyHeight
+                    + Self.notificationEstimatedVerticalInsets
+                    + installHooksHintHeight
             }
-            return 300
+            return 300 + installHooksHintHeight
         }
 
         let rowHeights = visibleSessions.map { session -> CGFloat in
@@ -609,12 +614,10 @@ final class OverlayPanelController {
             return session.estimatedIslandRowHeight(at: now)
         }
 
-        let rowsHeight = rowHeights.reduce(CGFloat.zero, +)
-        let spacingHeight = CGFloat(max(0, rowHeights.count - 1)) * Self.openedRowSpacing
-        let listHeight = rowsHeight + spacingHeight
-        // Cap to match AutoHeightScrollView's maxHeight in IslandPanelView.
-        let cappedListHeight = min(listHeight, Self.maxSessionListHeight)
-        return cappedListHeight + Self.openedContentVerticalInsets
+        return ExpandedNotchLayoutMetrics.agentsContentHeight(
+            rowHeights: rowHeights,
+            showsInstallHooksHint: !model.hasAnyInstalledAgent
+        )
     }
 
     private func openedPanelWidth(for model: AppModel, on screen: NSScreen) -> CGFloat {
@@ -622,7 +625,7 @@ final class OverlayPanelController {
             return openedPanelWidth(for: screen)
         }
 
-        return ExpandedNotchLayoutMetrics.spotifyContentWidth(
+        return ExpandedNotchLayoutMetrics.spotifySurfaceWidth(
             availableScreenWidth: screen.visibleFrame.width
         )
     }

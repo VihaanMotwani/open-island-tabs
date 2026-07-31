@@ -396,7 +396,9 @@ struct IslandPanelView: View {
         HStack(spacing: Self.headerControlSpacing) {
             headerIconButton(
                 systemName: model.isSoundMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
-                tint: model.isSoundMuted ? .orange.opacity(0.92) : .white.opacity(0.62),
+                tint: model.isSoundMuted
+                    ? .orange.opacity(0.92)
+                    : ExpandedNotchVisualStyle.textColor(.secondary),
                 accessibilityLabel: model.isSoundMuted ? "Unmute notification sounds" : "Mute notification sounds"
             ) {
                 model.toggleSoundMuted()
@@ -404,7 +406,7 @@ struct IslandPanelView: View {
 
             headerIconButton(
                 systemName: "gearshape",
-                tint: .white.opacity(0.62),
+                tint: ExpandedNotchVisualStyle.textColor(.secondary),
                 accessibilityLabel: "Open settings"
             ) {
                 model.showSettings()
@@ -412,7 +414,7 @@ struct IslandPanelView: View {
 
             headerIconButton(
                 systemName: "power",
-                tint: .white.opacity(0.62),
+                tint: ExpandedNotchVisualStyle.textColor(.secondary),
                 accessibilityLabel: model.lang.t("island.quit.confirmTitle")
             ) {
                 showingQuitConfirmation = true
@@ -429,7 +431,10 @@ struct IslandPanelView: View {
         .background(.white.opacity(0.025), in: Capsule())
         .overlay {
             Capsule()
-                .stroke(.white.opacity(0.055), lineWidth: 1)
+                .stroke(
+                    .white.opacity(ExpandedNotchVisualStyle.dividerOpacity),
+                    lineWidth: 1
+                )
         }
         .frame(height: ExpandedNotchLayoutMetrics.tabControlHeight + 4)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -446,6 +451,9 @@ struct IslandPanelView: View {
             tab == .spotify
             && model.spotifyPlayback.snapshot.availability == .notRunning
         let isHovered = hoveredIslandTab == tab
+        let labelRole: ExpandedNotchTextRole = isSelected
+            ? .primary
+            : (isHovered ? .secondary : .tertiary)
 
         return Button {
             model.selectIslandTab(tab)
@@ -459,8 +467,8 @@ struct IslandPanelView: View {
                     Text(tab == .agents ? "Agents" : "Spotify")
                         .font(.caption2.weight(isSelected ? .semibold : .medium))
                 }
-                .foregroundStyle(.white.opacity(isSelected ? 0.88 : (isHovered ? 0.64 : 0.42)))
-                .opacity(isUnavailableSpotify ? 0.62 : 1)
+                .foregroundStyle(ExpandedNotchVisualStyle.textColor(labelRole))
+                .opacity(isUnavailableSpotify ? 0.78 : 1)
                 .frame(
                     minWidth: tab == .agents ? 68 : 70,
                     minHeight: ExpandedNotchLayoutMetrics.tabControlHeight
@@ -480,8 +488,12 @@ struct IslandPanelView: View {
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
                     .fill(
                         isSelected
-                            ? .white.opacity(0.09)
-                            : .white.opacity(isHovered ? 0.035 : 0)
+                            ? .white.opacity(ExpandedNotchVisualStyle.selectedControlFillOpacity)
+                            : .white.opacity(
+                                isHovered
+                                    ? ExpandedNotchVisualStyle.hoverControlFillOpacity
+                                    : 0
+                            )
                     )
             )
         }
@@ -579,13 +591,13 @@ struct IslandPanelView: View {
                     .accessibilityHidden(true)
                 Text(model.lang.t("island.hint.installHooksShort"))
                     .font(.caption.weight(.medium))
-                    .foregroundStyle(.white.opacity(0.7))
+                    .foregroundStyle(ExpandedNotchVisualStyle.textColor(.secondary))
                     .lineLimit(1)
                     .multilineTextAlignment(.leading)
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right")
                     .font(.system(size: 8.5, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.28))
+                    .foregroundStyle(ExpandedNotchVisualStyle.textColor(.subdued))
                     .accessibilityHidden(true)
             }
             .padding(.horizontal, 10)
@@ -595,7 +607,10 @@ struct IslandPanelView: View {
                     .fill(.white.opacity(0.032))
                     .overlay(
                         RoundedRectangle(cornerRadius: 7, style: .continuous)
-                            .stroke(.white.opacity(0.06), lineWidth: 0.5)
+                            .stroke(
+                                .white.opacity(ExpandedNotchVisualStyle.dividerOpacity),
+                                lineWidth: 0.5
+                            )
                     )
             )
         }
@@ -609,14 +624,14 @@ struct IslandPanelView: View {
             Spacer()
             ProgressView()
                 .progressViewStyle(.circular)
-                .tint(.white.opacity(0.7))
+                .tint(ExpandedNotchVisualStyle.textColor(.secondary))
                 .scaleEffect(0.8)
             Text(model.lang.t("island.checkingTerminals"))
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(.white.opacity(0.58))
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(ExpandedNotchVisualStyle.textColor(.secondary))
             Text(model.lang.t("island.terminalOwnership"))
-                .font(.system(size: 12))
-                .foregroundStyle(.white.opacity(0.28))
+                .font(.caption)
+                .foregroundStyle(ExpandedNotchVisualStyle.textColor(.subdued))
             Spacer()
         }
         .frame(maxWidth: .infinity)
@@ -626,13 +641,13 @@ struct IslandPanelView: View {
         VStack(spacing: 12) {
             Spacer()
             Text(model.lang.t("island.noTerminals"))
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(.white.opacity(0.4))
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(ExpandedNotchVisualStyle.textColor(.secondary))
             Text(model.recentSessions.isEmpty
                 ? model.lang.t("island.startAgent")
                 : model.lang.t("island.recentSessions"))
-                .font(.system(size: 12))
-                .foregroundStyle(.white.opacity(0.25))
+                .font(.caption)
+                .foregroundStyle(ExpandedNotchVisualStyle.textColor(.subdued))
             Spacer()
         }
         .frame(maxWidth: .infinity)
@@ -823,7 +838,7 @@ struct IslandPanelView: View {
         return HStack(spacing: 8) {
             Text(lang.t("island.sessionList.title"))
                 .font(.caption2.weight(.semibold))
-                .foregroundStyle(V6Palette.paper.opacity(0.62))
+                .foregroundStyle(ExpandedNotchVisualStyle.textColor(.secondary))
 
             ViewThatFits(in: .horizontal) {
                 sessionOverviewView(overview, compact: false)
@@ -837,7 +852,7 @@ struct IslandPanelView: View {
         .frame(height: ExpandedNotchLayoutMetrics.sessionHeaderHeight)
         .overlay(alignment: .bottom) {
             Rectangle()
-                .fill(.white.opacity(0.045))
+                .fill(.white.opacity(ExpandedNotchVisualStyle.dividerOpacity))
                 .frame(height: 1)
         }
     }
@@ -847,7 +862,7 @@ struct IslandPanelView: View {
             .frame(height: ExpandedNotchLayoutMetrics.sessionFooterHeight)
         .overlay(alignment: .top) {
             Rectangle()
-                .fill(.white.opacity(0.045))
+                .fill(.white.opacity(ExpandedNotchVisualStyle.dividerOpacity))
                 .frame(height: 1)
         }
     }
@@ -906,7 +921,11 @@ struct IslandPanelView: View {
 
             Text(sessionOverviewMetricTitle(item, compact: compact))
                 .font(.caption2.monospacedDigit().weight(.medium))
-                .foregroundStyle(item.tint == nil ? V6Palette.paper.opacity(0.38) : V6Palette.paper.opacity(0.52))
+                .foregroundStyle(
+                    ExpandedNotchVisualStyle.textColor(
+                        item.tint == nil ? .subdued : .tertiary
+                    )
+                )
         }
     }
 
@@ -923,13 +942,12 @@ struct IslandPanelView: View {
             Circle()
                 .fill(sectionTint(for: section))
                 .frame(width: 7, height: 7)
-            Text(sessionSectionTitle(for: section).uppercased())
-                .font(.system(size: 10.5, weight: .semibold, design: .monospaced))
-                .tracking(0.4)
+            Text(sessionSectionTitle(for: section))
+                .font(.caption2.weight(.semibold))
                 .foregroundStyle(sectionLabelColor(for: section))
             Text("\(section.sessions.count)")
-                .font(.system(size: 10.5, weight: .medium, design: .monospaced))
-                .foregroundStyle(V6Palette.paper.opacity(0.4))
+                .font(.caption2.monospacedDigit().weight(.medium))
+                .foregroundStyle(ExpandedNotchVisualStyle.textColor(.subdued))
             Spacer(minLength: 0)
         }
         .padding(.leading, sessionListSideInset)
@@ -939,7 +957,7 @@ struct IslandPanelView: View {
         .background(Color.white.opacity(0.008))
         .overlay(alignment: .top) {
             Rectangle()
-                .fill(.white.opacity(0.055))
+                .fill(.white.opacity(ExpandedNotchVisualStyle.dividerOpacity))
                 .frame(height: 1)
         }
     }
@@ -964,7 +982,7 @@ struct IslandPanelView: View {
         case "state-answer":
             return IslandDesignPalette.Status.waitingForAnswer.opacity(0.86)
         default:
-            return V6Palette.paper.opacity(0.7)
+            return ExpandedNotchVisualStyle.textColor(.secondary)
         }
     }
 
@@ -1162,15 +1180,15 @@ struct IslandPanelView: View {
     private func compactUsageChip(_ provider: UsageProviderPresentation, usesShortTitle: Bool) -> some View {
         HStack(spacing: 5) {
             Text(usesShortTitle ? provider.shortTitle : provider.title)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.74))
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(ExpandedNotchVisualStyle.textColor(.secondary))
 
             Text(provider.peakWindowLabel)
-                .font(.system(size: 10.5, weight: .semibold, design: .monospaced))
-                .foregroundStyle(.white.opacity(0.42))
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(ExpandedNotchVisualStyle.textColor(.subdued))
 
             Text("\(provider.peakUsagePercentage)%")
-                .font(.system(size: 11.5, weight: .bold, design: .monospaced))
+                .font(.caption.monospacedDigit().weight(.semibold))
                 .foregroundStyle(usageColor(for: provider.peakUsedPercentage))
         }
         .padding(.horizontal, 8)
@@ -1178,7 +1196,10 @@ struct IslandPanelView: View {
         .background(.white.opacity(0.055), in: Capsule())
         .overlay(
             Capsule()
-                .strokeBorder(.white.opacity(0.06), lineWidth: 1)
+                .strokeBorder(
+                    .white.opacity(ExpandedNotchVisualStyle.dividerOpacity),
+                    lineWidth: 1
+                )
         )
         .help(usageHelpText(for: provider))
     }
@@ -1255,10 +1276,20 @@ private struct IslandHeaderControlButton: View {
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(tint.opacity(isHovered ? 1 : 0.82))
                 .frame(width: size, height: size)
-                .background(.white.opacity(isHovered ? 0.085 : 0), in: Circle())
+                .background(
+                    .white.opacity(
+                        isHovered ? ExpandedNotchVisualStyle.hoverControlFillOpacity : 0
+                    ),
+                    in: Circle()
+                )
                 .overlay {
                     Circle()
-                        .stroke(.white.opacity(isHovered ? 0.055 : 0), lineWidth: 0.5)
+                        .stroke(
+                            .white.opacity(
+                                isHovered ? ExpandedNotchVisualStyle.dividerOpacity : 0
+                            ),
+                            lineWidth: 0.5
+                        )
                 }
                 .contentShape(Circle())
         }
@@ -1403,7 +1434,7 @@ private struct IslandSessionRow: View {
         .background(rowFillColor(for: presence))
         .overlay(alignment: .top) {
             Rectangle()
-                .fill(.white.opacity(0.035))
+                .fill(.white.opacity(ExpandedNotchVisualStyle.dividerOpacity))
                 .frame(height: 1)
         }
         .overlay(alignment: .leading) {
@@ -1472,7 +1503,7 @@ private struct IslandSessionRow: View {
                 }
                 Spacer(minLength: 4)
                 Text(session.spotlightAgeBadge)
-                    .font(.system(size: 10.5, weight: .medium, design: .monospaced))
+                    .font(ExpandedNotchTypographyRole.elapsedValue.font)
                     .foregroundStyle(summaryAgeColor(for: presence))
                     .frame(minWidth: 30, alignment: .trailing)
             }
@@ -1584,7 +1615,7 @@ private struct IslandSessionRow: View {
     private var agentBadge: some View {
         let tint = Color(hex: session.tool.brandColorHex) ?? V6Palette.paper
         return Text(agentBadgeTitle)
-            .font(.caption2.monospaced().weight(.semibold))
+            .font(ExpandedNotchTypographyRole.sessionMetadata.font.weight(.semibold))
             .foregroundStyle(tint.opacity(notificationChromeOpacity))
             .padding(.horizontal, 7)
             .padding(.vertical, 2)
@@ -1593,8 +1624,12 @@ private struct IslandSessionRow: View {
 
     private func sideBadge(_ title: String) -> some View {
         Text(title)
-            .font(.caption2.monospaced().weight(.medium))
-            .foregroundStyle(V6Palette.paper.opacity(presentation == .notification ? 0.46 : 0.52))
+            .font(ExpandedNotchTypographyRole.sessionMetadata.font)
+            .foregroundStyle(
+                presentation == .notification
+                    ? .white.opacity(0.46)
+                    : ExpandedNotchVisualStyle.textColor(.tertiary)
+            )
             .lineLimit(1)
             .fixedSize(horizontal: true, vertical: false)
     }
@@ -1694,7 +1729,9 @@ private struct IslandSessionRow: View {
             return V6Palette.paper.opacity(session.phase == .completed ? 0.38 : 0.46)
         }
 
-        return V6Palette.paper.opacity(presence == .inactive ? 0.34 : 0.52)
+        return ExpandedNotchVisualStyle.textColor(
+            presence == .inactive ? .subdued : .tertiary
+        )
     }
 
     private func summaryAgeColor(for presence: IslandSessionPresence) -> Color {
@@ -1702,7 +1739,9 @@ private struct IslandSessionRow: View {
             return V6Palette.paper.opacity(0.36)
         }
 
-        return V6Palette.paper.opacity(presence == .inactive ? 0.32 : 0.45)
+        return ExpandedNotchVisualStyle.textColor(
+            presence == .inactive ? .subdued : .tertiary
+        )
     }
 
     private var notificationChromeOpacity: Double {
@@ -1790,8 +1829,8 @@ private struct IslandSessionRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         } else if let runningDetailText {
             Text(runningDetailText)
-                .font(.caption2.monospaced().weight(.medium))
-                .foregroundStyle(.white.opacity(0.58))
+                .font(ExpandedNotchTypographyRole.sessionMetadata.font)
+                .foregroundStyle(ExpandedNotchVisualStyle.textColor(.secondary))
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -1805,16 +1844,17 @@ private struct IslandSessionRow: View {
     ) -> some View {
         HStack(spacing: 5) {
             Text(lang.t(timer.kind.localizationKey))
-                .foregroundStyle(.white.opacity(0.4))
+                .font(ExpandedNotchTypographyRole.elapsedLabel.font)
+                .foregroundStyle(ExpandedNotchVisualStyle.textColor(.subdued))
             Text(
                 AgentSession.compactElapsedDuration(
                     timer.elapsed(at: referenceDate),
                     includingSecondsWhenHours: timer.kind == .thinking
                 )
             )
-                .foregroundStyle(.white.opacity(0.7))
+                .font(ExpandedNotchTypographyRole.elapsedValue.font)
+                .foregroundStyle(ExpandedNotchVisualStyle.textColor(.secondary))
         }
-        .font(.caption2.monospacedDigit().weight(.medium))
         .fixedSize(horizontal: true, vertical: false)
     }
 
@@ -1823,20 +1863,20 @@ private struct IslandSessionRow: View {
     private var approvalActionBody: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(lang.t("approval.toolPermissionRequested"))
-                .font(.system(size: 12.5, weight: .semibold))
-                .foregroundStyle(V6Palette.paper.opacity(0.86))
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(ExpandedNotchVisualStyle.textColor(.primary))
 
             VStack(alignment: .leading, spacing: 8) {
                 Text(commandPreviewText)
-                    .font(.system(size: 11.5, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(V6Palette.paper.opacity(0.78))
+                    .font(ExpandedNotchTypographyRole.command.font)
+                    .foregroundStyle(ExpandedNotchVisualStyle.textColor(.secondary))
                     .fixedSize(horizontal: false, vertical: true)
 
                 if let path = session.permissionRequest?.affectedPath.trimmedForNotificationCard,
                    !path.isEmpty {
                     Text(path)
-                        .font(.system(size: 10.5, weight: .medium))
-                        .foregroundStyle(V6Palette.paper.opacity(0.42))
+                        .font(ExpandedNotchTypographyRole.command.font)
+                        .foregroundStyle(ExpandedNotchVisualStyle.textColor(.subdued))
                         .lineLimit(1)
                 }
             }
@@ -2168,7 +2208,11 @@ private struct IslandSessionRow: View {
         } label: {
             Image(systemName: "chevron.down")
                 .font(.system(size: 8.5, weight: .semibold))
-                .foregroundStyle(isOpen || isHighlighted ? .white.opacity(0.58) : .white.opacity(0.3))
+                .foregroundStyle(
+                    ExpandedNotchVisualStyle.textColor(
+                        isOpen || isHighlighted ? .secondary : .subdued
+                    )
+                )
                 .frame(width: 22, height: 22)
                 .background(
                     Circle()
@@ -2210,11 +2254,15 @@ private struct IslandSessionRow: View {
     }
 
     private func headlineColor(for presence: IslandSessionPresence) -> Color {
-        presence == .inactive ? .white.opacity(0.78) : .white
+        ExpandedNotchVisualStyle.textColor(
+            presence == .inactive ? .secondary : .primary
+        )
     }
 
     private func badgeTextColor(for presence: IslandSessionPresence) -> Color {
-        presence == .inactive ? .white.opacity(0.42) : .white.opacity(0.56)
+        ExpandedNotchVisualStyle.textColor(
+            presence == .inactive ? .subdued : .tertiary
+        )
     }
 
     private func statusTint(for presence: IslandSessionPresence) -> Color {
@@ -2228,9 +2276,11 @@ private struct IslandSessionRow: View {
         case .live:
             statusTint(for: presence)
         case .idle:
-            .white.opacity(0.46)
+            ExpandedNotchVisualStyle.textColor(.tertiary)
         case .ready:
-            presence == .inactive ? .white.opacity(0.46) : statusTint(for: presence)
+            presence == .inactive
+                ? ExpandedNotchVisualStyle.textColor(.tertiary)
+                : statusTint(for: presence)
         }
     }
 }

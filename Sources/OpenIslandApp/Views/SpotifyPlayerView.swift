@@ -45,12 +45,12 @@ struct SpotifyPlayerView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(snapshot.title.isEmpty ? "Spotify" : snapshot.title)
                             .font(.headline)
-                            .foregroundStyle(.white.opacity(0.92))
+                            .foregroundStyle(ExpandedNotchVisualStyle.textColor(.primary))
                             .lineLimit(1)
 
                         Text(snapshot.artist.isEmpty ? "Ready to play" : snapshot.artist)
                             .font(.subheadline)
-                            .foregroundStyle(.white.opacity(0.44))
+                            .foregroundStyle(ExpandedNotchVisualStyle.textColor(.secondary))
                             .lineLimit(1)
                     }
 
@@ -65,7 +65,7 @@ struct SpotifyPlayerView: View {
                                 }
                             }
                         )
-                        .tint(SpotifyPalette.green.opacity(0.7))
+                        .tint(SpotifyPalette.green.opacity(0.78))
                         .controlSize(.mini)
                         .accessibilityLabel("Playback position")
                         .accessibilityValue(
@@ -77,8 +77,8 @@ struct SpotifyPlayerView: View {
                             Spacer()
                             Text(timeLabel(snapshot.duration))
                         }
-                        .font(.caption2.monospacedDigit())
-                        .foregroundStyle(.white.opacity(0.28))
+                        .font(ExpandedNotchTypographyRole.playbackTime.font)
+                        .foregroundStyle(ExpandedNotchVisualStyle.textColor(.subdued))
                         .accessibilityHidden(true)
                     }
 
@@ -110,7 +110,7 @@ struct SpotifyPlayerView: View {
 
                             Image(systemName: volume < 0.02 ? "speaker.slash.fill" : "speaker.wave.2.fill")
                                 .font(.caption2.weight(.medium))
-                                .foregroundStyle(.white.opacity(0.28))
+                                .foregroundStyle(ExpandedNotchVisualStyle.textColor(.subdued))
                                 .accessibilityHidden(true)
 
                             Slider(
@@ -123,7 +123,7 @@ struct SpotifyPlayerView: View {
                                     }
                                 }
                             )
-                            .tint(.white.opacity(0.44))
+                            .tint(ExpandedNotchVisualStyle.textColor(.tertiary))
                             .controlSize(.mini)
                             .frame(width: 80)
                             .accessibilityLabel("Spotify volume")
@@ -165,7 +165,10 @@ struct SpotifyPlayerView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(.white.opacity(0.055), lineWidth: 0.5)
+                .stroke(
+                    .white.opacity(ExpandedNotchVisualStyle.dividerOpacity),
+                    lineWidth: 0.5
+                )
         }
         .shadow(color: .black.opacity(0.18), radius: 4, y: 2)
         .accessibilityHidden(true)
@@ -182,11 +185,11 @@ struct SpotifyPlayerView: View {
 
                 Text("Open Spotify")
                     .font(.headline)
-                    .foregroundStyle(.white.opacity(0.64))
+                    .foregroundStyle(ExpandedNotchVisualStyle.textColor(.secondary))
 
                 Text("Playback controls will appear here")
                     .font(.caption)
-                    .foregroundStyle(.white.opacity(0.3))
+                    .foregroundStyle(ExpandedNotchVisualStyle.textColor(.subdued))
             }
             .frame(
                 maxWidth: .infinity,
@@ -233,7 +236,11 @@ private struct SpotifyTransportButton: View {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.system(size: 10.5, weight: .medium))
-                .foregroundStyle(.white.opacity(isHovered ? 0.78 : 0.48))
+                .foregroundStyle(
+                    isHovered
+                        ? .white.opacity(0.78)
+                        : ExpandedNotchVisualStyle.textColor(.tertiary)
+                )
                 .frame(width: 26, height: 26)
                 .background(.white.opacity(isHovered ? 0.055 : 0), in: Circle())
                 .contentShape(Circle())

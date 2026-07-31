@@ -10,13 +10,13 @@ private enum CaptionStyle: String {
 
     var fontSize: CGFloat {
         switch self {
-        case .hook, .end: 34
-        case .supporting: 30
+        case .hook, .end: 46
+        case .supporting: 42
         }
     }
 
     var fontWeight: NSFont.Weight {
-        .medium
+        .semibold
     }
 
     var foregroundColor: NSColor {
@@ -40,33 +40,39 @@ let outputPath = CommandLine.arguments[3]
 let canvas = NSImage(size: canvasSize)
 canvas.lockFocusFlipped(true)
 
+let textShadow = NSShadow()
+textShadow.shadowColor = NSColor.black.withAlphaComponent(0.9)
+textShadow.shadowBlurRadius = 4
+textShadow.shadowOffset = NSSize(width: 0, height: 1)
+
 let textAttributes: [NSAttributedString.Key: Any] = [
     .font: NSFont.systemFont(ofSize: style.fontSize, weight: style.fontWeight),
     .foregroundColor: style.foregroundColor,
-    .kern: -0.2,
+    .kern: -0.35,
+    .shadow: textShadow,
 ]
 let textSize = (text as NSString).size(withAttributes: textAttributes)
-let capsuleSize = NSSize(width: textSize.width + 72, height: 66)
+let capsuleSize = NSSize(width: textSize.width + 104, height: 88)
 let capsuleRect = NSRect(
     x: (canvasSize.width - capsuleSize.width) / 2,
-    y: 954,
+    y: 880,
     width: capsuleSize.width,
     height: capsuleSize.height
 )
-let capsule = NSBezierPath(roundedRect: capsuleRect, xRadius: 22, yRadius: 22)
+let capsule = NSBezierPath(roundedRect: capsuleRect, xRadius: 26, yRadius: 26)
 
 NSGraphicsContext.saveGraphicsState()
 let shadow = NSShadow()
-shadow.shadowColor = NSColor.black.withAlphaComponent(0.5)
-shadow.shadowBlurRadius = 18
-shadow.shadowOffset = NSSize(width: 0, height: 5)
+shadow.shadowColor = NSColor.black.withAlphaComponent(0.75)
+shadow.shadowBlurRadius = 28
+shadow.shadowOffset = NSSize(width: 0, height: 8)
 shadow.set()
-NSColor(calibratedWhite: 0.035, alpha: 0.82).setFill()
+NSColor(calibratedWhite: 0.025, alpha: 0.94).setFill()
 capsule.fill()
 NSGraphicsContext.restoreGraphicsState()
 
-NSColor.white.withAlphaComponent(0.11).setStroke()
-capsule.lineWidth = 1
+NSColor.white.withAlphaComponent(0.18).setStroke()
+capsule.lineWidth = 1.5
 capsule.stroke()
 
 let textOrigin = NSPoint(

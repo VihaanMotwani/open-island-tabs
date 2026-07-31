@@ -166,6 +166,11 @@ final class OverlayUICoordinator {
         }
     }
 
+    func openIslandTab(_ tab: IslandTab) {
+        selectIslandTab(tab)
+        notchOpen(reason: .click)
+    }
+
     func notchOpen(reason: NotchOpenReason, surface: IslandSurface = .sessionList()) {
         transitionOverlay(
             to: .opened,

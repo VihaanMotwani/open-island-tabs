@@ -57,4 +57,32 @@ struct HarnessLaunchConfigurationTests {
         #expect(configuration.autoExitAfter == nil)
         #expect(configuration.artifactDirectoryURL == nil)
     }
+
+    @Test
+    func parsesClaudeDemoScenarioCaseInsensitively() {
+        let configuration = HarnessLaunchConfiguration(
+            environment: [
+                "OPEN_ISLAND_HARNESS_SCENARIO": "claudedemo",
+            ]
+        )
+
+        #expect(configuration.scenario == .claudeDemo)
+    }
+
+    @Test
+    func hidesExistingWindowsBeforePresentingHarnessScenario() {
+        let configuration = HarnessLaunchConfiguration(
+            environment: [
+                "OPEN_ISLAND_HARNESS_SCENARIO": "claudeDemo",
+                "OPEN_ISLAND_HARNESS_PRESENT_OVERLAY": "1",
+            ]
+        )
+
+        #expect(
+            configuration.windowBootstrapSteps == [
+                .hideExistingWindows,
+                .loadScenario(.claudeDemo),
+            ]
+        )
+    }
 }

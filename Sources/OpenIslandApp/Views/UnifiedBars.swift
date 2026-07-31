@@ -1,17 +1,16 @@
 import AppKit
 import SwiftUI
 
-/// v6 `UnifiedBars` glyph — three vertical bars that share the same geometry
-/// across all three notch states (idle / running / waiting). Active states are
-/// animated by Core Animation layers so SwiftUI does not invalidate every frame.
+/// A compact 3×3 activity glyph shared by the closed-notch states.
 ///
-/// Canonical geometry (from the design handoff): 24×24 box, 3 bars of width
-/// 2.5 centered on columns x = 5.25 / 10.75 / 16.25, rounded to a pill.
+/// The motion language is adapted from the Drive and Orbit loaders at
+/// https://beautiful-ui-five.vercel.app while retaining Open Island's existing
+/// state mapping, footprint, tint, and Core Animation rendering path.
 struct UnifiedBars: View {
     enum Mode: Equatable {
-        case idle       // rest — 3 short static bars
-        case running    // active — static tall wave frame
-        case waiting    // pause — static outer bars, middle hidden
+        case idle
+        case running
+        case waiting
 
         var timelineInterval: TimeInterval? {
             nil
@@ -29,54 +28,50 @@ struct UnifiedBars: View {
 
     var mode: Mode
     var size: CGFloat = 24
-    /// Ink color for bars / tick. Defaults to the v6 paper ink.
     var tint: Color = Color(red: 0xf1 / 255.0, green: 0xea / 255.0, blue: 0xd9 / 255.0)
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     private static let box: CGFloat = 24
-    private static let barWidth: CGFloat = 2.5
-    private static let center: CGFloat = 12
+    private static let cellSide: CGFloat = 4
+    private static let cellGap: CGFloat = 1.5
 
-    private static let columns: [Column] = [
-        Column(x: 5.25,  idleH: 3, waveCycle: [4, 12, 4], waveDelay: 0.00, waitH: 10),
-        Column(x: 10.75, idleH: 5, waveCycle: [6, 14, 6], waveDelay: 0.15, waitH: 0),
-        Column(x: 16.25, idleH: 3, waveCycle: [4, 10, 4], waveDelay: 0.30, waitH: 10),
-    ]
-
-    @ViewBuilder
     var body: some View {
-        LayerRepresentable(mode: mode, tint: tint)
+        LayerRepresentable(mode: mode, tint: tint, reduceMotion: reduceMotion)
             .frame(width: size, height: size)
+            .accessibilityHidden(true)
     }
 
     private struct LayerRepresentable: NSViewRepresentable {
         let mode: Mode
         let tint: Color
+        let reduceMotion: Bool
 
         func makeNSView(context: Context) -> LayerView {
             let view = LayerView()
-            view.update(mode: mode, tint: NSColor(tint))
+            view.update(mode: mode, tint: NSColor(tint), reduceMotion: reduceMotion)
             return view
         }
 
         func updateNSView(_ nsView: LayerView, context: Context) {
-            nsView.update(mode: mode, tint: NSColor(tint))
+            nsView.update(mode: mode, tint: NSColor(tint), reduceMotion: reduceMotion)
         }
     }
 
     private final class LayerView: NSView {
-        private let barLayers = [CAShapeLayer(), CAShapeLayer(), CAShapeLayer()]
+        private let cellLayers = (0..<9).map { _ in CAShapeLayer() }
         private var mode: Mode = .idle
         private var tintColor = NSColor.white
+        private var reduceMotion = false
 
         override init(frame frameRect: NSRect) {
             super.init(frame: frameRect)
             wantsLayer = true
             layer = CALayer()
             layer?.masksToBounds = false
-            barLayers.forEach { barLayer in
-                barLayer.anchorPoint = CGPoint(x: 0.5, y: 0.5)
-                barLayer.contentsScale = NSScreen.main?.backingScaleFactor ?? 2
-                layer?.addSublayer(barLayer)
+            cellLayers.forEach { cellLayer in
+                cellLayer.contentsScale = NSScreen.main?.backingScaleFactor ?? 2
+                layer?.addSublayer(cellLayer)
             }
         }
 
@@ -85,9 +80,10 @@ struct UnifiedBars: View {
             fatalError("init(coder:) has not been implemented")
         }
 
-        func update(mode: Mode, tint: NSColor) {
+        func update(mode: Mode, tint: NSColor, reduceMotion: Bool) {
             self.mode = mode
             tintColor = tint
+            self.reduceMotion = reduceMotion
             needsLayout = true
         }
 
@@ -101,118 +97,172 @@ struct UnifiedBars: View {
             guard side > 0 else { return }
 
             let scale = side / UnifiedBars.box
-            let dx = (bounds.width - side) / 2
-            let dy = (bounds.height - side) / 2
+            let cellSide = UnifiedBars.cellSide * scale
+            let cellGap = UnifiedBars.cellGap * scale
+            let gridSide = (cellSide * 3) + (cellGap * 2)
+            let gridOrigin = CGPoint(
+                x: (bounds.width - gridSide) / 2,
+                y: (bounds.height - gridSide) / 2
+            )
+            let pattern = UnifiedGridPattern.make(for: mode, reduceMotion: reduceMotion)
 
             CATransaction.begin()
             CATransaction.setDisableActions(true)
-            for (index, column) in UnifiedBars.columns.enumerated() {
-                let barLayer = barLayers[index]
-                let baseHeight = self.baseHeight(for: column)
-                let width = UnifiedBars.barWidth * scale
-                let height = baseHeight * scale
-                let center = CGPoint(
-                    x: dx + ((column.x + UnifiedBars.barWidth / 2) * scale),
-                    y: dy + (UnifiedBars.center * scale)
-                )
+            for (index, cell) in pattern.cells.enumerated() {
+                let row = index / 3
+                let column = index % 3
+                let cellLayer = cellLayers[index]
+                let rect = CGRect(x: 0, y: 0, width: cellSide, height: cellSide)
 
-                barLayer.isHidden = baseHeight <= 0
-                barLayer.bounds = CGRect(x: 0, y: 0, width: width, height: height)
-                barLayer.position = center
-                barLayer.fillColor = tintColor.cgColor
-                barLayer.path = CGPath(
-                    roundedRect: CGRect(x: 0, y: 0, width: width, height: height),
-                    cornerWidth: width / 2,
-                    cornerHeight: width / 2,
+                cellLayer.bounds = rect
+                cellLayer.position = CGPoint(
+                    x: gridOrigin.x + (CGFloat(column) * (cellSide + cellGap)) + (cellSide / 2),
+                    y: gridOrigin.y + (CGFloat(2 - row) * (cellSide + cellGap)) + (cellSide / 2)
+                )
+                cellLayer.fillColor = tintColor.cgColor
+                cellLayer.path = CGPath(
+                    roundedRect: rect,
+                    cornerWidth: scale,
+                    cornerHeight: scale,
                     transform: nil
                 )
-                barLayer.transform = CATransform3DMakeScale(1, initialScaleY(for: column), 1)
-                barLayer.opacity = initialOpacity(for: column)
-                configureAnimations(for: barLayer, column: column)
+                cellLayer.opacity = cell.restingOpacity
+                configureAnimation(for: cellLayer, cell: cell, duration: pattern.duration)
             }
             CATransaction.commit()
         }
 
-        private func baseHeight(for column: Column) -> CGFloat {
-            switch mode {
-            case .idle:
-                column.idleH
-            case .running:
-                column.waveCycle.max() ?? column.idleH
-            case .waiting:
-                column.waitH
-            }
-        }
+        private func configureAnimation(
+            for cellLayer: CAShapeLayer,
+            cell: UnifiedGridPattern.Cell,
+            duration: TimeInterval
+        ) {
+            cellLayer.removeAllAnimations()
+            guard let delay = cell.delay, duration > 0 else { return }
 
-        private func initialScaleY(for column: Column) -> CGFloat {
-            guard mode == .running,
-                  let maxHeight = column.waveCycle.max(),
-                  maxHeight > 0 else {
-                return 1
-            }
-            return column.waveCycle[0] / maxHeight
-        }
-
-        private func initialOpacity(for column: Column) -> Float {
-            switch mode {
-            case .idle, .running:
-                1
-            case .waiting:
-                column.waitH > 0 ? 0.55 : 0
-            }
-        }
-
-        private func configureAnimations(for barLayer: CAShapeLayer, column: Column) {
-            barLayer.removeAllAnimations()
-            guard mode.usesLayerAnimation, !barLayer.isHidden else { return }
-
-            switch mode {
-            case .idle:
-                return
-            case .running:
-                addRunningAnimation(to: barLayer, column: column)
-            case .waiting:
-                addWaitingAnimation(to: barLayer, column: column)
-            }
-        }
-
-        private func addRunningAnimation(to barLayer: CAShapeLayer, column: Column) {
-            let maxHeight = column.waveCycle.max() ?? column.idleH
-            guard maxHeight > 0 else { return }
-
-            let animation = CAKeyframeAnimation(keyPath: "transform.scale.y")
-            animation.values = column.waveCycle.map { $0 / maxHeight }
-            animation.keyTimes = [0, 0.5, 1]
-            animation.duration = 0.9
-            animation.beginTime = CACurrentMediaTime() + column.waveDelay
-            animation.repeatCount = .infinity
-            animation.timingFunctions = [
-                CAMediaTimingFunction(name: .easeInEaseOut),
-                CAMediaTimingFunction(name: .easeInEaseOut),
-            ]
-            barLayer.add(animation, forKey: "running-scale-y")
-        }
-
-        private func addWaitingAnimation(to barLayer: CAShapeLayer, column: Column) {
             let animation = CAKeyframeAnimation(keyPath: "opacity")
-            animation.values = [0.55, 1.0, 0.55]
-            animation.keyTimes = [0, 0.5, 1]
-            animation.duration = 1.8
-            animation.beginTime = CACurrentMediaTime() + (column.x < UnifiedBars.center ? 0 : 0.9)
+            animation.values = [
+                cell.restingOpacity,
+                cell.highlightedOpacity,
+                cell.highlightedOpacity,
+                cell.restingOpacity,
+                cell.restingOpacity,
+            ]
+            animation.keyTimes = [0, 0.18, 0.42, 0.62, 1]
+            animation.duration = duration
+            animation.beginTime = CACurrentMediaTime() + delay
             animation.repeatCount = .infinity
             animation.timingFunctions = [
                 CAMediaTimingFunction(name: .easeInEaseOut),
+                CAMediaTimingFunction(name: .linear),
                 CAMediaTimingFunction(name: .easeInEaseOut),
+                CAMediaTimingFunction(name: .linear),
             ]
-            barLayer.add(animation, forKey: "waiting-opacity")
+            cellLayer.add(animation, forKey: "pixel-shimmer")
+        }
+    }
+}
+
+struct UnifiedGridPattern: Equatable {
+    enum Motion: Equatable {
+        case still
+        case chevron
+        case orbit
+    }
+
+    struct Cell: Equatable {
+        let restingOpacity: Float
+        let highlightedOpacity: Float
+        let delay: TimeInterval?
+    }
+
+    let motion: Motion
+    let duration: TimeInterval
+    let cells: [Cell]
+
+    static func make(for mode: UnifiedBars.Mode, reduceMotion: Bool) -> UnifiedGridPattern {
+        if reduceMotion {
+            return reducedMotionPattern(for: mode)
+        }
+
+        switch mode {
+        case .idle:
+            return stillPattern(opacities: [
+                0.18, 0.30, 0.18,
+                0.30, 0.58, 0.30,
+                0.18, 0.30, 0.18,
+            ])
+        case .running:
+            return animatedPattern(
+                motion: .chevron,
+                duration: 0.65,
+                delays: [
+                    0.09, 0.18, 0.27,
+                    0.00, 0.09, 0.18,
+                    0.09, 0.18, 0.27,
+                ]
+            )
+        case .waiting:
+            return animatedPattern(
+                motion: .orbit,
+                duration: 0.95,
+                delays: [
+                    0.00, 0.11, 0.22,
+                    0.77, nil, 0.33,
+                    0.66, 0.55, 0.44,
+                ]
+            )
         }
     }
 
-    private struct Column: Equatable {
-        let x: CGFloat
-        let idleH: CGFloat
-        let waveCycle: [CGFloat]
-        let waveDelay: TimeInterval
-        let waitH: CGFloat
+    private static func reducedMotionPattern(for mode: UnifiedBars.Mode) -> UnifiedGridPattern {
+        switch mode {
+        case .idle:
+            stillPattern(opacities: [
+                0.18, 0.30, 0.18,
+                0.30, 0.58, 0.30,
+                0.18, 0.30, 0.18,
+            ])
+        case .running:
+            stillPattern(opacities: [
+                0.55, 0.28, 0.14,
+                1.00, 0.55, 0.28,
+                0.55, 0.28, 0.14,
+            ])
+        case .waiting:
+            stillPattern(opacities: [
+                0.52, 0.52, 0.52,
+                0.52, 0.08, 0.52,
+                0.52, 0.52, 0.52,
+            ])
+        }
+    }
+
+    private static func stillPattern(opacities: [Float]) -> UnifiedGridPattern {
+        UnifiedGridPattern(
+            motion: .still,
+            duration: 0,
+            cells: opacities.map {
+                Cell(restingOpacity: $0, highlightedOpacity: $0, delay: nil)
+            }
+        )
+    }
+
+    private static func animatedPattern(
+        motion: Motion,
+        duration: TimeInterval,
+        delays: [TimeInterval?]
+    ) -> UnifiedGridPattern {
+        UnifiedGridPattern(
+            motion: motion,
+            duration: duration,
+            cells: delays.map { delay in
+                Cell(
+                    restingOpacity: delay == nil ? 0.07 : 0.15,
+                    highlightedOpacity: delay == nil ? 0.07 : 1,
+                    delay: delay
+                )
+            }
+        )
     }
 }

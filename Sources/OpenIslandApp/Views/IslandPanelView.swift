@@ -51,14 +51,19 @@ private struct AutoHeightScrollView<Content: View>: View {
 
 extension AgentSession {
     /// Estimated row height matching `IslandSessionRow` layout for viewport sizing.
-    func estimatedIslandRowHeight(at date: Date) -> CGFloat {
+    func estimatedIslandRowHeight(at date: Date, showsDetail: Bool? = nil) -> CGFloat {
         let presence = islandPresence(at: date)
         // v8 list rows are full-width scan rows, not rounded cards.
         // Base: vertical padding (22) + headline (~17) + divider rounding.
         var height: CGFloat = 40
-        guard presence != .inactive else { return height }
+        let includesDetail = showsDetail ?? showsDetailByDefaultInIslandList(at: date)
+        guard presence != .inactive, includesDetail else { return height }
         if spotlightPromptLineText != nil { height += 32 }
-        if spotlightActivityLineText != nil { height += 30 }
+        if !spotlightElapsedTimers.isEmpty {
+            height += ExpandedNotchLayoutMetrics.runningTimerDetailHeight
+        } else if spotlightActivityLineText != nil {
+            height += 30
+        }
         if let subagents = claudeMetadata?.activeSubagents, !subagents.isEmpty {
             height += 18
             height += CGFloat(subagents.count) * 18  // each subagent row (spacing 4 + text 14)
@@ -73,87 +78,10 @@ extension AgentSession {
 
 // MARK: - Animations
 
-private let openAnimation = Animation.spring(response: 0.42, dampingFraction: 0.8, blendDuration: 0)
-private let closeAnimation = Animation.smooth(duration: 0.3)
+private let openAnimation = Animation.spring(response: 0.32, dampingFraction: 0.92, blendDuration: 0)
+private let closeAnimation = Animation.smooth(duration: 0.24)
 private let popAnimation = Animation.spring(response: 0.3, dampingFraction: 0.5)
 private let openedSurfaceUnmountDelay: TimeInterval = 0.36
-
-private enum InvertedBrowserTabSide {
-    case leading
-    case trailing
-}
-
-/// A compact browser-tab silhouette rotated 180 degrees so it hangs from
-/// the notch. Its top shoulder tucks behind the notch while both corners at
-/// the shared seam remain curved, like adjacent Chrome tabs.
-private struct InvertedBrowserTabShape: Shape {
-    let side: InvertedBrowserTabSide
-
-    func path(in rect: CGRect) -> Path {
-        let shoulder = min(10, rect.width * 0.22)
-        let outerCorner = min(8, rect.height * 0.3)
-        let innerCorner = min(6, rect.height * 0.22)
-        var path = Path()
-
-        switch side {
-        case .leading:
-            path.move(to: CGPoint(x: rect.maxX, y: rect.minY + innerCorner))
-            path.addCurve(
-                to: CGPoint(x: rect.maxX - innerCorner, y: rect.minY),
-                control1: CGPoint(x: rect.maxX, y: rect.minY + innerCorner * 0.35),
-                control2: CGPoint(x: rect.maxX - innerCorner * 0.35, y: rect.minY)
-            )
-            path.addLine(to: CGPoint(x: rect.minX + shoulder, y: rect.minY))
-            path.addCurve(
-                to: CGPoint(x: rect.minX, y: rect.minY + shoulder),
-                control1: CGPoint(x: rect.minX + shoulder * 0.42, y: rect.minY),
-                control2: CGPoint(x: rect.minX, y: rect.minY + shoulder * 0.42)
-            )
-            path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY - outerCorner))
-            path.addCurve(
-                to: CGPoint(x: rect.minX + outerCorner, y: rect.maxY),
-                control1: CGPoint(x: rect.minX, y: rect.maxY - outerCorner * 0.35),
-                control2: CGPoint(x: rect.minX + outerCorner * 0.35, y: rect.maxY)
-            )
-            path.addLine(to: CGPoint(x: rect.maxX - innerCorner, y: rect.maxY))
-            path.addCurve(
-                to: CGPoint(x: rect.maxX, y: rect.maxY - innerCorner),
-                control1: CGPoint(x: rect.maxX - innerCorner * 0.35, y: rect.maxY),
-                control2: CGPoint(x: rect.maxX, y: rect.maxY - innerCorner * 0.35)
-            )
-            path.closeSubpath()
-
-        case .trailing:
-            path.move(to: CGPoint(x: rect.minX, y: rect.minY + innerCorner))
-            path.addCurve(
-                to: CGPoint(x: rect.minX + innerCorner, y: rect.minY),
-                control1: CGPoint(x: rect.minX, y: rect.minY + innerCorner * 0.35),
-                control2: CGPoint(x: rect.minX + innerCorner * 0.35, y: rect.minY)
-            )
-            path.addLine(to: CGPoint(x: rect.maxX - shoulder, y: rect.minY))
-            path.addCurve(
-                to: CGPoint(x: rect.maxX, y: rect.minY + shoulder),
-                control1: CGPoint(x: rect.maxX - shoulder * 0.42, y: rect.minY),
-                control2: CGPoint(x: rect.maxX, y: rect.minY + shoulder * 0.42)
-            )
-            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - outerCorner))
-            path.addCurve(
-                to: CGPoint(x: rect.maxX - outerCorner, y: rect.maxY),
-                control1: CGPoint(x: rect.maxX, y: rect.maxY - outerCorner * 0.35),
-                control2: CGPoint(x: rect.maxX - outerCorner * 0.35, y: rect.maxY)
-            )
-            path.addLine(to: CGPoint(x: rect.minX + innerCorner, y: rect.maxY))
-            path.addCurve(
-                to: CGPoint(x: rect.minX, y: rect.maxY - innerCorner),
-                control1: CGPoint(x: rect.minX + innerCorner * 0.35, y: rect.maxY),
-                control2: CGPoint(x: rect.minX, y: rect.maxY - innerCorner * 0.35)
-            )
-            path.closeSubpath()
-        }
-
-        return path
-    }
-}
 
 // MARK: - Main island view
 
@@ -165,15 +93,17 @@ struct IslandPanelView: View {
     private static let notchHeaderHorizontalPadding: CGFloat = 46
     private static let notchLaneSafetyInset: CGFloat = 12
     private static let minimumRightUsageLaneWidth: CGFloat = 58
-    private static let openedTabStripHeight: CGFloat = 32
+    private static let openedTabSwitcherHeight = ExpandedNotchLayoutMetrics.tabSwitcherHeight
 
     var model: AppModel
     private var lang: LanguageManager { model.lang }
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHovering = false
     @State private var showingQuitConfirmation = false
     @State private var keepsOpenedSurfaceMounted = false
     @State private var openedSurfaceMountGeneration: UInt64 = 0
+    @State private var hoveredIslandTab: IslandTab?
 
     private var isOpened: Bool {
         model.notchStatus == .opened
@@ -192,7 +122,9 @@ struct IslandPanelView: View {
     }
 
     /// Single animation selection based on the current notch status.
-    private var notchTransitionAnimation: Animation {
+    private var notchTransitionAnimation: Animation? {
+        guard !reduceMotion else { return nil }
+
         switch model.notchStatus {
         case .opened:  return openAnimation
         case .closed:  return closeAnimation
@@ -298,7 +230,7 @@ struct IslandPanelView: View {
         .animation(notchTransitionAnimation, value: model.notchStatus)
         .contentShape(Rectangle())
         .onHover { hovering in
-            withAnimation(.spring(response: 0.38, dampingFraction: 0.8)) {
+            withAnimation(reduceMotion ? nil : .smooth(duration: 0.16)) {
                 isHovering = hovering
             }
         }
@@ -343,58 +275,23 @@ struct IslandPanelView: View {
     private func v6ClosedSurface() -> some View {
         let layout: V6ClosedLayout = isExternalDisplayPlacement ? .external : .macbook
         let physicalNotchWidth: CGFloat = targetOverlayScreen?.notchSize.width ?? 180
-        VStack(spacing: -6) {
-            V6ClosedPill(
-                mode: model.islandClosedMode,
-                label: layout == .external ? model.islandClosedLabel() : nil,
-                rightSlot: model.islandClosedRightSlotContent(),
-                layout: layout,
-                height: closedNotchHeight,
-                physicalNotchWidth: layout == .macbook ? physicalNotchWidth : 0,
-                minWidth: 70
-            )
-
-            closedTabStrip
-        }
+        V6ClosedPill(
+            mode: model.islandClosedMode,
+            label: layout == .external ? model.islandClosedLabel() : nil,
+            rightSlot: model.islandClosedRightSlotContent(),
+            mediaActivity: MediaActivityState(snapshot: model.spotifyPlayback.snapshot),
+            onMediaActivitySelected: openSpotifyTabFromActivityIndicator,
+            layout: layout,
+            height: closedNotchHeight,
+            physicalNotchWidth: layout == .macbook ? physicalNotchWidth : 0,
+            minWidth: 70
+        )
         .scaleEffect(isPopping ? 1.04 : 1, anchor: .top)
         .animation(popAnimation, value: isPopping)
     }
 
-    private var closedTabStrip: some View {
-        HStack(alignment: .top, spacing: -2) {
-            closedTab(.agents)
-            closedTab(.spotify)
-        }
-        .frame(width: 88, height: 30, alignment: .top)
-    }
-
-    private func closedTab(_ tab: IslandTab) -> some View {
-        let isSelected = model.preferredIslandTab == tab
-        let shape = invertedTabShape(for: tab)
-
-        return tabIcon(tab, size: tab == .spotify ? 16 : 17)
-            .opacity(closedTabOpacity(tab))
-            .frame(width: 45, height: 30)
-            .background(
-                shape
-                    .fill(isSelected ? .white.opacity(0.12) : V6Palette.ink.opacity(0.96))
-                    .overlay {
-                        shape.stroke(
-                            .white.opacity(isSelected ? 0.16 : 0.055),
-                            lineWidth: 1
-                        )
-                    }
-            )
-            .shadow(color: .black.opacity(isSelected ? 0.42 : 0), radius: 3, y: 2)
-            .zIndex(isSelected ? 1 : 0)
-    }
-
-    private func closedTabOpacity(_ tab: IslandTab) -> Double {
-        if tab == .spotify,
-           model.spotifyPlayback.snapshot.availability == .notRunning {
-            return model.preferredIslandTab == tab ? 0.88 : 0.64
-        }
-        return model.preferredIslandTab == tab ? 0.92 : 0.46
+    private func openSpotifyTabFromActivityIndicator() {
+        model.openIslandTab(.spotify)
     }
 
     // MARK: - Opened surface
@@ -419,15 +316,15 @@ struct IslandPanelView: View {
                     .frame(height: closedNotchHeight)
 
                 openedTabSwitcher
-                    .frame(height: Self.openedTabStripHeight)
-                    .offset(y: -6)
+                    .frame(height: Self.openedTabSwitcherHeight)
+                    .offset(y: -2)
 
                 openedContent
                     .frame(width: openedWidth)
                     .frame(
                         maxHeight: max(
                             0,
-                            openedHeight - closedNotchHeight - Self.openedTabStripHeight
+                            openedHeight - closedNotchHeight - Self.openedTabSwitcherHeight
                         ),
                         alignment: .top
                     )
@@ -499,18 +396,25 @@ struct IslandPanelView: View {
         HStack(spacing: Self.headerControlSpacing) {
             headerIconButton(
                 systemName: model.isSoundMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
-                tint: model.isSoundMuted ? .orange.opacity(0.92) : .white.opacity(0.62)
+                tint: model.isSoundMuted
+                    ? .orange.opacity(0.92)
+                    : ExpandedNotchVisualStyle.textColor(.secondary),
+                accessibilityLabel: model.isSoundMuted ? "Unmute notification sounds" : "Mute notification sounds"
             ) {
                 model.toggleSoundMuted()
             }
 
-            headerIconButton(systemName: "gearshape.fill", tint: .white.opacity(0.62)) {
+            headerIconButton(
+                systemName: "gearshape",
+                tint: ExpandedNotchVisualStyle.textColor(.secondary),
+                accessibilityLabel: "Open settings"
+            ) {
                 model.showSettings()
             }
 
             headerIconButton(
                 systemName: "power",
-                tint: .white.opacity(0.62),
+                tint: ExpandedNotchVisualStyle.textColor(.secondary),
                 accessibilityLabel: model.lang.t("island.quit.confirmTitle")
             ) {
                 showingQuitConfirmation = true
@@ -519,12 +423,23 @@ struct IslandPanelView: View {
     }
 
     private var openedTabSwitcher: some View {
-        HStack(alignment: .top, spacing: -2) {
+        HStack(spacing: 2) {
             openedTabButton(.agents, accessibilityLabel: "Open Island agents")
             openedTabButton(.spotify, accessibilityLabel: "Spotify")
         }
-        .frame(width: 88, height: 30, alignment: .top)
+        .padding(2)
+        .background(.white.opacity(0.025), in: Capsule())
+        .overlay {
+            Capsule()
+                .stroke(
+                    .white.opacity(ExpandedNotchVisualStyle.dividerOpacity),
+                    lineWidth: 1
+                )
+        }
+        .frame(height: ExpandedNotchLayoutMetrics.tabControlHeight + 4)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Island tabs")
     }
 
     private func openedTabButton(
@@ -535,7 +450,10 @@ struct IslandPanelView: View {
         let isUnavailableSpotify =
             tab == .spotify
             && model.spotifyPlayback.snapshot.availability == .notRunning
-        let shape = invertedTabShape(for: tab)
+        let isHovered = hoveredIslandTab == tab
+        let labelRole: ExpandedNotchTextRole = isSelected
+            ? .primary
+            : (isHovered ? .secondary : .tertiary)
 
         return Button {
             model.selectIslandTab(tab)
@@ -544,9 +462,17 @@ struct IslandPanelView: View {
             }
         } label: {
             ZStack(alignment: .topTrailing) {
-                tabIcon(tab, size: tab == .spotify ? 14 : 19)
-                    .opacity(isUnavailableSpotify ? 0.68 : (isSelected ? 0.95 : 0.5))
-                    .frame(width: 45, height: 30)
+                HStack(spacing: 5) {
+                    tabIcon(tab, size: tab == .spotify ? 11 : 12.5)
+                    Text(tab == .agents ? "Agents" : "Spotify")
+                        .font(.caption.weight(isSelected ? .semibold : .medium))
+                }
+                .foregroundStyle(ExpandedNotchVisualStyle.textColor(labelRole))
+                .opacity(isUnavailableSpotify ? 0.78 : 1)
+                .frame(
+                    minWidth: tab == .agents ? 68 : 70,
+                    minHeight: ExpandedNotchLayoutMetrics.tabControlHeight
+                )
 
                 if tab == .agents, model.liveAttentionCount > 0 {
                     Circle()
@@ -555,40 +481,42 @@ struct IslandPanelView: View {
                         .overlay {
                             Circle().stroke(V6Palette.ink, lineWidth: 1)
                         }
-                        .offset(x: -8, y: 5)
+                        .offset(x: -5, y: 3)
                 }
             }
             .background(
-                shape
-                    .fill(isSelected ? .white.opacity(0.12) : V6Palette.ink.opacity(0.96))
-                    .overlay {
-                        shape.stroke(
-                            .white.opacity(isSelected ? 0.16 : 0.055),
-                            lineWidth: 1
-                        )
-                    }
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(
+                        isSelected
+                            ? .white.opacity(ExpandedNotchVisualStyle.selectedControlFillOpacity)
+                            : .white.opacity(
+                                isHovered
+                                    ? ExpandedNotchVisualStyle.hoverControlFillOpacity
+                                    : 0
+                            )
+                    )
             )
-            .shadow(color: .black.opacity(isSelected ? 0.42 : 0), radius: 3, y: 2)
         }
         .buttonStyle(.plain)
-        .contentShape(shape)
+        .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
         .zIndex(isSelected ? 1 : 0)
+        .onHover { hovering in
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.1)) {
+                hoveredIslandTab = hovering ? tab : nil
+            }
+        }
         .accessibilityLabel(accessibilityLabel)
-    }
-
-    private func invertedTabShape(for tab: IslandTab) -> InvertedBrowserTabShape {
-        InvertedBrowserTabShape(side: tab == .agents ? .leading : .trailing)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .help(accessibilityLabel)
     }
 
     @ViewBuilder
     private func tabIcon(_ tab: IslandTab, size: CGFloat) -> some View {
         switch tab {
         case .agents:
-            OpenIslandBrandMark(
-                size: size,
-                tint: V6Palette.paper,
-                style: .template
-            )
+            Text(">_")
+                .font(.system(size: size, weight: .bold, design: .monospaced))
+                .accessibilityHidden(true)
         case .spotify:
             SpotifyGlyph(
                 isDimmed: model.spotifyPlayback.snapshot.availability == .notRunning
@@ -603,45 +531,46 @@ struct IslandPanelView: View {
         accessibilityLabel: String? = nil,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
-            Image(systemName: systemName)
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(tint)
-                .frame(width: Self.headerControlButtonSize, height: Self.headerControlButtonSize)
-                .background(.white.opacity(0.08), in: Circle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(accessibilityLabel ?? systemName)
+        IslandHeaderControlButton(
+            systemName: systemName,
+            tint: tint,
+            size: Self.headerControlButtonSize,
+            accessibilityLabel: accessibilityLabel ?? systemName,
+            action: action
+        )
     }
 
     @ViewBuilder
     private var openedContent: some View {
-        if model.selectedIslandTab == .spotify {
-            SpotifyPlayerView(model: model.spotifyPlayback)
-                .transition(.opacity.combined(with: .scale(scale: 0.985)))
-        } else {
-            VStack(spacing: 8) {
-                if !model.hasAnyInstalledAgent {
-                    installHooksHint
-                        .padding(.horizontal, 18)
-                        .padding(.top, 8)
-                }
+        Group {
+            if model.selectedIslandTab == .spotify {
+                SpotifyPlayerView(model: model.spotifyPlayback)
+                    .transition(.opacity)
+            } else {
+                VStack(spacing: 8) {
+                    if model.shouldShowInstallHooksHint {
+                        installHooksHint
+                            .padding(.horizontal, ExpandedNotchLayoutMetrics.safeContentHorizontalInset)
+                            .padding(.top, 8)
+                    }
 
-                if model.shouldShowSessionBootstrapPlaceholder {
-                    sessionBootstrapPlaceholder
-                        .padding(.horizontal, 18)
-                        .padding(.top, 8)
-                } else if model.islandListSessions.isEmpty {
-                    emptyState
-                        .padding(.horizontal, 18)
-                        .padding(.top, 8)
-                } else {
-                    sessionList
+                    if model.shouldShowSessionBootstrapPlaceholder {
+                        sessionBootstrapPlaceholder
+                            .padding(.horizontal, ExpandedNotchLayoutMetrics.safeContentHorizontalInset)
+                            .padding(.top, 8)
+                    } else if model.islandListSessions.isEmpty {
+                        emptyState
+                            .padding(.horizontal, ExpandedNotchLayoutMetrics.safeContentHorizontalInset)
+                            .padding(.top, 8)
+                    } else {
+                        sessionList
+                    }
                 }
+                .padding(.bottom, 0)
+                .transition(.opacity)
             }
-            .padding(.bottom, 0)
-            .transition(.opacity.combined(with: .scale(scale: 0.985)))
         }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: model.selectedIslandTab)
     }
 
     /// Persistent hint at the top of the expanded island while no agent
@@ -653,32 +582,39 @@ struct IslandPanelView: View {
         Button {
             model.showOnboarding()
         } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Color.accentColor)
-                Text(model.lang.t("island.hint.installHooks"))
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.85))
-                    .lineLimit(2)
+            HStack(spacing: 7) {
+                Image(systemName: "exclamationmark.circle.fill")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(ExpandedNotchVisualStyle.textColor(.tertiary))
+                    .accessibilityHidden(true)
+                Text(model.lang.t("island.hint.installHooksShort"))
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(ExpandedNotchVisualStyle.textColor(.secondary))
+                    .lineLimit(1)
                     .multilineTextAlignment(.leading)
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.4))
+                    .font(.system(size: 8.5, weight: .semibold))
+                    .foregroundStyle(ExpandedNotchVisualStyle.textColor(.subdued))
+                    .accessibilityHidden(true)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
             .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.accentColor.opacity(0.14))
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(.white.opacity(0.032))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(Color.accentColor.opacity(0.35), lineWidth: 0.5)
+                        RoundedRectangle(cornerRadius: 7, style: .continuous)
+                            .stroke(
+                                .white.opacity(ExpandedNotchVisualStyle.dividerOpacity),
+                                lineWidth: 0.5
+                            )
                     )
             )
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(model.lang.t("island.hint.installHooks"))
+        .help(model.lang.t("island.hint.installHooks"))
     }
 
     private var sessionBootstrapPlaceholder: some View {
@@ -686,14 +622,14 @@ struct IslandPanelView: View {
             Spacer()
             ProgressView()
                 .progressViewStyle(.circular)
-                .tint(.white.opacity(0.7))
+                .tint(ExpandedNotchVisualStyle.textColor(.secondary))
                 .scaleEffect(0.8)
             Text(model.lang.t("island.checkingTerminals"))
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(.white.opacity(0.58))
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(ExpandedNotchVisualStyle.textColor(.secondary))
             Text(model.lang.t("island.terminalOwnership"))
-                .font(.system(size: 12))
-                .foregroundStyle(.white.opacity(0.28))
+                .font(.caption)
+                .foregroundStyle(ExpandedNotchVisualStyle.textColor(.subdued))
             Spacer()
         }
         .frame(maxWidth: .infinity)
@@ -703,13 +639,13 @@ struct IslandPanelView: View {
         VStack(spacing: 12) {
             Spacer()
             Text(model.lang.t("island.noTerminals"))
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(.white.opacity(0.4))
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(ExpandedNotchVisualStyle.textColor(.secondary))
             Text(model.recentSessions.isEmpty
                 ? model.lang.t("island.startAgent")
                 : model.lang.t("island.recentSessions"))
-                .font(.system(size: 12))
-                .foregroundStyle(.white.opacity(0.25))
+                .font(.caption)
+                .foregroundStyle(ExpandedNotchVisualStyle.textColor(.subdued))
             Spacer()
         }
         .frame(maxWidth: .infinity)
@@ -727,7 +663,7 @@ struct IslandPanelView: View {
     private static let maxSessionListHeight: CGFloat = 560
 
     private var sessionListSideInset: CGFloat {
-        usesNotchAwareOpenedHeader ? 46 : 16
+        ExpandedNotchLayoutMetrics.safeContentHorizontalInset
     }
 
     private var sessionList: some View {
@@ -898,10 +834,9 @@ struct IslandPanelView: View {
         let overview = sessionOverviewItems(referenceDate: referenceDate)
 
         return HStack(spacing: 8) {
-            Text(lang.t("island.sessionList.title").uppercased())
-                .font(.system(size: 10.5, weight: .semibold, design: .monospaced))
-                .tracking(1.4)
-                .foregroundStyle(V6Palette.paper.opacity(0.55))
+            Text(lang.t("island.sessionList.title"))
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(ExpandedNotchVisualStyle.textColor(.secondary))
 
             ViewThatFits(in: .horizontal) {
                 sessionOverviewView(overview, compact: false)
@@ -912,20 +847,20 @@ struct IslandPanelView: View {
         }
         .padding(.leading, sessionListSideInset)
         .padding(.trailing, sessionListSideInset)
-        .frame(height: 36)
+        .frame(height: ExpandedNotchLayoutMetrics.sessionHeaderHeight)
         .overlay(alignment: .bottom) {
             Rectangle()
-                .fill(.white.opacity(0.055))
+                .fill(.white.opacity(ExpandedNotchVisualStyle.dividerOpacity))
                 .frame(height: 1)
         }
     }
 
     private var sessionPanelFooter: some View {
         Color.clear
-            .frame(height: 10)
+            .frame(height: ExpandedNotchLayoutMetrics.sessionFooterHeight)
         .overlay(alignment: .top) {
             Rectangle()
-                .fill(.white.opacity(0.055))
+                .fill(.white.opacity(ExpandedNotchVisualStyle.dividerOpacity))
                 .frame(height: 1)
         }
     }
@@ -983,8 +918,12 @@ struct IslandPanelView: View {
             }
 
             Text(sessionOverviewMetricTitle(item, compact: compact))
-                .font(.system(size: 10.5, weight: .semibold, design: .monospaced))
-                .foregroundStyle(item.tint == nil ? V6Palette.paper.opacity(0.34) : V6Palette.paper.opacity(0.48))
+                .font(.caption2.monospacedDigit().weight(.medium))
+                .foregroundStyle(
+                    ExpandedNotchVisualStyle.textColor(
+                        item.tint == nil ? .subdued : .tertiary
+                    )
+                )
         }
     }
 
@@ -1001,13 +940,12 @@ struct IslandPanelView: View {
             Circle()
                 .fill(sectionTint(for: section))
                 .frame(width: 7, height: 7)
-            Text(sessionSectionTitle(for: section).uppercased())
-                .font(.system(size: 10.5, weight: .semibold, design: .monospaced))
-                .tracking(0.4)
+            Text(sessionSectionTitle(for: section))
+                .font(.caption2.weight(.semibold))
                 .foregroundStyle(sectionLabelColor(for: section))
             Text("\(section.sessions.count)")
-                .font(.system(size: 10.5, weight: .medium, design: .monospaced))
-                .foregroundStyle(V6Palette.paper.opacity(0.4))
+                .font(.caption2.monospacedDigit().weight(.medium))
+                .foregroundStyle(ExpandedNotchVisualStyle.textColor(.subdued))
             Spacer(minLength: 0)
         }
         .padding(.leading, sessionListSideInset)
@@ -1017,7 +955,7 @@ struct IslandPanelView: View {
         .background(Color.white.opacity(0.008))
         .overlay(alignment: .top) {
             Rectangle()
-                .fill(.white.opacity(0.055))
+                .fill(.white.opacity(ExpandedNotchVisualStyle.dividerOpacity))
                 .frame(height: 1)
         }
     }
@@ -1042,7 +980,7 @@ struct IslandPanelView: View {
         case "state-answer":
             return IslandDesignPalette.Status.waitingForAnswer.opacity(0.86)
         default:
-            return V6Palette.paper.opacity(0.7)
+            return ExpandedNotchVisualStyle.textColor(.secondary)
         }
     }
 
@@ -1240,15 +1178,15 @@ struct IslandPanelView: View {
     private func compactUsageChip(_ provider: UsageProviderPresentation, usesShortTitle: Bool) -> some View {
         HStack(spacing: 5) {
             Text(usesShortTitle ? provider.shortTitle : provider.title)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.74))
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(ExpandedNotchVisualStyle.textColor(.secondary))
 
             Text(provider.peakWindowLabel)
-                .font(.system(size: 10.5, weight: .semibold, design: .monospaced))
-                .foregroundStyle(.white.opacity(0.42))
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(ExpandedNotchVisualStyle.textColor(.subdued))
 
             Text("\(provider.peakUsagePercentage)%")
-                .font(.system(size: 11.5, weight: .bold, design: .monospaced))
+                .font(.caption.monospacedDigit().weight(.semibold))
                 .foregroundStyle(usageColor(for: provider.peakUsedPercentage))
         }
         .padding(.horizontal, 8)
@@ -1256,7 +1194,10 @@ struct IslandPanelView: View {
         .background(.white.opacity(0.055), in: Capsule())
         .overlay(
             Capsule()
-                .strokeBorder(.white.opacity(0.06), lineWidth: 1)
+                .strokeBorder(
+                    .white.opacity(ExpandedNotchVisualStyle.dividerOpacity),
+                    lineWidth: 1
+                )
         )
         .help(usageHelpText(for: provider))
     }
@@ -1314,6 +1255,50 @@ struct IslandPanelView: View {
         }
 
         return formatter.string(from: interval)
+    }
+}
+
+private struct IslandHeaderControlButton: View {
+    let systemName: String
+    let tint: Color
+    let size: CGFloat
+    let accessibilityLabel: String
+    let action: () -> Void
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(tint.opacity(isHovered ? 1 : 0.82))
+                .frame(width: size, height: size)
+                .background(
+                    .white.opacity(
+                        isHovered ? ExpandedNotchVisualStyle.hoverControlFillOpacity : 0
+                    ),
+                    in: Circle()
+                )
+                .overlay {
+                    Circle()
+                        .stroke(
+                            .white.opacity(
+                                isHovered ? ExpandedNotchVisualStyle.dividerOpacity : 0
+                            ),
+                            lineWidth: 0.5
+                        )
+                }
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.1)) {
+                isHovered = hovering
+            }
+        }
+        .accessibilityLabel(accessibilityLabel)
+        .help(accessibilityLabel)
     }
 }
 
@@ -1402,6 +1387,7 @@ private struct IslandSessionRow: View {
     let onJump: () -> Void
     var onDismiss: (() -> Void)?
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHighlighted = false
     @State private var detailOverride: Bool?
     @State private var replyText: String = ""
@@ -1416,7 +1402,15 @@ private struct IslandSessionRow: View {
             at: referenceDate,
             threshold: completedStaleThreshold
         )
-        let defaultShowsDetail = !isStaleCompleted && (rawPresence != .inactive || isActionable)
+        let defaultShowsDetail: Bool
+        if presentation == .notification {
+            defaultShowsDetail = !isStaleCompleted && (rawPresence != .inactive || isActionable)
+        } else {
+            defaultShowsDetail = session.showsDetailByDefaultInIslandList(
+                at: referenceDate,
+                completedStaleThreshold: completedStaleThreshold
+            )
+        }
         let showsDetail = detailOverride ?? defaultShowsDetail
         let presence = isStaleCompleted
             ? .inactive
@@ -1438,7 +1432,7 @@ private struct IslandSessionRow: View {
         .background(rowFillColor(for: presence))
         .overlay(alignment: .top) {
             Rectangle()
-                .fill(.white.opacity(0.045))
+                .fill(.white.opacity(ExpandedNotchVisualStyle.dividerOpacity))
                 .frame(height: 1)
         }
         .overlay(alignment: .leading) {
@@ -1452,7 +1446,7 @@ private struct IslandSessionRow: View {
         }
         .opacity(isStaleCompleted ? 0.7 : 1)
         .contentShape(Rectangle())
-        .animation(.easeInOut(duration: 0.15), value: isHighlighted)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.1), value: isHighlighted)
         .onTapGesture(perform: handlePrimaryTap)
         .onHover { hovering in
             guard isInteractive, allowsRowHoverHighlight else { return }
@@ -1466,11 +1460,11 @@ private struct IslandSessionRow: View {
     }
 
     private func rowSummary(presence: IslandSessionPresence, showsDetail: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .top, spacing: 10) {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(alignment: .top, spacing: 8) {
                 if showsLeadingStatusIndicator {
                     statusIndicator(for: presence)
-                        .frame(width: 20, alignment: .top)
+                        .frame(width: 18, alignment: .top)
                 }
 
                 Text(summaryHeadlineText)
@@ -1491,7 +1485,7 @@ private struct IslandSessionRow: View {
                 .layoutPriority(0)
             }
 
-            HStack(spacing: 6) {
+            HStack(spacing: 5) {
                 agentBadge
                 if session.isRemote {
                     sideBadge("SSH")
@@ -1507,27 +1501,27 @@ private struct IslandSessionRow: View {
                 }
                 Spacer(minLength: 4)
                 Text(session.spotlightAgeBadge)
-                    .font(.system(size: 10.5, weight: .medium, design: .monospaced))
+                    .font(ExpandedNotchTypographyRole.elapsedValue.font)
                     .foregroundStyle(summaryAgeColor(for: presence))
                     .frame(minWidth: 30, alignment: .trailing)
             }
-            .padding(.leading, showsLeadingStatusIndicator ? 30 : 0)
+            .padding(.leading, showsLeadingStatusIndicator ? 26 : 0)
 
             if showsDetail,
                let promptLine = summaryPromptLineText {
                 Text(promptLine)
-                    .font(.system(size: 11.2, weight: .medium))
+                    .font(.caption)
                     .foregroundStyle(summaryPromptColor(for: presence))
                     .lineLimit(2)
                     .truncationMode(.tail)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.leading, showsLeadingStatusIndicator ? 30 : 0)
+                    .padding(.leading, showsLeadingStatusIndicator ? 26 : 0)
             }
         }
         .padding(.leading, rowLeadingInset)
         .padding(.trailing, sideInset)
-        .padding(.top, 11)
-        .padding(.bottom, showsDetail ? 8 : 11)
+        .padding(.top, 9)
+        .padding(.bottom, showsDetail ? 7 : 9)
     }
 
     @ViewBuilder
@@ -1619,21 +1613,21 @@ private struct IslandSessionRow: View {
     private var agentBadge: some View {
         let tint = Color(hex: session.tool.brandColorHex) ?? V6Palette.paper
         return Text(agentBadgeTitle)
-            .font(.system(size: 10.5, weight: .semibold, design: .monospaced))
+            .font(ExpandedNotchTypographyRole.sessionMetadata.font.weight(.semibold))
             .foregroundStyle(tint.opacity(notificationChromeOpacity))
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(tint.opacity(notificationBadgeFillOpacity), in: Capsule())
-            .overlay(Capsule().stroke(tint.opacity(notificationBadgeStrokeOpacity), lineWidth: 1))
+            .padding(.horizontal, 7)
+            .padding(.vertical, 2)
+            .background(tint.opacity(notificationBadgeFillOpacity * 0.72), in: Capsule())
     }
 
     private func sideBadge(_ title: String) -> some View {
         Text(title)
-            .font(.system(size: 10.5, weight: .medium, design: .monospaced))
-            .foregroundStyle(V6Palette.paper.opacity(presentation == .notification ? 0.52 : 0.7))
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(.white.opacity(presentation == .notification ? 0.045 : 0.06), in: Capsule())
+            .font(ExpandedNotchTypographyRole.sessionMetadata.font)
+            .foregroundStyle(
+                presentation == .notification
+                    ? .white.opacity(0.46)
+                    : ExpandedNotchVisualStyle.textColor(.tertiary)
+            )
             .lineLimit(1)
             .fixedSize(horizontal: true, vertical: false)
     }
@@ -1710,7 +1704,7 @@ private struct IslandSessionRow: View {
         case .tint:
             sideInset
         case .animatedDot, .glyph:
-            sideInset + 30
+            sideInset + 26
         }
     }
 
@@ -1723,7 +1717,9 @@ private struct IslandSessionRow: View {
     }
 
     private var summaryTitleFont: Font {
-        .system(size: presentation == .notification ? 13.2 : (isActionable ? 13.8 : 13.2), weight: .semibold)
+        presentation == .notification
+            ? .subheadline.weight(.semibold)
+            : (isActionable ? .headline : .subheadline.weight(.semibold))
     }
 
     private func summaryPromptColor(for presence: IslandSessionPresence) -> Color {
@@ -1731,7 +1727,9 @@ private struct IslandSessionRow: View {
             return V6Palette.paper.opacity(session.phase == .completed ? 0.38 : 0.46)
         }
 
-        return V6Palette.paper.opacity(presence == .inactive ? 0.34 : 0.52)
+        return ExpandedNotchVisualStyle.textColor(
+            presence == .inactive ? .subdued : .tertiary
+        )
     }
 
     private func summaryAgeColor(for presence: IslandSessionPresence) -> Color {
@@ -1739,7 +1737,9 @@ private struct IslandSessionRow: View {
             return V6Palette.paper.opacity(0.36)
         }
 
-        return V6Palette.paper.opacity(presence == .inactive ? 0.32 : 0.45)
+        return ExpandedNotchVisualStyle.textColor(
+            presence == .inactive ? .subdued : .tertiary
+        )
     }
 
     private var notificationChromeOpacity: Double {
@@ -1748,10 +1748,6 @@ private struct IslandSessionRow: View {
 
     private var notificationBadgeFillOpacity: Double {
         presentation == .notification ? 0.08 : 0.13
-    }
-
-    private var notificationBadgeStrokeOpacity: Double {
-        presentation == .notification ? 0.24 : 0.35
     }
 
     private func titleColor(for presence: IslandSessionPresence) -> Color {
@@ -1821,32 +1817,22 @@ private struct IslandSessionRow: View {
     private var runningDetailBody: some View {
         if !session.spotlightElapsedTimers.isEmpty {
             TimelineView(.periodic(from: .now, by: 1)) { timeline in
-                HStack(spacing: 7) {
+                HStack(spacing: 12) {
                     ForEach(session.spotlightElapsedTimers) { timer in
                         elapsedTimerChip(timer, at: timeline.date)
                     }
                 }
             }
-            .padding(.vertical, 2)
+            .padding(.vertical, 4)
             .frame(maxWidth: .infinity, alignment: .leading)
         } else if let runningDetailText {
             Text(runningDetailText)
-                .font(.system(size: 11.5, weight: .semibold, design: .monospaced))
-                .foregroundStyle(.white.opacity(0.82))
+                .font(ExpandedNotchTypographyRole.sessionMetadata.font)
+                .foregroundStyle(ExpandedNotchVisualStyle.textColor(.secondary))
                 .lineLimit(1)
                 .truncationMode(.tail)
-                .padding(.horizontal, 9)
-                .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .fill(Color.white.opacity(0.045))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .strokeBorder(.white.opacity(0.10))
-                )
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.vertical, 2)
+                .padding(.vertical, 4)
         }
     }
 
@@ -1856,27 +1842,17 @@ private struct IslandSessionRow: View {
     ) -> some View {
         HStack(spacing: 5) {
             Text(lang.t(timer.kind.localizationKey))
-                .fontWeight(.semibold)
+                .font(ExpandedNotchTypographyRole.elapsedLabel.font)
+                .foregroundStyle(ExpandedNotchVisualStyle.textColor(.subdued))
             Text(
                 AgentSession.compactElapsedDuration(
                     timer.elapsed(at: referenceDate),
                     includingSecondsWhenHours: timer.kind == .thinking
                 )
             )
-                .foregroundStyle(.white.opacity(0.62))
+                .font(ExpandedNotchTypographyRole.elapsedValue.font)
+                .foregroundStyle(ExpandedNotchVisualStyle.textColor(.secondary))
         }
-        .font(.system(size: 11.5, design: .monospaced))
-        .foregroundStyle(.white.opacity(0.84))
-        .padding(.horizontal, 9)
-        .padding(.vertical, 6)
-        .background(
-            RoundedRectangle(cornerRadius: 7, style: .continuous)
-                .fill(Color.white.opacity(0.045))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 7, style: .continuous)
-                .strokeBorder(.white.opacity(0.10))
-        )
         .fixedSize(horizontal: true, vertical: false)
     }
 
@@ -1885,20 +1861,20 @@ private struct IslandSessionRow: View {
     private var approvalActionBody: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(lang.t("approval.toolPermissionRequested"))
-                .font(.system(size: 12.5, weight: .semibold))
-                .foregroundStyle(V6Palette.paper.opacity(0.86))
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(ExpandedNotchVisualStyle.textColor(.primary))
 
             VStack(alignment: .leading, spacing: 8) {
                 Text(commandPreviewText)
-                    .font(.system(size: 11.5, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(V6Palette.paper.opacity(0.78))
+                    .font(ExpandedNotchTypographyRole.command.font)
+                    .foregroundStyle(ExpandedNotchVisualStyle.textColor(.secondary))
                     .fixedSize(horizontal: false, vertical: true)
 
                 if let path = session.permissionRequest?.affectedPath.trimmedForNotificationCard,
                    !path.isEmpty {
                     Text(path)
-                        .font(.system(size: 10.5, weight: .medium))
-                        .foregroundStyle(V6Palette.paper.opacity(0.42))
+                        .font(ExpandedNotchTypographyRole.command.font)
+                        .foregroundStyle(ExpandedNotchVisualStyle.textColor(.subdued))
                         .lineLimit(1)
                 }
             }
@@ -1915,7 +1891,7 @@ private struct IslandSessionRow: View {
                 Button(session.permissionRequest?.secondaryActionTitle ?? lang.t("approval.deny")) { onApprove?(.deny) }
                     .buttonStyle(IslandActionButtonStyle(kind: .secondary, expands: true))
                 Button(session.permissionRequest?.primaryActionTitle ?? lang.t("approval.allowOnce")) { onApprove?(.allowOnce) }
-                    .buttonStyle(IslandActionButtonStyle(kind: .warning, expands: true))
+                    .buttonStyle(IslandActionButtonStyle(kind: .primary, expands: true))
                 if let toolName = session.permissionRequest?.toolName {
                     Button(lang.t("approval.alwaysAllow", toolName)) {
                         let rule = ClaudePermissionRuleValue(toolName: toolName)
@@ -1947,7 +1923,9 @@ private struct IslandSessionRow: View {
     private var completionActionBody: some View {
         VStack(alignment: .leading, spacing: 0) {
             if !completionMessageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                AutoHeightScrollView(maxHeight: 160) {
+                AutoHeightScrollView(
+                    maxHeight: ExpandedNotchLayoutMetrics.maximumCompletionMessageHeight
+                ) {
                     Markdown(completionMessageText)
                         .markdownTheme(.completionCard)
                         .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -2123,12 +2101,16 @@ private struct IslandSessionRow: View {
         let tint = statusTint(for: presence)
         switch stateIndicator {
         case .animatedDot:
-            if stateIndicator.usesLayerAnimation(presence: presence, isActionable: isActionable) {
+            if stateIndicator.usesLayerAnimation(
+                presence: presence,
+                isActionable: isActionable,
+                reduceMotion: reduceMotion
+            ) {
                 PulsingStatusDot(tint: tint)
-                .frame(width: 10, height: 24, alignment: .top)
+                    .frame(width: 8, height: 22, alignment: .top)
             } else {
                 statusDot(tint: tint, presence: presence, pulse: 0)
-                    .frame(width: 10, height: 24, alignment: .top)
+                    .frame(width: 8, height: 22, alignment: .top)
             }
         case .bar:
             RoundedRectangle(cornerRadius: 2.5, style: .continuous)
@@ -2152,9 +2134,8 @@ private struct IslandSessionRow: View {
     private func statusDot(tint: Color, presence: IslandSessionPresence, pulse: Double) -> some View {
         Circle()
             .fill(tint)
-            .frame(width: 9, height: 9)
-            .scaleEffect(1 + (pulse * 0.18))
-            .shadow(color: tint.opacity(presence == .inactive ? 0 : 0.36 + (pulse * 0.26)), radius: 4 + (pulse * 3))
+            .frame(width: 7, height: 7)
+            .scaleEffect(presence == .inactive ? 1 : 1 + (pulse * 0.05))
             .padding(.top, 6)
     }
 
@@ -2217,31 +2198,36 @@ private struct IslandSessionRow: View {
     private func detailToggleButton(isOpen: Bool) -> some View {
         Button {
             guard isInteractive else { return }
-            withAnimation(.easeInOut(duration: 0.2)) {
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.16)) {
                 detailOverride = !isOpen
             }
         } label: {
             Image(systemName: "chevron.down")
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(isOpen || isHighlighted ? .white.opacity(0.68) : .white.opacity(0.42))
-                .frame(width: 28, height: 28)
+                .font(.system(size: 8.5, weight: .semibold))
+                .foregroundStyle(
+                    ExpandedNotchVisualStyle.textColor(
+                        isOpen || isHighlighted ? .secondary : .subdued
+                    )
+                )
+                .frame(width: 22, height: 22)
                 .background(
                     Circle()
                         .fill(.white.opacity(detailToggleFillOpacity(isOpen: isOpen)))
                 )
                 .rotationEffect(.degrees(isOpen ? 180 : 0))
-                .contentShape(Rectangle())
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(isOpen ? "Collapse session detail" : "Expand session detail")
+        .help(isOpen ? "Collapse session detail" : "Expand session detail")
     }
 
     private func detailToggleFillOpacity(isOpen: Bool) -> Double {
         if isHighlighted {
-            return isOpen ? 0.075 : 0.055
+            return isOpen ? 0.055 : 0.04
         }
 
-        return isOpen ? 0.045 : 0.02
+        return isOpen ? 0.025 : 0
     }
 
     private func compactBadge(
@@ -2264,11 +2250,15 @@ private struct IslandSessionRow: View {
     }
 
     private func headlineColor(for presence: IslandSessionPresence) -> Color {
-        presence == .inactive ? .white.opacity(0.78) : .white
+        ExpandedNotchVisualStyle.textColor(
+            presence == .inactive ? .secondary : .primary
+        )
     }
 
     private func badgeTextColor(for presence: IslandSessionPresence) -> Color {
-        presence == .inactive ? .white.opacity(0.42) : .white.opacity(0.56)
+        ExpandedNotchVisualStyle.textColor(
+            presence == .inactive ? .subdued : .tertiary
+        )
     }
 
     private func statusTint(for presence: IslandSessionPresence) -> Color {
@@ -2282,9 +2272,11 @@ private struct IslandSessionRow: View {
         case .live:
             statusTint(for: presence)
         case .idle:
-            .white.opacity(0.46)
+            ExpandedNotchVisualStyle.textColor(.tertiary)
         case .ready:
-            presence == .inactive ? .white.opacity(0.46) : statusTint(for: presence)
+            presence == .inactive
+                ? ExpandedNotchVisualStyle.textColor(.tertiary)
+                : statusTint(for: presence)
         }
     }
 }
@@ -2789,77 +2781,73 @@ private struct IslandCompactButtonStyle: ButtonStyle {
 }
 
 private struct IslandActionButtonStyle: ButtonStyle {
-    enum Kind {
-        case primary
-        case secondary
-        case warning
-    }
-
-    let kind: Kind
+    let kind: ExpandedNotchActionRole
     var expands = false
 
-    @Environment(\.isEnabled) private var isEnabled
-
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: 11.8, weight: .semibold))
-            .foregroundStyle(foregroundColor)
+        IslandActionButtonBody(
+            label: configuration.label,
+            kind: kind,
+            expands: expands,
+            isPressed: configuration.isPressed
+        )
+    }
+}
+
+private struct IslandActionButtonBody<Label: View>: View {
+    let label: Label
+    let kind: ExpandedNotchActionRole
+    let expands: Bool
+    let isPressed: Bool
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var isHovered = false
+
+    var body: some View {
+        label
+            .font(.callout.weight(.medium))
+            .foregroundStyle(ExpandedNotchVisualStyle.actionTextColor(for: kind, state: actionState))
             .lineLimit(1)
             .frame(maxWidth: expands ? .infinity : nil)
             .padding(.horizontal, 13)
-            .padding(.vertical, 8)
-            .background(backgroundColor(configuration.isPressed), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .strokeBorder(strokeColor, lineWidth: 1)
+            .padding(.vertical, 7)
+            .background(
+                ExpandedNotchVisualStyle.actionFillColor(for: kind, state: actionState),
+                in: RoundedRectangle(cornerRadius: 8, style: .continuous)
             )
-            .opacity(configuration.isPressed ? 0.82 : 1)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(
+                        Color.white.opacity(strokeOpacity),
+                        lineWidth: colorSchemeContrast == .increased ? 1.5 : 1
+                    )
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .onHover { hovering in
+                isHovered = hovering
+            }
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isHovered)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.08), value: isPressed)
     }
 
-    private var foregroundColor: Color {
+    private var actionState: ExpandedNotchActionState {
         guard isEnabled else {
-            return V6Palette.paper.opacity(0.42)
+            return .disabled
         }
-
-        switch kind {
-        case .primary:
-            return .black.opacity(0.88)
-        case .warning:
-            return .white
-        case .secondary:
-            return V6Palette.paper.opacity(0.78)
+        if isPressed {
+            return .pressed
         }
+        return isHovered ? .hovered : .resting
     }
 
-    private var strokeColor: Color {
-        guard isEnabled else {
-            return .white.opacity(0.07)
-        }
-
-        switch kind {
-        case .primary:
-            return V6Palette.paper.opacity(0.86)
-        case .warning:
-            return Color(red: 0.85, green: 0.55, blue: 0.15).opacity(0.42)
-        case .secondary:
-            return .white.opacity(0.07)
-        }
-    }
-
-    private func backgroundColor(_ isPressed: Bool) -> Color {
-        guard isEnabled else {
-            return Color.white.opacity(0.055)
-        }
-
-        let pressedFactor: Double = isPressed ? 0.78 : 1
-        switch kind {
-        case .primary:
-            return V6Palette.paper.opacity(pressedFactor)
-        case .warning:
-            return Color(red: 0.85, green: 0.55, blue: 0.15).opacity(pressedFactor)
-        case .secondary:
-            return Color.white.opacity(isPressed ? 0.11 : 0.065)
-        }
+    private var strokeOpacity: Double {
+        let baseOpacity = ExpandedNotchVisualStyle.actionStrokeOpacity(
+            for: kind,
+            state: actionState
+        )
+        return colorSchemeContrast == .increased ? min(1, baseOpacity * 1.7) : baseOpacity
     }
 }
 

@@ -1173,6 +1173,28 @@ struct CodexSessionTrackingTests {
     }
 
     @Test
+    func codexRolloutReducerDoesNotExposeInjectedSkillInstructionsAsUserPrompts() {
+        let snapshot = CodexRolloutReducer.snapshot(for: [
+            rolloutLine(
+                timestamp: "2026-07-31T06:22:28.346Z",
+                type: "event_msg",
+                payload: [
+                    "type": "user_message",
+                    "message": """
+                    <skill>
+                      <name>verification-before-completion</name>
+                      <path>/Users/example/.codex/skills/verification-before-completion/SKILL.md</path>
+                    </skill>
+                    """,
+                ]
+            ),
+        ])
+
+        #expect(snapshot.initialUserPrompt == nil)
+        #expect(snapshot.lastUserPrompt == nil)
+    }
+
+    @Test
     func codexRolloutReducerStripsAttachedFileManifestFromEventMessages() {
         let snapshot = CodexRolloutReducer.snapshot(for: [
             rolloutLine(

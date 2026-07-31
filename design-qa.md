@@ -1,64 +1,82 @@
 # Design QA
 
-**Source visual truth**
+## Source visual truth
 
-- `/Users/vihaan/.codex/generated_images/019fb475-be3f-7d30-938a-742cca953924/call_kRSD7a1chySpXacn93ueD9RX.png`
-- Source pixels: 1586 × 992.
-- The source is a full-screen concept image rather than a density-tagged native capture.
+- User-supplied reference: `/var/folders/pb/wdsr0r1n5_v8ktxzd2_6k4740000gn/T/codex-clipboard-a5455183-f7c5-48b0-bfbc-14e541cc6a85.png`
+- Source pixels: 3093 × 1740.
+- Target traits: pure-black media surface; square artwork with a continuous radius; large title over quieter artist; colored waveform; elapsed and negative-remaining timeline; large centered previous, pause, and next controls; trailing output control.
+- Product constraint: retain Open Island's macOS notch silhouette, persistent Agents-first tab structure, and existing playback behavior.
 
-**Rendered implementation**
+## Rendered implementation
 
-- Open Spotify state: `/Users/vihaan/Documents/notch/output/harness/smoke-20260731-080516/overlay.png`
-- Closed peeking-tab state, composited over black: `/Users/vihaan/Documents/notch/output/harness/smoke-20260731-080546/overlay-on-black.png`
-- Implementation pixels: 1392 × 468 for a 696 × 234 point native AppKit window captured at 2× density.
-- State: Spotify selected, playing, dark appearance, built-in Retina display with notch-aware placement.
+- Deterministic Spotify capture: `/Users/vihaan/.codex/worktrees/a54d/notch/output/harness/spotify-dynamic-island-final/overlay.png`
+- Live Spotify capture: `/Users/vihaan/.codex/visualizations/2026/07/31/019fb6d5-150b-7ef0-900e-3daa5206e134/open-island-expanded-notch-audit/20-dynamic-island-after/spotify-after-final.jpeg`
+- Live volume-popover capture: `/Users/vihaan/.codex/visualizations/2026/07/31/019fb6d5-150b-7ef0-900e-3daa5206e134/open-island-expanded-notch-audit/20-dynamic-island-after/spotify-volume-popover-final.jpeg`
+- Live Agents capture: `/Users/vihaan/.codex/visualizations/2026/07/31/019fb6d5-150b-7ef0-900e-3daa5206e134/open-island-expanded-notch-audit/20-dynamic-island-after/agents-tab-prompt-icon-final.jpeg`
+- Deterministic Agents capture: `/Users/vihaan/.codex/worktrees/a54d/notch/output/harness/agents-flat-status-final/overlay.png`
+- Deterministic Claude launch-demo capture: `/Users/vihaan/.codex/worktrees/a54d/notch/output/harness/claude-demo-verified/overlay.png`
+- Deterministic approval-action capture: `/Users/vihaan/.codex/worktrees/a54d/notch/output/harness/approval-off-white-final/overlay.png`
+- Long-completion regression capture: `/Users/vihaan/.codex/worktrees/a54d/notch/output/harness/long-completion-height-contract-184/overlay.png`
+- Implementation pixels: 1200 × 512 for the deterministic 600 × 256 point Retina capture.
+- State: Spotify selected and playing, dark appearance, built-in Retina display with notch-aware placement.
 
-**Comparison evidence**
+## Comparison evidence
 
-- Full-view comparison: `/Users/vihaan/Documents/notch/output/harness/smoke-20260731-080516/reference-vs-implementation.png`
-  - The source was cropped to 1360 × 500 around the notch/player.
-  - The 1392 × 468 implementation capture was proportionally normalized to 1360 pixels wide before vertical comparison.
-- Focused tab comparison: `/Users/vihaan/Documents/notch/output/harness/smoke-20260731-080516/tabs-reference-vs-implementation.png`
-  - Equal 260 × 170 crops were placed side by side.
-  - A focused comparison was required because the selected/foreground silhouette and zero-gap center seam are the core visual decision.
+- Combined reference and implementation input: `/Users/vihaan/.codex/visualizations/2026/07/31/019fb6d5-150b-7ef0-900e-3daa5206e134/open-island-expanded-notch-audit/20-dynamic-island-after/reference-vs-spotify-final.png`
+- The supplied phone image and native macOS capture are normalized to the same 1200-pixel width and placed in one vertical comparison.
+- The device frames cannot share a literal viewport. Fidelity is judged on the expanded media surface's hierarchy, alignment, proportions, contrast, and control rhythm while preserving Open Island's macOS chrome.
 
-**Findings**
+## Findings
 
 - No actionable P0, P1, or P2 differences remain.
-- Fonts and typography: the implementation uses the native San Francisco system face with semibold title and medium secondary text. The scale, hierarchy, truncation, and monospaced time labels preserve the source's compact music-player hierarchy.
-- Spacing and layout rhythm: artwork, metadata, progress, centered transport controls, and trailing volume control form the same left-to-right hierarchy as the source. Both tabs are the same 45 × 30 point size, overlap by 2 points, and tuck 6 points behind the notch surface. The active tab renders above its neighbor through z-order, border, fill, and shadow rather than a size change.
-- Colors and visual tokens: the near-black Open Island surface, low-contrast dividers, muted secondary text, and Spotify green state color match the source direction and existing Open Island palette.
-- Image quality and asset fidelity: production renders Spotify's supplied artwork with aspect-fill, a continuous rounded mask, and a subtle border. The deterministic harness intentionally has no artwork URL, so the implementation capture shows the branded Spotify fallback while preserving the exact artwork slot and crop behavior.
-- Copy and content: dynamic title, artist, elapsed time, duration, and accessibility labels are present and coherent. The harness uses the same track metadata as the source concept.
-- Icons and controls: native controls are optically aligned, consistently weighted, and expose Back, Forward, Pause Spotify, Spotify volume, agents, Spotify, sound, settings, and quit through accessibility.
-- Interaction/state coverage: native smoke captures passed for open Spotify and closed tabs. Behavior tests cover tab selection, hover/click routing, Spotify restoration after agent interruptions, seek/volume clamping, and unavailable Spotify.
+- Layout: the old compact utility row is replaced by the reference's three-tier composition: artwork and metadata, full-width timeline, then centered transport controls.
+- Typography: title and artist use native San Francisco semantic styles. The title is larger and high-contrast without extra-heavy display weight; the artist and time labels remain quieter.
+- Color: the surface stays near-black, primary content is white, secondary metadata is gray, and Spotify green is restricted to Spotify identity and the waveform.
+- Artwork: production uses Spotify's supplied artwork with aspect-fill, a 12-point continuous corner radius, a hairline edge, and a restrained shadow. The offline harness uses the real Spotify glyph fallback in the same slot.
+- Controls: previous, pause, and next are larger, evenly spaced, and high-contrast. The native macOS slider deliberately keeps its thumb and accessibility behavior. Volume moves into a trailing button and native popover instead of consuming the transport row.
+- Responsive behavior: the 480-point safe content width is preserved; artwork shrinks from 76 to 64 points before metadata is crowded on narrow displays.
+- Agents integrity: changing tabs returns to the 500-point Agents surface without clipping or inheriting the Spotify height.
+- Agents identity: the inner tabs use native 12-point caption labels with a 12.5-point SF Mono `>_` prompt, giving the control more presence without increasing its compact height.
+- Agents status color: running, completed, and attention colors use a muted low-chroma palette. Status dots are flat fills with no colored shadow; the active dot retains only a restrained five-percent scale pulse. The install-hooks icon is neutral gray rather than accent blue.
+- Approval actions: the primary action uses Open Island's cream-paper tone with ink text instead of warning orange. The secondary action remains neutral dark; both use semantic callout typography, compact continuous radii, pointer hover and press feedback, and accessibility-aware motion and contrast.
+- Long content: completion sizing and the SwiftUI scroll viewport now share one 184-point maximum. The verified 438-point fixture shows complete visible lines and preserves the remaining text in an accessible internal scroll area.
+- Interaction: the accessibility capture exposes Previous track, Pause Spotify, Next track, Spotify volume, both tabs, sound, settings, and quit. Provider tests cover seek and volume clamping.
 
-**Comparison history**
+## Comparison history
 
-1. Initial comparison
-   - [P2] Transport controls were anchored too far left in the detail column.
-   - Evidence: `/Users/vihaan/Documents/notch/output/harness/smoke-20260731-074941/reference-vs-implementation.png`
-   - Fix: changed the transport row to a centered layer with an independently trailing volume layer in `SpotifyPlayerView`.
-2. Post-fix comparison
-   - Evidence: `/Users/vihaan/Documents/notch/output/harness/smoke-20260731-075132/reference-vs-implementation.png`
-   - Result: the previous left-weighted control cluster is centered and the volume control remains right aligned. No P0/P1/P2 finding remains.
-3. User-directed Chrome-tab refinement
-   - Changed both tabs to equal height, added curved inner contact corners, overlapped the pair by 2 points, and tucked their top shoulders 6 points behind the notch.
-   - Evidence: `/Users/vihaan/Documents/notch/output/harness/smoke-20260731-080516/tabs-reference-vs-implementation.png` and `/Users/vihaan/Documents/notch/output/harness/smoke-20260731-080546/overlay-on-black.png`.
-   - Result: the selected tab comes forward through visual hierarchy only; the shared seam and notch attachment are curved with no P0/P1/P2 issue.
+1. Baseline
+   - [P2] Spotify was a 600 × 206 compact horizontal utility row with small controls, an always-visible volume slider, and no reference-like hierarchy.
+   - Evidence: `/Users/vihaan/.codex/visualizations/2026/07/31/019fb6d5-150b-7ef0-900e-3daa5206e134/open-island-expanded-notch-audit/19-dynamic-island-before/spotify-before.png`.
+   - Fix: rebuilt the player as a three-tier native SwiftUI surface.
+2. First live pass
+   - The artwork, metadata, timeline, waveform, and transport controls matched the source composition; both expanded tabs fit without clipping.
+   - Evidence: `/Users/vihaan/.codex/visualizations/2026/07/31/019fb6d5-150b-7ef0-900e-3daa5206e134/open-island-expanded-notch-audit/20-dynamic-island-after/spotify-after-final.jpeg`.
+3. Cross-surface smoke pass
+   - [P1] The pre-existing long completion fixture exposed a mismatched 260-point window budget and 160-point SwiftUI viewport, leaving a partially cut line above empty space.
+   - Fix: introduced one shared 184-point completion-message maximum used by sizing and rendering.
+   - Evidence: `/Users/vihaan/.codex/worktrees/a54d/notch/output/harness/long-completion-height-contract-184/overlay.png`.
+4. Final comparison
+   - Raised the default transport and volume contrast to match the reference while retaining restrained hover fills.
+   - Evidence: `/Users/vihaan/.codex/visualizations/2026/07/31/019fb6d5-150b-7ef0-900e-3daa5206e134/open-island-expanded-notch-audit/20-dynamic-island-after/reference-vs-spotify-final.png`.
+5. Agents-tab identity
+   - Replaced the boxed terminal symbol with a direct SF Mono prompt mark so `>_` stays legible at tab scale.
+   - Evidence: `/Users/vihaan/.codex/worktrees/a54d/notch/output/harness/agents-prompt-icon-final/overlay.png`.
+6. Agents typography and status color
+   - Raised the tab labels from `caption2` to `caption`, muted the status palette, removed the static and animated colored shadows, and neutralized the install-hooks icon.
+   - Evidence: `/Users/vihaan/.codex/worktrees/a54d/notch/output/harness/agents-flat-status-final/overlay.png`.
+7. Claude launch-demo surface
+   - Added a local-only fixture with two running Claude sessions, one completed session, two subagents, and three task states. The synthetic sessions suppress the real hook-setup prompt and remain fully visible in the expanded notch.
+   - The recording launcher uses a separately identified temporary app bundle, so it does not collide with or replace the normal development app.
+   - Evidence: `/Users/vihaan/.codex/worktrees/a54d/notch/output/harness/claude-demo-verified/overlay.png`; the same surface was verified live in `Open Island Claude Demo`.
+8. Approval action styling
+   - Replaced the amber permission CTA with the existing cream-paper system, kept Deny visually secondary, reduced the radius and vertical padding, and added restrained hover and press feedback.
+   - The final 500 × 326 point fixture contains the full command preview and all actions; the AX capture exposes Allow and Deny as buttons. The same surface was inspected live in a separately identified local preview app.
+   - Evidence: `/Users/vihaan/.codex/worktrees/a54d/notch/output/harness/approval-off-white-final/overlay.png`.
 
-**Follow-up polish**
+## Intentional platform adaptations
 
-- [P3] The concept's artwork cannot appear in a deterministic no-network harness state. A live Spotify session supplies real artwork through the media adapter.
-- [P3] The implementation tabs are intentionally slightly larger than the concept image, following the user's explicit request for a bigger, easier-to-hit pair.
-
-**Implementation checklist**
-
-- [x] Adjacent, zero-gap inverted browser tabs.
-- [x] Active Spotify tab comes forward.
-- [x] Wider lightweight Spotify player.
-- [x] Centered playback controls and trailing volume.
-- [x] Open and closed native captures.
-- [x] Accessibility labels for core controls.
+- The Agents/Spotify tab switcher and header controls remain because they are core Open Island navigation, not part of the phone reference.
+- The trailing control opens the existing Spotify volume behavior rather than presenting a non-functional AirPlay glyph.
+- Native macOS slider, hover, popover, and accessibility behavior take precedence over reproducing iOS controls literally.
 
 final result: passed

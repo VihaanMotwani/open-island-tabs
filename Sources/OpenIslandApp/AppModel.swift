@@ -64,7 +64,7 @@ final class AppModel {
     var selectedSessionID: String?
     let hooks = HookInstallationCoordinator()
     let overlay = OverlayUICoordinator()
-    let discovery = SessionDiscoveryCoordinator()
+    let discovery: SessionDiscoveryCoordinator
     let monitoring = ProcessMonitoringCoordinator()
     let codexAppServer = CodexAppServerCoordinator()
     let updateChecker = UpdateChecker()
@@ -166,6 +166,11 @@ final class AppModel {
             || hooks.openCodePluginInstalled
             || hooks.geminiHooksInstalled
             || hooks.kimiHooksInstalled
+    }
+
+    var shouldShowInstallHooksHint: Bool {
+        !hasAnyInstalledAgent
+            && !state.sessions.contains(where: \.isDemoSession)
     }
     func refreshCodexHookStatus() { hooks.refreshCodexHookStatus() }
     func refreshClaudeHookStatus() { hooks.refreshClaudeHookStatus() }
@@ -592,6 +597,7 @@ final class AppModel {
     }
 
     init(
+        discovery: SessionDiscoveryCoordinator = SessionDiscoveryCoordinator(),
         terminalJumpAction: @escaping @Sendable (JumpTarget) throws -> String = { target in
             try TerminalJumpService().jump(to: target)
         },
@@ -599,6 +605,7 @@ final class AppModel {
             await ForegroundTerminalSessionProbe().matches(session: session)
         }
     ) {
+        self.discovery = discovery
         self.terminalJumpAction = terminalJumpAction
         self.isNotificationSessionAlreadyFrontmost = isNotificationSessionAlreadyFrontmost
         UserDefaults.standard.register(defaults: [
@@ -1270,6 +1277,9 @@ final class AppModel {
         overlay.selectIslandTab(tab)
         overlay.refreshOverlayPlacementIfVisible()
     }
+    func openIslandTab(_ tab: IslandTab) {
+        overlay.openIslandTab(tab)
+    }
     func openSpotifyIfNeeded() {
         guard spotifyPlayback.snapshot.availability == .notRunning else { return }
         spotifyPlayback.perform(.open)
@@ -1585,10 +1595,12 @@ final class AppModel {
         synchronizeSelection()
         discovery.refreshCodexRolloutTracking()
         refreshOverlayPlacementIfVisible()
-        discovery.scheduleCodexSessionPersistence()
-        discovery.scheduleClaudeSessionPersistence()
-        discovery.scheduleOpenCodeSessionPersistence()
-        discovery.scheduleCursorSessionPersistence()
+        if hasStarted {
+            discovery.scheduleCodexSessionPersistence()
+            discovery.scheduleClaudeSessionPersistence()
+            discovery.scheduleOpenCodeSessionPersistence()
+            discovery.scheduleCursorSessionPersistence()
+        }
 
         // Push relevant events to the Watch/iPhone via the relay
         if let relay = watchRelay {

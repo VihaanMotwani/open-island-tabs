@@ -1145,7 +1145,7 @@ public enum CodexRolloutReducer {
                 to: &snapshot
             )
         case "user_message":
-            guard let message = cleanedUserPrompt(payload["message"] as? String) else {
+            guard let message = userVisiblePrompt(payload["message"] as? String) else {
                 break
             }
 
@@ -2014,7 +2014,7 @@ public enum CodexRolloutReducer {
             }
 
             if skipsInjectedBlocks {
-                return cleanedUserPrompt(trimmed)
+                return userVisiblePrompt(trimmed)
             }
 
             return trimmed
@@ -2039,10 +2039,14 @@ public enum CodexRolloutReducer {
             || text.hasPrefix("<apps_instructions>")
             || text.hasPrefix("<plugins_instructions>")
             || text.hasPrefix("<skills_instructions>")
+            || text.hasPrefix("<skill>")
             || text.hasPrefix("<codex_internal_context")
     }
 
-    private static func cleanedUserPrompt(_ value: String?) -> String? {
+    /// Removes Codex-injected context envelopes while retaining any actual
+    /// user request that follows them. Used at ingestion and presentation so
+    /// previously cached metadata cannot leak internal context into the UI.
+    public static func userVisiblePrompt(_ value: String?) -> String? {
         guard var remaining = value?.trimmingCharacters(in: .whitespacesAndNewlines),
               !remaining.isEmpty else {
             return nil
@@ -2059,6 +2063,7 @@ public enum CodexRolloutReducer {
             ("<apps_instructions>", "</apps_instructions>"),
             ("<plugins_instructions>", "</plugins_instructions>"),
             ("<skills_instructions>", "</skills_instructions>"),
+            ("<skill>", "</skill>"),
             ("<codex_internal_context", "</codex_internal_context>"),
         ]
 

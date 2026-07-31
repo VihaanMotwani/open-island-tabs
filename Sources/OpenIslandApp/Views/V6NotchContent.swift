@@ -212,8 +212,12 @@ struct V6ClosedPill: View {
     var mode: UnifiedBars.Mode
     var label: String?          // suppressed automatically in MacBook layout
     var rightSlot: IslandRightSlotContent?
+    var mediaActivity: MediaActivityState = .hidden
+    var onMediaActivitySelected: (() -> Void)?
     var layout: V6ClosedLayout
     var height: CGFloat = 32
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// MacBook mode only — width of the physical notch cutout to wrap.
     var physicalNotchWidth: CGFloat = 0
@@ -238,16 +242,38 @@ struct V6ClosedPill: View {
     // label) and the right-slot content so they never touch at small widths.
     private static let innerGap: CGFloat = 6
 
+    private var mediaActivityWidth: CGFloat {
+        mediaActivity == .hidden ? 0 : 21
+    }
+
+    @ViewBuilder
+    private var leadingActivityCluster: some View {
+        HStack(spacing: V6MacBookSlotMetrics.leadingActivitySpacing) {
+            if mediaActivity != .hidden {
+                MediaActivityIndicator(
+                    state: mediaActivity,
+                    action: onMediaActivitySelected ?? {}
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.82)))
+            }
+
+            UnifiedBars(mode: mode, size: 24)
+                .frame(width: 24, height: 24)
+        }
+    }
+
     // MARK: External (fluid)
 
     private var externalBody: some View {
-        let glyphW: CGFloat = 24
         let labelW = label.map { V6CenterLabelView.intrinsicWidth(of: $0) } ?? 0
         let rightW = rightSlot.map { V6RightSlotView.intrinsicWidth(of: $0) } ?? 0
 
         let labelBlock = (label == nil ? 0 : 6 + labelW)
         let rightBlock = (rightSlot == nil ? 0 : Self.innerGap + rightW)
-        let intrinsic = pad * 2 + glyphW + labelBlock + rightBlock
+        let leadingWidth = V6MacBookSlotMetrics.leadingActivityContentWidth(
+            mediaActivityWidth: mediaActivityWidth
+        )
+        let intrinsic = pad * 2 + leadingWidth + labelBlock + rightBlock
         let width = max(minWidth, intrinsic)
 
         return ZStack {
@@ -255,8 +281,7 @@ struct V6ClosedPill: View {
                 .fill(V6Palette.ink)
 
             HStack(spacing: 0) {
-                UnifiedBars(mode: mode, size: 24)
-                    .frame(width: glyphW, height: 24)
+                leadingActivityCluster
 
                 if let label {
                     V6CenterLabelView(text: label)
@@ -282,37 +307,133 @@ struct V6ClosedPill: View {
                 AnyHashable(mode),
             ])
         )
+        .animation(reduceMotion ? nil : .smooth(duration: 0.28), value: mediaActivity)
     }
 
-    // MARK: MacBook (outer width locked)
+    // MARK: MacBook (content-balanced around the physical notch)
 
     private var macbookBody: some View {
-        let halfReserve: CGFloat = 44
-        let outer = halfReserve + physicalNotchWidth + halfReserve
+        let leadingWidth = V6MacBookSlotMetrics.leadingActivityContentWidth(
+            mediaActivityWidth: mediaActivityWidth
+        )
+        let trailingWidth = rightSlot.map { V6RightSlotView.intrinsicWidth(of: $0) } ?? 0
+        let leadingReserve = V6MacBookSlotMetrics.leadingReserve(
+            contentWidth: leadingWidth
+        )
+        let trailingReserve = V6MacBookSlotMetrics.trailingReserve(
+            contentWidth: trailingWidth
+        )
+        let outer = leadingReserve + physicalNotchWidth + trailingReserve
 
         return ZStack {
             V6ClosedPillShape()
                 .fill(V6Palette.ink)
 
             HStack(spacing: 0) {
-                UnifiedBars(mode: mode, size: 24)
-                    .frame(width: 24, height: 24)
+                leadingActivityCluster
+                    .padding(.leading, V6MacBookSlotMetrics.outerEdgeInset)
+                    .padding(.trailing, V6MacBookSlotMetrics.leadingNotchGap)
+                    .frame(width: leadingReserve, alignment: .trailing)
 
-                Spacer(minLength: 0)
+                Color.clear
+                    .frame(width: physicalNotchWidth)
 
-                if let rightSlot {
-                    V6RightSlotView(content: rightSlot)
+                ZStack(alignment: .leading) {
+                    if let rightSlot {
+                        V6RightSlotView(content: rightSlot)
+                    }
                 }
+                .frame(width: trailingReserve, height: height, alignment: .center)
             }
-            .padding(.horizontal, pad)
         }
         .frame(width: outer, height: height)
+        .offset(
+            x: V6MacBookSlotMetrics.hardwareAlignmentOffset(
+                leadingReserve: leadingReserve,
+                trailingReserve: trailingReserve
+            )
+        )
+        .animation(reduceMotion ? nil : .smooth(duration: 0.28), value: mediaActivity)
     }
 }
 
 enum V6ClosedLayout: Equatable {
     case external
     case macbook
+}
+
+struct V6MacBookSlotMetrics {
+    static let outerEdgeInset: CGFloat = 12
+    static let leadingActivitySpacing: CGFloat = 9
+    static let leadingNotchGap: CGFloat = 8
+    static let trailingNotchGap: CGFloat = 12
+
+    static func leadingActivityContentWidth(
+        mediaActivityWidth: CGFloat
+    ) -> CGFloat {
+        let spacing = mediaActivityWidth > 0 ? leadingActivitySpacing : 0
+        return mediaActivityWidth + spacing + 24
+    }
+
+    static func leadingReserve(contentWidth: CGFloat) -> CGFloat {
+        outerEdgeInset + contentWidth + leadingNotchGap
+    }
+
+    static func trailingReserve(contentWidth: CGFloat) -> CGFloat {
+        trailingNotchGap + contentWidth + outerEdgeInset
+    }
+
+    static func leadingContentOrigin(
+        notchLeft: CGFloat,
+        reserve: CGFloat
+    ) -> CGFloat {
+        leadingSurfaceOrigin(notchLeft: notchLeft, reserve: reserve)
+            + outerEdgeInset
+    }
+
+    static func leadingSurfaceOrigin(
+        notchLeft: CGFloat,
+        reserve: CGFloat
+    ) -> CGFloat {
+        notchLeft - reserve
+    }
+
+    static func leadingGridOrigin(
+        notchLeft: CGFloat,
+        reserve: CGFloat,
+        mediaActivityWidth: CGFloat
+    ) -> CGFloat {
+        let spacing = mediaActivityWidth > 0 ? leadingActivitySpacing : 0
+        return leadingContentOrigin(notchLeft: notchLeft, reserve: reserve)
+            + mediaActivityWidth
+            + spacing
+    }
+
+    static func trailingContentOrigin(
+        notchRight: CGFloat,
+        reserve: CGFloat,
+        contentWidth: CGFloat
+    ) -> CGFloat {
+        notchRight + ((reserve - contentWidth) / 2)
+    }
+
+    static func trailingContentCenter(
+        notchRight: CGFloat,
+        reserve: CGFloat
+    ) -> CGFloat {
+        notchRight + (reserve / 2)
+    }
+
+    /// The closed pill has independently sized left and right wings. When
+    /// SwiftUI centers the pill's outer bounds, that asymmetry would move the
+    /// transparent notch span away from the hardware notch. Shift the visual
+    /// surface so the center of the transparent span remains screen-centered.
+    static func hardwareAlignmentOffset(
+        leadingReserve: CGFloat,
+        trailingReserve: CGFloat
+    ) -> CGFloat {
+        (trailingReserve - leadingReserve) / 2
+    }
 }
 
 private enum RightSlotKey: Hashable {

@@ -1,5 +1,10 @@
 import Foundation
 
+enum AppWindowBootstrapStep: Equatable {
+    case hideExistingWindows
+    case loadScenario(IslandDebugScenario)
+}
+
 struct HarnessLaunchConfiguration {
     let scenario: IslandDebugScenario?
     let presentOverlay: Bool
@@ -8,6 +13,14 @@ struct HarnessLaunchConfiguration {
     let captureDelay: TimeInterval?
     let autoExitAfter: TimeInterval?
     let artifactDirectoryURL: URL?
+
+    var windowBootstrapSteps: [AppWindowBootstrapStep] {
+        var steps: [AppWindowBootstrapStep] = [.hideExistingWindows]
+        if let scenario {
+            steps.append(.loadScenario(scenario))
+        }
+        return steps
+    }
 
     init(environment: [String: String] = ProcessInfo.processInfo.environment) {
         scenario = Self.scenarioValue(from: environment["OPEN_ISLAND_HARNESS_SCENARIO"])

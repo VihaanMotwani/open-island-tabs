@@ -10,6 +10,7 @@ The repository harness exists to make a round of work mechanically checkable. Th
 - `scripts/harness.sh ci` is the non-GUI path used by CI.
 - `scripts/harness.sh smoke` launches the macOS app in harness mode, loads a deterministic debug scenario, captures local artifacts, and auto-exits after a short timeout.
 - `scripts/harness.sh smoke-all` runs the full debug-scenario suite and validates each artifact set.
+- `scripts/launch-claude-demo.sh` launches a recording-ready synthetic Codex + Claude session list and stays open until the app is quit.
 - `scripts/check-docs.sh` enforces the minimum doc map and required links.
 
 ## Current Guarantees
@@ -37,6 +38,30 @@ The smoke path is intentionally aimed at the repository executable, not `~/Appli
 
 The default smoke path writes artifacts under `output/harness/`.
 
+For launch-video recording, run:
+
+```sh
+zsh scripts/launch-claude-demo.sh
+```
+
+This uses the production Agents surface with three local demo-origin sessions: one active Codex task, one active Claude task with subagents and tasks, and one recently completed Claude task. The same fixture carries deterministic Spotify metadata and artwork so the recording can move from agent monitoring to music control without reading the user's live playback state. It launches as a temporary, separately identified app so the normal dev app can stay open alongside it. The launcher disables the live bridge, does not read hook or session history, hides real setup prompts, and remains open for manual interaction and screen recording. Use the existing `approvalCard` smoke scenario when recording a dedicated permission shot.
+
+To cut the physical-notch launch take into the 15-second Agents-to-Spotify launch sequence, run:
+
+```sh
+zsh scripts/render-launch-video.sh "/path/to/Screen Recording.mov" "/path/to/output.mp4" "/path/to/wallpaper.heic"
+```
+
+The output and wallpaper arguments are optional. The renderer preserves the real notch occlusion from the supplied take while compositing it over a clean macOS wallpaper, defaulting to the built-in Big Sur Graphic Dark asset. It gives newcomers clear notification and expanded Agents beats before centering the Spotify reveal, expanded controls, and compact playback. It joins the motion-matched beats with restrained cross-dissolves, adds moving SF-system captions, and exports a silent 1920×1080, 60 fps H.264 master under `output/launch-video/`. It does not add a demo-data label to the product surface or the video.
+
+To burn the launch copy into an already edited 1920×1080 tabs demo while preserving its audio, run:
+
+```bash
+zsh scripts/render-tabs-demo-captions.sh /path/to/open-island-tabs-demo.mov
+```
+
+The optional second argument selects the output path. The renderer keeps the source at 29.97 fps, uses the shared SF-system caption treatment, fades one caption at a time over the 15.6-second story, and writes an H.264/AAC copy without changing the source master.
+
 Each smoke artifact directory now includes a minimal observability slice:
 
 - `report.json` for the scenario summary and runtime artifact index
@@ -50,6 +75,7 @@ For the deterministic scenario suite, the harness now performs these semantic ch
 
 - `closed`: compact geometry remains in the closed-notch range
 - `sessionList`: expanded geometry is present and the list exposes multiple actionable rows
+- `claudeDemo`: Codex and Claude cover parallel running work, Claude subagents/tasks, a completed state, and deterministic Spotify playback without exposing the real hook setup prompt
 - `approvalCard`: overlay stays open and the accessibility tree contains `Deny` plus an allow-style button label
 - `questionCard`: overlay stays open and the three answer choices appear as buttons
 - `completionCard`: overlay stays open and exposes the `Done` completion copy

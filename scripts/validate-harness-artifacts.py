@@ -234,14 +234,49 @@ def main() -> None:
             fail(f"expected sessionList surface, got {island_surface!r}")
         require_frame_between(
             overlay_frame,
-            width=(520, 780),
-            height=(320, 500),
+            width=(420, 520),
+            height=(260, 500),
             context="sessionList overlay frame",
         )
         if len(button_labels) < 3 and report.get("sessionCount", 0) < 3:
             fail("expected sessionList to expose multiple actionable row buttons")
         if report.get("sessionCount") != 9:
             assert_contains_any(text_values, ["sessions hidden", "9 "], "sessionList text values")
+
+    elif scenario == "claudeDemo":
+        if notch_status != "opened":
+            fail(f"expected opened notch for claudeDemo, got {notch_status!r}")
+        if island_surface != "sessionList":
+            fail(f"expected claudeDemo to use sessionList, got {island_surface!r}")
+        require_frame_between(
+            overlay_frame,
+            width=(420, 520),
+            height=(260, 620),
+            context="claudeDemo overlay frame",
+        )
+
+        sessions = report.get("sessions") or []
+        if len(sessions) != 3:
+            fail(f"expected three launch demo sessions, got {len(sessions)}")
+
+        tools = {session.get("tool") for session in sessions}
+        required_tools = {"codex", "claudeCode"}
+        if not required_tools.issubset(tools):
+            fail(f"claudeDemo is missing launch tools {sorted(required_tools - tools)}")
+
+        phases = {session.get("phase") for session in sessions}
+        required_phases = {"running", "completed"}
+        if not required_phases.issubset(phases):
+            fail(f"claudeDemo is missing launch states {sorted(required_phases - phases)}")
+        if sum(session.get("phase") == "running" for session in sessions) != 2:
+            fail("claudeDemo should show two active agent sessions")
+
+        if not any("launch-film" in str(session.get("title", "")) for session in sessions):
+            fail("claudeDemo report is missing the launch-film session")
+        if not any("Open Island launch" in str(session.get("title", "")) for session in sessions):
+            fail("claudeDemo report is missing the Codex launch session")
+        if any("Set up agent hooks" in value for value in labels | text_values):
+            fail("claudeDemo should not show the real hook setup hint")
 
     elif scenario == "approvalCard":
         if notch_status != "opened":
@@ -250,7 +285,7 @@ def main() -> None:
             fail(f"expected approvalCard/actionable session surface, got {island_surface!r}")
         require_frame_between(
             overlay_frame,
-            width=(520, 780),
+            width=(420, 520),
             height=(240, 390),
             context="approvalCard overlay frame",
         )
@@ -266,8 +301,8 @@ def main() -> None:
             fail(f"expected questionCard/actionable session surface, got {island_surface!r}")
         require_frame_between(
             overlay_frame,
-            width=(520, 780),
-            height=(180, 430),
+            width=(420, 520),
+            height=(180, 520),
             context="questionCard overlay frame",
         )
         if selected_session_phase(report) != "waitingForAnswer":
@@ -280,7 +315,7 @@ def main() -> None:
             fail(f"expected completionCard/actionable session surface, got {island_surface!r}")
         require_frame_between(
             overlay_frame,
-            width=(520, 780),
+            width=(420, 520),
             height=(180, 460),
             context="completionCard overlay frame",
         )
@@ -294,7 +329,7 @@ def main() -> None:
             fail(f"expected longCompletionCard to remain on completion/actionable session surface, got {island_surface!r}")
         require_frame_between(
             overlay_frame,
-            width=(520, 780),
+            width=(420, 520),
             height=(180, 460),
             context="longCompletionCard overlay frame",
         )
@@ -308,7 +343,7 @@ def main() -> None:
             fail(f"expected spotifyPlayer to use the base sessionList surface, got {island_surface!r}")
         require_frame_between(
             overlay_frame,
-            width=(520, 780),
+            width=(500, 620),
             height=(190, 340),
             context="spotifyPlayer overlay frame",
         )

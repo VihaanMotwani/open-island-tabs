@@ -107,6 +107,11 @@ struct PerformancePolicyTests {
             presence: .inactive,
             isActionable: true
         ))
+        #expect(!IslandSessionStateIndicator.animatedDot.usesLayerAnimation(
+            presence: .running,
+            isActionable: false,
+            reduceMotion: true
+        ))
         #expect(!IslandSessionStateIndicator.bar.usesLayerAnimation(
             presence: .running,
             isActionable: false

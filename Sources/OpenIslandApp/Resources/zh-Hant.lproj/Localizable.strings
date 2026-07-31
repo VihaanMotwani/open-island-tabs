@@ -183,6 +183,7 @@
 "island.startAgent" = "在終端機中啟動編碼代理";
 "island.recentSessions" = "最近的工作階段將保留在這裡，直到終端機重新開啟";
 "island.hint.installHooks" = "尚未安裝任何代理 hook，工作階段不會觸發事件 · 點擊設定";
+"island.hint.installHooksShort" = "設定代理 hook";
 
 /* Island Panel - Session List */
 "island.sessionList.title" = "會話";

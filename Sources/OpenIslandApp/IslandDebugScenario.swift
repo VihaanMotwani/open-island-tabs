@@ -42,6 +42,7 @@ struct IslandDebugSnapshot {
 enum IslandDebugScenario: String, CaseIterable, Identifiable {
     case closed
     case sessionList
+    case claudeDemo
     case approvalCard
     case questionCard
     case completionCard
@@ -56,6 +57,8 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
             "Closed Notch"
         case .sessionList:
             "Session List"
+        case .claudeDemo:
+            "Codex + Claude Launch Demo"
         case .approvalCard:
             "Approval Card"
         case .questionCard:
@@ -75,6 +78,8 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
             "Collapsed idle/running notch with live count and attention affordance."
         case .sessionList:
             "Manual expanded list with running, active, and inactive session rows."
+        case .claudeDemo:
+            "Recording-ready Codex and Claude sessions with parallel active work, subagents, tasks, and a recent completion."
         case .approvalCard:
             "Auto-expanded permission surface with approve and deny actions."
         case .questionCard:
@@ -100,7 +105,8 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
                 notchOpenReason: nil,
                 islandSurface: .sessionList(),
                 sessions: sessions,
-                selectedSessionID: sessions.first?.id
+                selectedSessionID: sessions.first?.id,
+                mediaSnapshot: Self.playingMediaSnapshot
             )
 
         case .sessionList:
@@ -114,6 +120,20 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
                 islandSurface: .sessionList(),
                 sessions: sessions,
                 selectedSessionID: sessions.first?.id
+            )
+
+        case .claudeDemo:
+            let sessions = DebugSessionFactory.launchDemoSessions(now: now)
+            return IslandDebugSnapshot(
+                title: title,
+                summary: summary,
+                previewHeight: 430,
+                notchStatus: .opened,
+                notchOpenReason: .click,
+                islandSurface: .sessionList(),
+                sessions: sessions,
+                selectedSessionID: sessions.first?.id,
+                mediaSnapshot: Self.playingMediaSnapshot
             )
 
         case .approvalCard:
@@ -179,20 +199,24 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
                 sessions: [],
                 selectedSessionID: nil,
                 selectedTab: .spotify,
-                mediaSnapshot: MediaPlaybackSnapshot(
-                    availability: .running,
-                    playbackState: .playing,
-                    title: "Midnight City",
-                    artist: "M83",
-                    album: "Hurry Up, We're Dreaming",
-                    artworkURL: nil,
-                    duration: 244,
-                    position: 61.5,
-                    volume: 0.62
-                )
+                mediaSnapshot: Self.playingMediaSnapshot
             )
         }
     }
+
+    private static let playingMediaSnapshot = MediaPlaybackSnapshot(
+        availability: .running,
+        playbackState: .playing,
+        title: "Passionfruit",
+        artist: "Drake",
+        album: "More Life",
+        artworkURL: URL(
+            string: "https://image-cdn-ak.spotifycdn.com/image/ab67616d00001e024f0fd9dad63977146e685700"
+        ),
+        duration: 299,
+        position: 102,
+        volume: 0.62
+    )
 }
 
 private enum DebugSessionFactory {
@@ -273,6 +297,139 @@ private enum DebugSessionFactory {
         }
         sessions[0] = lead
         return sessions
+    }
+
+    static func launchDemoSessions(now: Date) -> [AgentSession] {
+        [
+            codexLaunchSession(now: now),
+            claudeRunningSession(now: now),
+            claudeCompletedSession(now: now),
+        ]
+    }
+
+    static func codexLaunchSession(now: Date) -> AgentSession {
+        var session = AgentSession(
+            id: "codex-demo-running",
+            title: "Polish the Open Island launch",
+            tool: .codex,
+            origin: .demo,
+            attachmentState: .attached,
+            phase: .running,
+            summary: "Verifying the mixed agent and music workflow.",
+            updatedAt: now.addingTimeInterval(-18),
+            jumpTarget: JumpTarget(
+                terminalApp: "Codex.app",
+                workspaceName: "open-island",
+                paneTitle: "Polish the Open Island launch",
+                workingDirectory: "/Users/demo/Projects/open-island",
+                codexThreadID: "codex-demo-running"
+            ),
+            codexMetadata: CodexSessionMetadata(
+                initialUserPrompt: "Polish the Open Island launch demo and keep the product in focus.",
+                lastUserPrompt: "Run the final checks before we record.",
+                lastAssistantMessage: "The launch flow is ready for a clean capture.",
+                currentTool: "exec_command",
+                currentCommandPreview: "swift test --filter IslandDebugScenarioTests",
+                model: "gpt-5.6-sol",
+                reasoningEffort: "xhigh",
+                serviceTier: "priority",
+                processedDuration: 12 * 60 + 24,
+                currentTurnStartedAt: now.addingTimeInterval(-(6 * 60 + 42)),
+                activeGoalStartedAt: now.addingTimeInterval(-(46 * 60)),
+                activePlanStartedAt: now.addingTimeInterval(-(9 * 60)),
+                isPlanMode: false
+            )
+        )
+        session.isCodexAppSession = true
+        return session
+    }
+
+    static func claudeRunningSession(now: Date) -> AgentSession {
+        AgentSession(
+            id: "claude-demo-running",
+            title: "Claude · launch-film",
+            tool: .claudeCode,
+            origin: .demo,
+            attachmentState: .attached,
+            phase: .running,
+            summary: "Refining the launch sequence and checking the final capture.",
+            updatedAt: now.addingTimeInterval(-35),
+            jumpTarget: JumpTarget(
+                terminalApp: "Terminal",
+                workspaceName: "launch-film",
+                paneTitle: "claude ~/Projects/launch-film",
+                workingDirectory: "/Users/demo/Projects/launch-film",
+                terminalTTY: "/dev/ttys-demo-1"
+            ),
+            claudeMetadata: ClaudeSessionMetadata(
+                initialUserPrompt: "Polish the Open Island launch sequence and prepare a clean 4K product cut.",
+                lastUserPrompt: "Keep the motion subtle and let the product UI breathe.",
+                lastAssistantMessage: "Reviewing the final timing pass and capture framing.",
+                currentTool: "Bash",
+                currentToolInputPreview: "swift test --filter LaunchSequenceTests",
+                model: "claude-opus-4-1",
+                worktreeBranch: "feat/launch-film",
+                activeSubagents: [
+                    ClaudeSubagentInfo(
+                        agentID: "visual-review",
+                        agentType: "Visual review",
+                        taskDescription: "Check spacing and motion",
+                        startedAt: now.addingTimeInterval(-75)
+                    ),
+                    ClaudeSubagentInfo(
+                        agentID: "copy-review",
+                        agentType: "Copy review",
+                        summary: "Launch captions are concise and consistent.",
+                        taskDescription: "Tighten launch captions",
+                        startedAt: now.addingTimeInterval(-140)
+                    ),
+                ],
+                activeTasks: [
+                    ClaudeTaskInfo(
+                        id: "storyboard",
+                        title: "Lock the product storyboard",
+                        status: .completed
+                    ),
+                    ClaudeTaskInfo(
+                        id: "capture",
+                        title: "Record the expanded Agents surface",
+                        status: .inProgress
+                    ),
+                    ClaudeTaskInfo(
+                        id: "export",
+                        title: "Export the 4K launch cut",
+                        status: .pending
+                    ),
+                ]
+            )
+        )
+    }
+
+    static func claudeCompletedSession(now: Date) -> AgentSession {
+        AgentSession(
+            id: "claude-demo-completed",
+            title: "Claude · product-copy",
+            tool: .claudeCode,
+            origin: .demo,
+            attachmentState: .attached,
+            phase: .completed,
+            summary: "Launch captions and product copy are ready.",
+            updatedAt: now.addingTimeInterval(-2 * 60),
+            jumpTarget: JumpTarget(
+                terminalApp: "Terminal",
+                workspaceName: "product-copy",
+                paneTitle: "claude ~/Projects/product-copy",
+                workingDirectory: "/Users/demo/Projects/product-copy",
+                terminalTTY: "/dev/ttys-demo-3"
+            ),
+            claudeMetadata: ClaudeSessionMetadata(
+                initialUserPrompt: "Write concise launch captions for the Open Island product video.",
+                lastUserPrompt: "Keep every line direct and product-led.",
+                lastAssistantMessage: "The final captions are tightened and ready for the edit.",
+                model: "claude-sonnet-4",
+                worktreeBranch: "feat/launch-copy"
+            )
+        )
     }
 
     static func runningSession(now: Date) -> AgentSession {
@@ -378,28 +535,28 @@ private enum DebugSessionFactory {
             origin: .demo,
             attachmentState: .attached,
             phase: .waitingForApproval,
-            summary: "Allow exec_command to rewrite SettingsView.swift?",
+            summary: "Allow Codex to run the focused Swift UI tests?",
             updatedAt: now.addingTimeInterval(-20),
             permissionRequest: PermissionRequest(
-                title: "Approve file rewrite",
-                summary: "Allow exec_command to rewrite SettingsView.swift?",
-                affectedPath: "Sources/OpenIslandApp/Views/SettingsView.swift",
+                title: "Approve release verification",
+                summary: "Allow Codex to run the focused Swift UI tests?",
+                affectedPath: "Tests/OpenIslandAppTests/IslandDebugScenarioTests.swift",
                 primaryActionTitle: "Allow",
                 secondaryActionTitle: "Deny"
             ),
             jumpTarget: JumpTarget(
                 terminalApp: "Ghostty",
                 workspaceName: "open-island",
-                paneTitle: "codex ~/Personal/open-island",
-                workingDirectory: "/Users/wangruobing/Personal/open-island",
+                paneTitle: "codex ~/Projects/open-island",
+                workingDirectory: "/Users/demo/Projects/open-island",
                 terminalSessionID: "ghostty-approval"
             ),
             codexMetadata: CodexSessionMetadata(
-                initialUserPrompt: "接下来我打算继续补齐一些能力。",
-                lastUserPrompt: "askUserquestion 和权限审批，我想把他们也做到我们的 island 里。",
-                lastAssistantMessage: "已经准备好重写 DEV 页面，需要批准文件改动。",
+                initialUserPrompt: "Polish the expanded notch controls for the launch.",
+                lastUserPrompt: "Run the focused UI verification before exporting the build.",
+                lastAssistantMessage: "The launch UI is ready for final verification.",
                 currentTool: "exec_command",
-                currentCommandPreview: "head -5000 /Users/wangruobing/Personal/claude-research/extracts/claude-bun-2.1.81-v3/islands/000_cli.js.txt"
+                currentCommandPreview: "swift test --filter IslandDebugScenarioTests"
             )
         )
     }

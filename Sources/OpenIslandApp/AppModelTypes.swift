@@ -83,8 +83,14 @@ enum IslandSessionStateIndicator: String, CaseIterable, Identifiable, Sendable {
         nil
     }
 
-    func usesLayerAnimation(presence: IslandSessionPresence, isActionable: Bool) -> Bool {
-        self == .animatedDot && (presence == .running || isActionable)
+    func usesLayerAnimation(
+        presence: IslandSessionPresence,
+        isActionable: Bool,
+        reduceMotion: Bool = false
+    ) -> Bool {
+        !reduceMotion
+            && self == .animatedDot
+            && (presence == .running || isActionable)
     }
 }
 

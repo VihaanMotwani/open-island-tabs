@@ -20,9 +20,9 @@ struct SpotifyPlayerView: View {
                 unavailableState
             }
         }
-        .padding(.horizontal, 24)
-        .padding(.top, 4)
-        .padding(.bottom, 16)
+        .padding(.horizontal, ExpandedNotchLayoutMetrics.contentHorizontalInset)
+        .padding(.top, 6)
+        .padding(.bottom, 14)
         .onAppear(perform: syncControls)
         .onChange(of: snapshot.position) { _, _ in syncControls() }
         .onChange(of: snapshot.volume) { _, _ in syncControls() }
@@ -30,28 +30,28 @@ struct SpotifyPlayerView: View {
 
     private var player: some View {
         GeometryReader { geometry in
-            let artworkSize: CGFloat = 128
-            let spacing: CGFloat = 20
-            let detailWidth = max(0, geometry.size.width - artworkSize - spacing)
+            let layout = ExpandedNotchLayoutMetrics.spotifyLayout(
+                availableWidth: geometry.size.width
+            )
 
-            HStack(spacing: spacing) {
+            HStack(spacing: layout.spacing) {
                 artwork
-                    .frame(width: artworkSize, height: artworkSize)
+                    .frame(width: layout.artworkSize, height: layout.artworkSize)
 
-                VStack(alignment: .leading, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 2) {
                         Text(snapshot.title.isEmpty ? "Spotify" : snapshot.title)
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.94))
+                            .font(.headline)
+                            .foregroundStyle(.white.opacity(0.92))
                             .lineLimit(1)
 
                         Text(snapshot.artist.isEmpty ? "Ready to play" : snapshot.artist)
-                            .font(.system(size: 13.5, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.48))
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.5))
                             .lineLimit(1)
                     }
 
-                    VStack(spacing: 4) {
+                    VStack(spacing: 3) {
                         Slider(
                             value: $scrubPosition,
                             in: 0...max(snapshot.duration, 1),
@@ -62,37 +62,42 @@ struct SpotifyPlayerView: View {
                                 }
                             }
                         )
-                        .tint(SpotifyPalette.green)
+                        .tint(SpotifyPalette.green.opacity(0.82))
                         .controlSize(.mini)
+                        .accessibilityLabel("Playback position")
+                        .accessibilityValue(
+                            "\(timeLabel(scrubPosition)) of \(timeLabel(snapshot.duration))"
+                        )
 
                         HStack {
                             Text(timeLabel(scrubPosition))
                             Spacer()
                             Text(timeLabel(snapshot.duration))
                         }
-                        .font(.system(size: 10, weight: .medium, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.28))
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.white.opacity(0.32))
+                        .accessibilityHidden(true)
                     }
 
                     ZStack {
-                        HStack(spacing: 18) {
-                            playerButton(systemName: "backward.fill", size: 13) {
+                        HStack(spacing: 12) {
+                            SpotifyTransportButton(
+                                systemName: "backward.fill",
+                                accessibilityLabel: "Previous track"
+                            ) {
                                 model.perform(.previous)
                             }
 
-                            Button {
+                            SpotifyPlayPauseButton(
+                                isPlaying: snapshot.playbackState == .playing
+                            ) {
                                 model.perform(.togglePlayPause)
-                            } label: {
-                                Image(systemName: snapshot.playbackState == .playing ? "pause.fill" : "play.fill")
-                                    .font(.system(size: 15, weight: .bold))
-                                    .foregroundStyle(.black.opacity(0.88))
-                                    .frame(width: 40, height: 40)
-                                    .background(SpotifyPalette.green, in: Circle())
                             }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel(snapshot.playbackState == .playing ? "Pause Spotify" : "Play Spotify")
 
-                            playerButton(systemName: "forward.fill", size: 13) {
+                            SpotifyTransportButton(
+                                systemName: "forward.fill",
+                                accessibilityLabel: "Next track"
+                            ) {
                                 model.perform(.next)
                             }
                         }
@@ -101,8 +106,9 @@ struct SpotifyPlayerView: View {
                             Spacer()
 
                             Image(systemName: volume < 0.02 ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                                .font(.system(size: 10, weight: .semibold))
-                                .foregroundStyle(.white.opacity(0.36))
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(.white.opacity(0.34))
+                                .accessibilityHidden(true)
 
                             Slider(
                                 value: $volume,
@@ -114,18 +120,22 @@ struct SpotifyPlayerView: View {
                                     }
                                 }
                             )
-                            .tint(.white.opacity(0.64))
+                            .tint(.white.opacity(0.58))
                             .controlSize(.mini)
-                            .frame(width: 96)
+                            .frame(width: 88)
                             .accessibilityLabel("Spotify volume")
                         }
                     }
                 }
-                .frame(width: detailWidth, alignment: .leading)
+                .frame(width: layout.detailWidth, alignment: .leading)
             }
-            .frame(width: geometry.size.width, alignment: .leading)
+            .frame(
+                width: geometry.size.width,
+                height: layout.artworkSize,
+                alignment: .leading
+            )
         }
-        .frame(height: 128)
+        .frame(height: ExpandedNotchLayoutMetrics.preferredSpotifyArtworkSize)
     }
 
     private var artwork: some View {
@@ -144,57 +154,47 @@ struct SpotifyPlayerView: View {
                 }
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(.white.opacity(0.08), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(.white.opacity(0.07), lineWidth: 1)
         }
+        .shadow(color: .black.opacity(0.22), radius: 5, y: 2)
+        .accessibilityHidden(true)
     }
 
     private var unavailableState: some View {
         Button {
             model.perform(.open)
         } label: {
-            VStack(spacing: 11) {
+            VStack(spacing: 9) {
                 SpotifyGlyph()
-                    .frame(width: 38, height: 38)
-                    .opacity(0.5)
+                    .frame(width: 32, height: 32)
+                    .opacity(0.46)
 
                 Text("Open Spotify")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.6))
+                    .font(.headline)
+                    .foregroundStyle(.white.opacity(0.64))
 
                 Text("Playback controls will appear here")
-                    .font(.system(size: 11.5, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.26))
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.3))
             }
-            .frame(maxWidth: .infinity, minHeight: 128)
+            .frame(
+                maxWidth: .infinity,
+                minHeight: ExpandedNotchLayoutMetrics.preferredSpotifyArtworkSize
+            )
             .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(.white.opacity(0.025))
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(.white.opacity(0.02))
                     .overlay {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(.white.opacity(0.06), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(.white.opacity(0.055), lineWidth: 1)
                     }
             )
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Open Spotify")
-    }
-
-    private func playerButton(
-        systemName: String,
-        size: CGFloat,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Image(systemName: systemName)
-                .font(.system(size: size, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.7))
-                .frame(width: 24, height: 28)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
     }
 
     private func syncControls() {
@@ -210,6 +210,71 @@ struct SpotifyPlayerView: View {
         guard interval.isFinite, interval > 0 else { return "0:00" }
         let seconds = Int(interval.rounded(.down))
         return "\(seconds / 60):\(String(format: "%02d", seconds % 60))"
+    }
+}
+
+private struct SpotifyTransportButton: View {
+    let systemName: String
+    let accessibilityLabel: String
+    let action: () -> Void
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.white.opacity(isHovered ? 0.82 : 0.58))
+                .frame(width: 28, height: 28)
+                .background(.white.opacity(isHovered ? 0.055 : 0), in: Circle())
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.1)) {
+                isHovered = hovering
+            }
+        }
+        .accessibilityLabel(accessibilityLabel)
+        .help(accessibilityLabel)
+    }
+}
+
+private struct SpotifyPlayPauseButton: View {
+    let isPlaying: Bool
+    let action: () -> Void
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isHovered = false
+
+    private var accessibilityLabel: String {
+        isPlaying ? "Pause Spotify" : "Play Spotify"
+    }
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(.black.opacity(0.84))
+                .frame(width: 32, height: 32)
+                .background(
+                    SpotifyPalette.green.opacity(isHovered ? 1 : 0.9),
+                    in: Circle()
+                )
+                .shadow(
+                    color: SpotifyPalette.green.opacity(isHovered ? 0.16 : 0.08),
+                    radius: isHovered ? 5 : 3
+                )
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.1)) {
+                isHovered = hovering
+            }
+        }
+        .accessibilityLabel(accessibilityLabel)
+        .help(accessibilityLabel)
     }
 }
 

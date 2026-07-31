@@ -567,7 +567,7 @@ final class OverlayPanelController {
 
     private func openedContentHeight(for model: AppModel) -> CGFloat {
         if model.selectedIslandTab == .spotify {
-            return 148
+            return ExpandedNotchLayoutMetrics.spotifyContentHeight
         }
 
         let now = Date.now

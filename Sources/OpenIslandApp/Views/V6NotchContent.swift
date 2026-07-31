@@ -364,8 +364,8 @@ enum V6ClosedLayout: Equatable {
 
 struct V6MacBookSlotMetrics {
     static let outerEdgeInset: CGFloat = 12
-    static let leadingActivitySpacing: CGFloat = 7
-    static let leadingNotchGap: CGFloat = 10
+    static let leadingActivitySpacing: CGFloat = 9
+    static let leadingNotchGap: CGFloat = 8
     static let trailingNotchGap: CGFloat = 12
 
     static func leadingActivityContentWidth(

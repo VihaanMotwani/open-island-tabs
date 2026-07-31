@@ -35,10 +35,10 @@ struct ClosedNotchActivityTests {
     }
 
     @Test
-    func macBookLeadingActivityPositionsTheWholeWingWithoutChangingInternalSpacing() {
+    func macBookLeadingActivityMovesGridWithoutMovingWingOrEqualizer() {
         #expect(V6MacBookSlotMetrics.outerEdgeInset == 12)
-        #expect(V6MacBookSlotMetrics.leadingActivitySpacing == 7)
-        #expect(V6MacBookSlotMetrics.leadingNotchGap == 10)
+        #expect(V6MacBookSlotMetrics.leadingActivitySpacing == 9)
+        #expect(V6MacBookSlotMetrics.leadingNotchGap == 8)
         #expect(V6MacBookSlotMetrics.trailingNotchGap == 12)
 
         let contentWidth = V6MacBookSlotMetrics.leadingActivityContentWidth(
@@ -46,7 +46,7 @@ struct ClosedNotchActivityTests {
         )
         let reserve = V6MacBookSlotMetrics.leadingReserve(contentWidth: contentWidth)
 
-        #expect(contentWidth == 52)
+        #expect(contentWidth == 54)
         #expect(reserve == 74)
         #expect(V6MacBookSlotMetrics.leadingSurfaceOrigin(
             notchLeft: 282,
@@ -60,7 +60,7 @@ struct ClosedNotchActivityTests {
             notchLeft: 282,
             reserve: reserve,
             mediaActivityWidth: 21
-        ) == 248)
+        ) == 250)
 
         #expect(V6MacBookSlotMetrics.trailingReserve(contentWidth: 14.4) == 38.4)
         #expect(V6MacBookSlotMetrics.trailingContentOrigin(

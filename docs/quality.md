@@ -10,7 +10,7 @@ The repository harness exists to make a round of work mechanically checkable. Th
 - `scripts/harness.sh ci` is the non-GUI path used by CI.
 - `scripts/harness.sh smoke` launches the macOS app in harness mode, loads a deterministic debug scenario, captures local artifacts, and auto-exits after a short timeout.
 - `scripts/harness.sh smoke-all` runs the full debug-scenario suite and validates each artifact set.
-- `scripts/launch-claude-demo.sh` launches a recording-ready synthetic Claude session list and stays open until the app is quit.
+- `scripts/launch-claude-demo.sh` launches a recording-ready synthetic Codex + Claude session list and stays open until the app is quit.
 - `scripts/check-docs.sh` enforces the minimum doc map and required links.
 
 ## Current Guarantees
@@ -44,7 +44,7 @@ For launch-video recording, run:
 zsh scripts/launch-claude-demo.sh
 ```
 
-This uses the production Agents surface with three local demo-origin Claude sessions: two running in parallel (including subagents and tasks) and one recently completed. It launches as a temporary, separately identified app so the normal dev app can stay open alongside it. The launcher disables the live bridge, does not read hook or session history, hides real setup prompts, and remains open for manual interaction and screen recording. Use the existing `approvalCard` smoke scenario when recording a dedicated permission shot.
+This uses the production Agents surface with three local demo-origin sessions: one active Codex task, one active Claude task with subagents and tasks, and one recently completed Claude task. The same fixture carries deterministic Spotify metadata and artwork so the recording can move from agent monitoring to music control without reading the user's live playback state. It launches as a temporary, separately identified app so the normal dev app can stay open alongside it. The launcher disables the live bridge, does not read hook or session history, hides real setup prompts, and remains open for manual interaction and screen recording. Use the existing `approvalCard` smoke scenario when recording a dedicated permission shot.
 
 Each smoke artifact directory now includes a minimal observability slice:
 
@@ -59,7 +59,7 @@ For the deterministic scenario suite, the harness now performs these semantic ch
 
 - `closed`: compact geometry remains in the closed-notch range
 - `sessionList`: expanded geometry is present and the list exposes multiple actionable rows
-- `claudeDemo`: three Claude-only demo sessions cover parallel running work and a completed state without exposing the real hook setup prompt
+- `claudeDemo`: Codex and Claude cover parallel running work, Claude subagents/tasks, a completed state, and deterministic Spotify playback without exposing the real hook setup prompt
 - `approvalCard`: overlay stays open and the accessibility tree contains `Deny` plus an allow-style button label
 - `questionCard`: overlay stays open and the three answer choices appear as buttons
 - `completionCard`: overlay stays open and exposes the `Done` completion copy

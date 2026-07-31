@@ -257,19 +257,24 @@ def main() -> None:
 
         sessions = report.get("sessions") or []
         if len(sessions) != 3:
-            fail(f"expected three Claude demo sessions, got {len(sessions)}")
-        if any(session.get("tool") != "claudeCode" for session in sessions):
-            fail("claudeDemo contains a non-Claude session")
+            fail(f"expected three launch demo sessions, got {len(sessions)}")
+
+        tools = {session.get("tool") for session in sessions}
+        required_tools = {"codex", "claudeCode"}
+        if not required_tools.issubset(tools):
+            fail(f"claudeDemo is missing launch tools {sorted(required_tools - tools)}")
 
         phases = {session.get("phase") for session in sessions}
         required_phases = {"running", "completed"}
         if not required_phases.issubset(phases):
             fail(f"claudeDemo is missing launch states {sorted(required_phases - phases)}")
         if sum(session.get("phase") == "running" for session in sessions) != 2:
-            fail("claudeDemo should show two active Claude sessions")
+            fail("claudeDemo should show two active agent sessions")
 
         if not any("launch-film" in str(session.get("title", "")) for session in sessions):
             fail("claudeDemo report is missing the launch-film session")
+        if not any("Open Island launch" in str(session.get("title", "")) for session in sessions):
+            fail("claudeDemo report is missing the Codex launch session")
         if any("Set up agent hooks" in value for value in labels | text_values):
             fail("claudeDemo should not show the real hook setup hint")
 

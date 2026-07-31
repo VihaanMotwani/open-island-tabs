@@ -58,7 +58,7 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
         case .sessionList:
             "Session List"
         case .claudeDemo:
-            "Claude Launch Demo"
+            "Codex + Claude Launch Demo"
         case .approvalCard:
             "Approval Card"
         case .questionCard:
@@ -79,7 +79,7 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
         case .sessionList:
             "Manual expanded list with running, active, and inactive session rows."
         case .claudeDemo:
-            "Recording-ready Claude sessions with parallel active work, subagents, tasks, and a recent completion."
+            "Recording-ready Codex and Claude sessions with parallel active work, subagents, tasks, and a recent completion."
         case .approvalCard:
             "Auto-expanded permission surface with approve and deny actions."
         case .questionCard:
@@ -123,7 +123,7 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
             )
 
         case .claudeDemo:
-            let sessions = DebugSessionFactory.claudeDemoSessions(now: now)
+            let sessions = DebugSessionFactory.launchDemoSessions(now: now)
             return IslandDebugSnapshot(
                 title: title,
                 summary: summary,
@@ -132,7 +132,8 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
                 notchOpenReason: .click,
                 islandSurface: .sessionList(),
                 sessions: sessions,
-                selectedSessionID: sessions.first?.id
+                selectedSessionID: sessions.first?.id,
+                mediaSnapshot: Self.playingMediaSnapshot
             )
 
         case .approvalCard:
@@ -206,12 +207,14 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
     private static let playingMediaSnapshot = MediaPlaybackSnapshot(
         availability: .running,
         playbackState: .playing,
-        title: "Midnight City",
-        artist: "M83",
-        album: "Hurry Up, We're Dreaming",
-        artworkURL: nil,
-        duration: 244,
-        position: 61.5,
+        title: "Passionfruit",
+        artist: "Drake",
+        album: "More Life",
+        artworkURL: URL(
+            string: "https://image-cdn-ak.spotifycdn.com/image/ab67616d00001e024f0fd9dad63977146e685700"
+        ),
+        duration: 299,
+        position: 102,
         volume: 0.62
     )
 }
@@ -296,12 +299,49 @@ private enum DebugSessionFactory {
         return sessions
     }
 
-    static func claudeDemoSessions(now: Date) -> [AgentSession] {
+    static func launchDemoSessions(now: Date) -> [AgentSession] {
         [
+            codexLaunchSession(now: now),
             claudeRunningSession(now: now),
-            claudeVerificationSession(now: now),
             claudeCompletedSession(now: now),
         ]
+    }
+
+    static func codexLaunchSession(now: Date) -> AgentSession {
+        var session = AgentSession(
+            id: "codex-demo-running",
+            title: "Polish the Open Island launch",
+            tool: .codex,
+            origin: .demo,
+            attachmentState: .attached,
+            phase: .running,
+            summary: "Verifying the mixed agent and music workflow.",
+            updatedAt: now.addingTimeInterval(-18),
+            jumpTarget: JumpTarget(
+                terminalApp: "Codex.app",
+                workspaceName: "open-island",
+                paneTitle: "Polish the Open Island launch",
+                workingDirectory: "/Users/demo/Projects/open-island",
+                codexThreadID: "codex-demo-running"
+            ),
+            codexMetadata: CodexSessionMetadata(
+                initialUserPrompt: "Polish the Open Island launch demo and keep the product in focus.",
+                lastUserPrompt: "Run the final checks before we record.",
+                lastAssistantMessage: "The launch flow is ready for a clean capture.",
+                currentTool: "exec_command",
+                currentCommandPreview: "swift test --filter IslandDebugScenarioTests",
+                model: "gpt-5.6-sol",
+                reasoningEffort: "xhigh",
+                serviceTier: "priority",
+                processedDuration: 12 * 60 + 24,
+                currentTurnStartedAt: now.addingTimeInterval(-(6 * 60 + 42)),
+                activeGoalStartedAt: now.addingTimeInterval(-(46 * 60)),
+                activePlanStartedAt: now.addingTimeInterval(-(9 * 60)),
+                isPlanMode: false
+            )
+        )
+        session.isCodexAppSession = true
+        return session
     }
 
     static func claudeRunningSession(now: Date) -> AgentSession {
@@ -361,35 +401,6 @@ private enum DebugSessionFactory {
                         status: .pending
                     ),
                 ]
-            )
-        )
-    }
-
-    static func claudeVerificationSession(now: Date) -> AgentSession {
-        AgentSession(
-            id: "claude-demo-verification",
-            title: "Claude · open-island",
-            tool: .claudeCode,
-            origin: .demo,
-            attachmentState: .attached,
-            phase: .running,
-            summary: "Running the final release verification.",
-            updatedAt: now.addingTimeInterval(-18),
-            jumpTarget: JumpTarget(
-                terminalApp: "Terminal",
-                workspaceName: "open-island",
-                paneTitle: "claude ~/Projects/open-island",
-                workingDirectory: "/Users/demo/Projects/open-island",
-                terminalTTY: "/dev/ttys-demo-2"
-            ),
-            claudeMetadata: ClaudeSessionMetadata(
-                initialUserPrompt: "Prepare Open Island for the launch recording.",
-                lastUserPrompt: "Run the final checks before we record.",
-                lastAssistantMessage: "The release verification suite is running now.",
-                currentTool: "Bash",
-                currentToolInputPreview: "zsh scripts/harness.sh ci",
-                model: "claude-sonnet-4",
-                worktreeBranch: "feat/launch-demo"
             )
         )
     }

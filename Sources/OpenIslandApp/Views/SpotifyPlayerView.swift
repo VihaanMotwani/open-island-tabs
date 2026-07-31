@@ -18,9 +18,9 @@ struct SpotifyPlayerView: View {
                 player
             } else {
                 unavailableState
+                    .padding(.horizontal, ExpandedNotchLayoutMetrics.contentHorizontalInset)
             }
         }
-        .padding(.horizontal, ExpandedNotchLayoutMetrics.contentHorizontalInset)
         .padding(.top, 6)
         .padding(.bottom, 14)
         .onAppear(perform: syncControls)
@@ -30,8 +30,11 @@ struct SpotifyPlayerView: View {
 
     private var player: some View {
         GeometryReader { geometry in
+            let contentWidth = ExpandedNotchLayoutMetrics.spotifyPlayerContentWidth(
+                containerWidth: geometry.size.width
+            )
             let layout = ExpandedNotchLayoutMetrics.spotifyLayout(
-                availableWidth: geometry.size.width
+                availableWidth: contentWidth
             )
 
             HStack(spacing: layout.spacing) {
@@ -130,9 +133,14 @@ struct SpotifyPlayerView: View {
                 .frame(width: layout.detailWidth, alignment: .leading)
             }
             .frame(
-                width: geometry.size.width,
+                width: contentWidth,
                 height: layout.artworkSize,
                 alignment: .leading
+            )
+            .frame(
+                width: geometry.size.width,
+                height: layout.artworkSize,
+                alignment: .center
             )
         }
         .frame(height: ExpandedNotchLayoutMetrics.preferredSpotifyArtworkSize)

@@ -51,12 +51,13 @@ private struct AutoHeightScrollView<Content: View>: View {
 
 extension AgentSession {
     /// Estimated row height matching `IslandSessionRow` layout for viewport sizing.
-    func estimatedIslandRowHeight(at date: Date) -> CGFloat {
+    func estimatedIslandRowHeight(at date: Date, showsDetail: Bool? = nil) -> CGFloat {
         let presence = islandPresence(at: date)
         // v8 list rows are full-width scan rows, not rounded cards.
         // Base: vertical padding (22) + headline (~17) + divider rounding.
         var height: CGFloat = 40
-        guard presence != .inactive else { return height }
+        let includesDetail = showsDetail ?? showsDetailByDefaultInIslandList(at: date)
+        guard presence != .inactive, includesDetail else { return height }
         if spotlightPromptLineText != nil { height += 32 }
         if spotlightActivityLineText != nil { height += 30 }
         if let subagents = claudeMetadata?.activeSubagents, !subagents.isEmpty {
@@ -1368,7 +1369,15 @@ private struct IslandSessionRow: View {
             at: referenceDate,
             threshold: completedStaleThreshold
         )
-        let defaultShowsDetail = !isStaleCompleted && (rawPresence != .inactive || isActionable)
+        let defaultShowsDetail: Bool
+        if presentation == .notification {
+            defaultShowsDetail = !isStaleCompleted && (rawPresence != .inactive || isActionable)
+        } else {
+            defaultShowsDetail = session.showsDetailByDefaultInIslandList(
+                at: referenceDate,
+                completedStaleThreshold: completedStaleThreshold
+            )
+        }
         let showsDetail = detailOverride ?? defaultShowsDetail
         let presence = isStaleCompleted
             ? .inactive

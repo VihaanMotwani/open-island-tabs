@@ -234,8 +234,8 @@ def main() -> None:
             fail(f"expected sessionList surface, got {island_surface!r}")
         require_frame_between(
             overlay_frame,
-            width=(520, 780),
-            height=(320, 500),
+            width=(420, 520),
+            height=(260, 500),
             context="sessionList overlay frame",
         )
         if len(button_labels) < 3 and report.get("sessionCount", 0) < 3:
@@ -308,7 +308,7 @@ def main() -> None:
             fail(f"expected spotifyPlayer to use the base sessionList surface, got {island_surface!r}")
         require_frame_between(
             overlay_frame,
-            width=(520, 780),
+            width=(500, 620),
             height=(190, 340),
             context="spotifyPlayer overlay frame",
         )

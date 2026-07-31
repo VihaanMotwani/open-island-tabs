@@ -345,6 +345,77 @@ struct AgentSessionPresentationTests {
     }
 
     @Test
+    func recentlyCompletedSessionStartsCollapsedInTheExpandedSessionList() {
+        let referenceDate = Date(timeIntervalSince1970: 10_000)
+        let session = AgentSession(
+            id: "session-1",
+            title: "Refine expanded notch UI",
+            tool: .codex,
+            origin: .live,
+            attachmentState: .attached,
+            phase: .completed,
+            summary: "Done",
+            updatedAt: referenceDate.addingTimeInterval(-20),
+            codexMetadata: CodexSessionMetadata(
+                lastUserPrompt: "Tighten the expanded island.",
+                lastAssistantMessage: "Implemented and verified."
+            )
+        )
+
+        #expect(!session.showsDetailByDefaultInIslandList(at: referenceDate))
+    }
+
+    @Test
+    func runningAndAttentionSessionsStartExpandedInTheExpandedSessionList() {
+        let referenceDate = Date(timeIntervalSince1970: 10_000)
+        let running = AgentSession(
+            id: "running",
+            title: "Refine expanded notch UI",
+            tool: .codex,
+            phase: .running,
+            summary: "Working",
+            updatedAt: referenceDate
+        )
+        let waiting = AgentSession(
+            id: "waiting",
+            title: "Approve the change",
+            tool: .codex,
+            phase: .waitingForApproval,
+            summary: "Approval needed",
+            updatedAt: referenceDate
+        )
+
+        #expect(running.showsDetailByDefaultInIslandList(at: referenceDate))
+        #expect(waiting.showsDetailByDefaultInIslandList(at: referenceDate))
+    }
+
+    @Test
+    func presentationDoesNotExposePreviouslyCachedSkillInstructions() {
+        let session = AgentSession(
+            id: "session-1",
+            title: "Refine expanded notch UI",
+            tool: .codex,
+            phase: .completed,
+            summary: "Done",
+            updatedAt: .now,
+            codexMetadata: CodexSessionMetadata(
+                initialUserPrompt: "Refine the expanded notch UI.",
+                lastUserPrompt: """
+                <skill>
+                  <name>verification-before-completion</name>
+                  <path>/Users/example/.codex/skills/verification-before-completion/SKILL.md</path>
+                </skill>
+                Tighten the expanded island.
+                """,
+                lastAssistantMessage: "Implemented and verified."
+            )
+        )
+
+        #expect(session.spotlightPromptText == "Tighten the expanded island.")
+        #expect(session.spotlightPromptLineText == "You: Tighten the expanded island.")
+    }
+
+    @Test
     func runningCodexSessionWithoutToolShowsThinkingBesidePrompt() {
         let session = AgentSession(
             id: "session-1",

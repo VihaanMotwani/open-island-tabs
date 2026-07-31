@@ -584,6 +584,25 @@ extension AgentSession {
             && referenceDate.timeIntervalSince(islandActivityDate) >= threshold
     }
 
+    func showsDetailByDefaultInIslandList(
+        at referenceDate: Date,
+        completedStaleThreshold: TimeInterval = Self.staleCompletedDisplayThreshold
+    ) -> Bool {
+        guard !isStaleCompletedForIsland(
+            at: referenceDate,
+            threshold: completedStaleThreshold
+        ) else {
+            return false
+        }
+
+        switch phase {
+        case .running, .waitingForApproval, .waitingForAnswer:
+            return true
+        case .completed:
+            return false
+        }
+    }
+
     private var spotlightRunningActivityText: String? {
         guard let currentTool = currentToolName?.trimmedForSurface,
               !currentTool.isEmpty else {
@@ -656,18 +675,21 @@ extension AgentSession {
     }
 
     private var initialPromptText: String? {
-        let prompt = initialUserPromptText?.trimmedForSurface
+        userVisiblePromptText(initialUserPromptText)
+    }
+
+    private var latestPromptText: String? {
+        userVisiblePromptText(latestUserPromptText)
+    }
+
+    private func userVisiblePromptText(_ value: String?) -> String? {
+        let prompt = value?.trimmedForSurface
         guard let prompt, !prompt.isEmpty else {
             return nil
         }
 
-        return prompt
-    }
-
-    private var latestPromptText: String? {
-        let prompt = latestUserPromptText?.trimmedForSurface
-        guard let prompt, !prompt.isEmpty else {
-            return nil
+        if tool == .codex {
+            return CodexRolloutReducer.userVisiblePrompt(prompt)
         }
 
         return prompt

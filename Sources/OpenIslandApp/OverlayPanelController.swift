@@ -6,9 +6,6 @@ import OpenIslandCore
 
 @MainActor
 final class OverlayPanelController {
-    private static let preferredNotchOpenedPanelWidth: CGFloat = 540
-    private static let preferredSpotifyOpenedPanelWidth: CGFloat = 660
-    private static let preferredTopBarOpenedPanelWidth: CGFloat = 520
     private static let preferredNotificationPanelWidth: CGFloat = 620
     private static let openedContentWidthPadding: CGFloat = 0
     private static let openedContentBottomPadding: CGFloat = 0
@@ -34,7 +31,7 @@ final class OverlayPanelController {
     private static let completionCardMaxHeight: CGFloat = 400
     nonisolated private static let closedTabPeekHeight: CGFloat = 30
     nonisolated private static let closedTabStripWidth: CGFloat = 88
-    private static let openedTabStripHeight: CGFloat = 32
+    private static let openedTabStripHeight = ExpandedNotchLayoutMetrics.tabSwitcherHeight
 
     private var panel: NotchPanel?
     private var eventMonitors = NotchEventMonitors()
@@ -389,11 +386,12 @@ final class OverlayPanelController {
     }
 
     func openedPanelWidth(for screen: NSScreen?) -> CGFloat {
-        guard let screen else { return Self.preferredTopBarOpenedPanelWidth }
-        let preferredWidth = screen.safeAreaInsets.top > 0
-            ? Self.preferredNotchOpenedPanelWidth
-            : Self.preferredTopBarOpenedPanelWidth
-        return max(360, min(preferredWidth, screen.visibleFrame.width - 32))
+        guard let screen else {
+            return ExpandedNotchLayoutMetrics.preferredAgentsContentWidth
+        }
+        return ExpandedNotchLayoutMetrics.agentsContentWidth(
+            availableScreenWidth: screen.visibleFrame.width
+        )
     }
 
     func notificationPanelWidth(for screen: NSScreen?) -> CGFloat {
@@ -593,7 +591,10 @@ final class OverlayPanelController {
             // a measurement→reposition cycle.
             if let actionableID,
                let session = model.state.session(id: actionableID) {
-                let rowHeight = session.estimatedIslandRowHeight(at: now)
+                let rowHeight = session.estimatedIslandRowHeight(
+                    at: now,
+                    showsDetail: true
+                )
                 let bodyHeight = actionableBodyHeight(for: session, model: model)
                 return rowHeight + bodyHeight + Self.notificationEstimatedVerticalInsets
             }
@@ -601,7 +602,7 @@ final class OverlayPanelController {
         }
 
         let rowHeights = visibleSessions.map { session -> CGFloat in
-            if session.id == actionableID {
+            if session.id == actionableID, session.phase.requiresAttention {
                 return session.estimatedIslandRowHeight(at: now)
                     + actionableBodyHeight(for: session, model: model)
             }
@@ -621,9 +622,8 @@ final class OverlayPanelController {
             return openedPanelWidth(for: screen)
         }
 
-        return max(
-            360,
-            min(Self.preferredSpotifyOpenedPanelWidth, screen.visibleFrame.width - 32)
+        return ExpandedNotchLayoutMetrics.spotifyContentWidth(
+            availableScreenWidth: screen.visibleFrame.width
         )
     }
 

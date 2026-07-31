@@ -132,7 +132,7 @@ struct MediaActivityIndicator: View {
                     in: rect,
                     radius: min(barWidth / 2, 1.25 * scale)
                 )
-                barLayer.opacity = state == .playing ? 0.94 : 0.42
+                barLayer.opacity = state == .playing ? 0.84 : 0.42
                 barLayer.transform = CATransform3DMakeScale(1, bar.restingScale, 1)
                 configureAnimation(
                     for: barLayer,
@@ -158,8 +158,8 @@ struct MediaActivityIndicator: View {
             animation.beginTime = CACurrentMediaTime() + delay
             animation.repeatCount = .infinity
             animation.timingFunctions = [
-                CAMediaTimingFunction(controlPoints: 0.85, 0, 0.15, 1),
-                CAMediaTimingFunction(controlPoints: 0.85, 0, 0.15, 1),
+                CAMediaTimingFunction(name: .easeInEaseOut),
+                CAMediaTimingFunction(name: .easeInEaseOut),
             ]
             barLayer.add(animation, forKey: "music-equalizer")
         }
@@ -212,11 +212,18 @@ struct MediaEqualizerPattern: Equatable {
         case .playing where reduceMotion:
             return still(scales: [0.36, 0.82, 0.56, 0.72])
         case .playing:
+            let restingScales: [CGFloat] = [0.28, 0.38, 0.24, 0.32]
+            let peakScales: [CGFloat] = [0.68, 0.92, 0.74, 0.84]
+            let delays: [TimeInterval] = [0.00, 0.20, 0.40, 0.60]
             return MediaEqualizerPattern(
                 motion: .equalizing,
-                duration: 0.8,
-                bars: [0.00, 0.13, 0.26, 0.39].map { delay in
-                    Bar(restingScale: 0.20, peakScale: 1.00, delay: delay)
+                duration: 1.6,
+                bars: delays.indices.map { index in
+                    Bar(
+                        restingScale: restingScales[index],
+                        peakScale: peakScales[index],
+                        delay: delays[index]
+                    )
                 }
             )
         }

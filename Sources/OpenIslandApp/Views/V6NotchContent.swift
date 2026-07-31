@@ -308,11 +308,18 @@ struct V6ClosedPill: View {
         .animation(reduceMotion ? nil : .smooth(duration: 0.28), value: mediaActivity)
     }
 
-    // MARK: MacBook (outer width locked)
+    // MARK: MacBook (content-balanced around the physical notch)
 
     private var macbookBody: some View {
-        let halfReserve: CGFloat = mediaActivity == .hidden ? 44 : 58
-        let outer = halfReserve + physicalNotchWidth + halfReserve
+        let leadingWidth = mediaActivityWidth + 24
+        let trailingWidth = rightSlot.map { V6RightSlotView.intrinsicWidth(of: $0) } ?? 0
+        let leadingReserve = V6MacBookSlotMetrics.leadingReserve(
+            contentWidth: leadingWidth
+        )
+        let trailingReserve = V6MacBookSlotMetrics.trailingReserve(
+            contentWidth: trailingWidth
+        )
+        let outer = leadingReserve + physicalNotchWidth + trailingReserve
 
         return ZStack {
             V6ClosedPillShape()
@@ -320,8 +327,9 @@ struct V6ClosedPill: View {
 
             HStack(spacing: 0) {
                 leadingActivityCluster
+                    .padding(.leading, V6MacBookSlotMetrics.outerEdgeInset)
                     .padding(.trailing, V6MacBookSlotMetrics.leadingNotchGap)
-                    .frame(width: halfReserve, alignment: .trailing)
+                    .frame(width: leadingReserve, alignment: .trailing)
 
                 Color.clear
                     .frame(width: physicalNotchWidth)
@@ -330,9 +338,10 @@ struct V6ClosedPill: View {
                     if let rightSlot {
                         V6RightSlotView(content: rightSlot)
                             .padding(.leading, V6MacBookSlotMetrics.trailingNotchGap)
+                            .padding(.trailing, V6MacBookSlotMetrics.outerEdgeInset)
                     }
                 }
-                .frame(width: halfReserve, height: height, alignment: .leading)
+                .frame(width: trailingReserve, height: height, alignment: .leading)
             }
         }
         .frame(width: outer, height: height)
@@ -346,18 +355,29 @@ enum V6ClosedLayout: Equatable {
 }
 
 struct V6MacBookSlotMetrics {
+    static let outerEdgeInset: CGFloat = 12
     static let leadingNotchGap: CGFloat = 7
     static let trailingNotchGap: CGFloat = 10
 
-    static func leadingContentOrigin(
-        halfReserve: CGFloat,
-        contentWidth: CGFloat
-    ) -> CGFloat {
-        halfReserve - leadingNotchGap - contentWidth
+    static func leadingReserve(contentWidth: CGFloat) -> CGFloat {
+        outerEdgeInset + contentWidth + leadingNotchGap
     }
+
+    static func trailingReserve(contentWidth: CGFloat) -> CGFloat {
+        trailingNotchGap + contentWidth + outerEdgeInset
+    }
+
+    static var leadingContentOrigin: CGFloat { outerEdgeInset }
 
     static func trailingContentOrigin(notchRight: CGFloat) -> CGFloat {
         notchRight + trailingNotchGap
+    }
+
+    static func trailingOuterGap(
+        reserve: CGFloat,
+        contentWidth: CGFloat
+    ) -> CGFloat {
+        reserve - trailingNotchGap - contentWidth
     }
 }
 

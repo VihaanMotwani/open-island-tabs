@@ -41,13 +41,25 @@ CLANG_MODULE_CACHE_PATH="$module_cache" xcrun swift "$caption_renderer" \
 
 filter_complex="
 [0:v]trim=start=16.55:end=20.65,setpts=PTS-STARTPTS,
-crop=2940:1654:0:0,scale=1920:1080:flags=lanczos,fps=30[first_agents];
+crop=2940:1654:0:0,scale=1920:1080:flags=lanczos,fps=30,
+zoompan=z='1+0.075*(1-cos(PI*min(on,110)/110))/2':
+x='iw*0.5-(iw/zoom)*0.5':y=0:
+d=1:s=1920x1080:fps=30[first_agents];
 [0:v]trim=start=22:end=33.6,setpts=(PTS-STARTPTS)/2,
-crop=2940:1654:0:0,scale=1920:1080:flags=lanczos,fps=30[multitasking];
+crop=2940:1654:0:0,scale=1920:1080:flags=lanczos,fps=30,
+zoompan=z='1.035-0.035*(1-cos(PI*min(on,160)/160))/2':
+x='iw*0.5-(iw/zoom)*0.5':y=0:
+d=1:s=1920x1080:fps=30[multitasking];
 [0:v]trim=start=33.6:end=36.7,setpts=PTS-STARTPTS,
-crop=2940:1654:0:0,scale=1920:1080:flags=lanczos,fps=30[return_to_island];
+crop=2940:1654:0:0,scale=1920:1080:flags=lanczos,fps=30,
+zoompan=z='1+0.09*(1-cos(PI*min(on,80)/80))/2':
+x='iw*0.5-(iw/zoom)*0.5':y=0:
+d=1:s=1920x1080:fps=30[return_to_island];
 [0:v]trim=start=36.7:end=38.9,setpts=PTS-STARTPTS,
-crop=2940:1654:0:0,scale=1920:1080:flags=lanczos,fps=30[spotify];
+crop=2940:1654:0:0,scale=1920:1080:flags=lanczos,fps=30,
+zoompan=z='1.09+0.025*(1-cos(PI*min(on,55)/55))/2':
+x='iw*0.5-(iw/zoom)*0.5':y=0:
+d=1:s=1920x1080:fps=30[spotify];
 [first_agents][multitasking][return_to_island][spotify]
 concat=n=4:v=1:a=0,fade=t=in:st=0:d=0.15,fade=t=out:st=15:d=0.15[base];
 

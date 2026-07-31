@@ -42,22 +42,22 @@ CLANG_MODULE_CACHE_PATH="$module_cache" xcrun swift "$caption_renderer" \
 filter_complex="
 [0:v]trim=start=16.55:end=20.65,setpts=PTS-STARTPTS,
 crop=2940:1654:0:0,scale=1920:1080:flags=lanczos,fps=30,
-zoompan=z='1+0.075*(1-cos(PI*min(on,110)/110))/2':
+zoompan=z='1+0.18*(1-cos(PI*min(on,32)/32))/2-0.04*(1-cos(PI*max(min(on-32,38),0)/38))/2+0.015*(1-cos(PI*max(min(on-70,53),0)/53))/2':
 x='iw*0.5-(iw/zoom)*0.5':y=0:
 d=1:s=1920x1080:fps=30[first_agents];
 [0:v]trim=start=22:end=33.6,setpts=(PTS-STARTPTS)/2,
 crop=2940:1654:0:0,scale=1920:1080:flags=lanczos,fps=30,
-zoompan=z='1.035-0.035*(1-cos(PI*min(on,160)/160))/2':
+zoompan=z='1.11-0.11*(1-cos(PI*min(on,150)/150))/2':
 x='iw*0.5-(iw/zoom)*0.5':y=0:
 d=1:s=1920x1080:fps=30[multitasking];
 [0:v]trim=start=33.6:end=36.7,setpts=PTS-STARTPTS,
 crop=2940:1654:0:0,scale=1920:1080:flags=lanczos,fps=30,
-zoompan=z='1+0.09*(1-cos(PI*min(on,80)/80))/2':
+zoompan=z='1+0.23*(1-cos(PI*min(on,28)/28))/2-0.03*(1-cos(PI*max(min(on-28,30),0)/30))/2':
 x='iw*0.5-(iw/zoom)*0.5':y=0:
 d=1:s=1920x1080:fps=30[return_to_island];
 [0:v]trim=start=36.7:end=38.9,setpts=PTS-STARTPTS,
 crop=2940:1654:0:0,scale=1920:1080:flags=lanczos,fps=30,
-zoompan=z='1.09+0.025*(1-cos(PI*min(on,55)/55))/2':
+zoompan=z='1.20+0.08*(1-cos(PI*min(on,45)/45))/2':
 x='iw*0.5-(iw/zoom)*0.5':y=0:
 d=1:s=1920x1080:fps=30[spotify];
 [first_agents][multitasking][return_to_island][spotify]
@@ -72,9 +72,9 @@ setpts=PTS+4.3/TB[supporting];
 fade=t=in:st=0:d=0.2:alpha=1,fade=t=out:st=2.35:d=0.2:alpha=1,
 setpts=PTS+12.6/TB[end];
 
-[base][hook]overlay=x=0:y=0:eof_action=pass[with_hook];
-[with_hook][supporting]overlay=x=0:y=0:eof_action=pass[with_supporting];
-[with_supporting][end]overlay=x=0:y=0:eof_action=pass,
+[base][hook]overlay=x=0:y='32*max(0,1-t/0.32)':eof_action=pass[with_hook];
+[with_hook][supporting]overlay=x=0:y='32*max(0,1-(t-4.3)/0.28)':eof_action=pass[with_supporting];
+[with_supporting][end]overlay=x=0:y='32*max(0,1-(t-12.6)/0.28)':eof_action=pass,
 format=yuv420p[out]
 "
 

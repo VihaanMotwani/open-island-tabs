@@ -52,7 +52,7 @@ To cut the physical-notch launch take into the 15-second Agents-to-Spotify launc
 zsh scripts/render-launch-video.sh "/path/to/Screen Recording.mov"
 ```
 
-The renderer preserves the real notch occlusion from the supplied take, removes dead time, accelerates the multitasking beat, adds eased push-in and pull-back camera motion plus restrained SF-system captions, and exports a silent 1920×1080 H.264 master under `output/launch-video/`. It does not add a demo-data label to the product surface or the video.
+The renderer preserves the real notch occlusion from the supplied take, removes dead time, accelerates the multitasking beat, and adds a punch-in, pull-back, overshoot, and moving SF-system captions before exporting a silent 1920×1080 H.264 master under `output/launch-video/`. It does not add a demo-data label to the product surface or the video.
 
 Each smoke artifact directory now includes a minimal observability slice:
 

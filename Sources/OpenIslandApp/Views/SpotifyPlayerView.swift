@@ -251,7 +251,7 @@ private struct SpotifyTransportButton: View {
                 .foregroundStyle(
                     isHovered
                         ? .white
-                        : ExpandedNotchVisualStyle.textColor(.secondary)
+                        : ExpandedNotchVisualStyle.textColor(.primary)
                 )
                 .frame(width: 38, height: 38)
                 .background(.white.opacity(isHovered ? 0.08 : 0), in: Circle())
@@ -315,7 +315,7 @@ private struct SpotifyVolumeButton: View {
                 .foregroundStyle(
                     isHovered || isPresented
                         ? ExpandedNotchVisualStyle.textColor(.primary)
-                        : ExpandedNotchVisualStyle.textColor(.tertiary)
+                        : ExpandedNotchVisualStyle.textColor(.secondary)
                 )
                 .frame(width: 38, height: 38)
                 .background(.white.opacity(isHovered || isPresented ? 0.08 : 0), in: Circle())

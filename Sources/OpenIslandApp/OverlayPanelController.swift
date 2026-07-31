@@ -662,7 +662,10 @@ final class OverlayPanelController {
             options: [.usesLineFragmentOrigin, .usesFontLeading],
             attributes: [.font: font]
         )
-        let markdownHeight = min(260, ceil(textSize.height) + 20)
+        let markdownHeight = min(
+            ExpandedNotchLayoutMetrics.maximumCompletionMessageHeight,
+            ceil(textSize.height) + 20
+        )
         // Reply input: divider (1) + input bar padding+content (~52)
         let replyInputHeight: CGFloat = TerminalTextSender.canReply(to: session, enabled: model.completionReplyEnabled) ? 53 : 0
         return headerHeight + 1 + markdownHeight + replyInputHeight

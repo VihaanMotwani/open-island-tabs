@@ -34,6 +34,7 @@ struct ExpandedNotchLayoutMetricsTests {
         #expect(ExpandedNotchLayoutMetrics.sessionHeaderHeight == 32)
         #expect(ExpandedNotchLayoutMetrics.sessionFooterHeight == 22)
         #expect(ExpandedNotchLayoutMetrics.spotifyContentHeight == 174)
+        #expect(ExpandedNotchLayoutMetrics.maximumCompletionMessageHeight == 184)
     }
 
     @Test

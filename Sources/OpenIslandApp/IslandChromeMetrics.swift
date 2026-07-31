@@ -31,6 +31,7 @@ struct ExpandedNotchLayoutMetrics: Equatable, Sendable {
     static let agentsEmptyStateHeight: CGFloat = 108
     static let installHooksHintReservedHeight: CGFloat = 48
     static let runningTimerDetailHeight: CGFloat = 34
+    static let maximumCompletionMessageHeight: CGFloat = 184
     static let maximumSessionListHeight: CGFloat = 560
     static let preferredSpotifyArtworkSize: CGFloat = 76
     static let minimumSpotifyArtworkSize: CGFloat = 64

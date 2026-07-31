@@ -65,7 +65,6 @@ struct PulsingStatusDot: NSViewRepresentable {
             dotLayer.bounds = dotBounds
             dotLayer.position = CGPoint(x: bounds.midX, y: bounds.maxY - 6 - diameter / 2)
             dotLayer.path = CGPath(ellipseIn: dotBounds, transform: nil)
-            dotLayer.shadowPath = dotLayer.path
             CATransaction.commit()
 
             startAnimationIfNeeded()
@@ -75,10 +74,6 @@ struct PulsingStatusDot: NSViewRepresentable {
             CATransaction.begin()
             CATransaction.setDisableActions(true)
             dotLayer.fillColor = tintColor.cgColor
-            dotLayer.shadowColor = tintColor.cgColor
-            dotLayer.shadowOpacity = 0.12
-            dotLayer.shadowRadius = 2
-            dotLayer.shadowOffset = .zero
             CATransaction.commit()
         }
 
@@ -87,19 +82,11 @@ struct PulsingStatusDot: NSViewRepresentable {
 
             let scale = CABasicAnimation(keyPath: "transform.scale")
             scale.fromValue = 1
-            scale.toValue = 1.08
-
-            let shadowOpacity = CABasicAnimation(keyPath: "shadowOpacity")
-            shadowOpacity.fromValue = 0.12
-            shadowOpacity.toValue = 0.22
-
-            let shadowRadius = CABasicAnimation(keyPath: "shadowRadius")
-            shadowRadius.fromValue = 2
-            shadowRadius.toValue = 3
+            scale.toValue = 1.05
 
             let group = CAAnimationGroup()
-            group.animations = [scale, shadowOpacity, shadowRadius]
-            group.duration = 1.4
+            group.animations = [scale]
+            group.duration = 1.8
             group.autoreverses = true
             group.repeatCount = .infinity
             group.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)

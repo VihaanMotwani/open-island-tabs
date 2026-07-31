@@ -463,9 +463,9 @@ struct IslandPanelView: View {
         } label: {
             ZStack(alignment: .topTrailing) {
                 HStack(spacing: 5) {
-                    tabIcon(tab, size: tab == .spotify ? 10.5 : 11.5)
+                    tabIcon(tab, size: tab == .spotify ? 11 : 12.5)
                     Text(tab == .agents ? "Agents" : "Spotify")
-                        .font(.caption2.weight(isSelected ? .semibold : .medium))
+                        .font(.caption.weight(isSelected ? .semibold : .medium))
                 }
                 .foregroundStyle(ExpandedNotchVisualStyle.textColor(labelRole))
                 .opacity(isUnavailableSpotify ? 0.78 : 1)
@@ -585,7 +585,7 @@ struct IslandPanelView: View {
             HStack(spacing: 7) {
                 Image(systemName: "exclamationmark.circle.fill")
                     .font(.caption2.weight(.medium))
-                    .foregroundStyle(Color.accentColor.opacity(0.78))
+                    .foregroundStyle(ExpandedNotchVisualStyle.textColor(.tertiary))
                     .accessibilityHidden(true)
                 Text(model.lang.t("island.hint.installHooksShort"))
                     .font(.caption.weight(.medium))
@@ -2135,11 +2135,7 @@ private struct IslandSessionRow: View {
         Circle()
             .fill(tint)
             .frame(width: 7, height: 7)
-            .scaleEffect(1 + (pulse * 0.08))
-            .shadow(
-                color: tint.opacity(presence == .inactive ? 0 : 0.1 + (pulse * 0.1)),
-                radius: 1.5 + pulse
-            )
+            .scaleEffect(presence == .inactive ? 1 : 1 + (pulse * 0.05))
             .padding(.top, 6)
     }
 

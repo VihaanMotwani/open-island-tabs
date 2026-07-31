@@ -13,7 +13,7 @@
 - Live Spotify capture: `/Users/vihaan/.codex/visualizations/2026/07/31/019fb6d5-150b-7ef0-900e-3daa5206e134/open-island-expanded-notch-audit/20-dynamic-island-after/spotify-after-final.jpeg`
 - Live volume-popover capture: `/Users/vihaan/.codex/visualizations/2026/07/31/019fb6d5-150b-7ef0-900e-3daa5206e134/open-island-expanded-notch-audit/20-dynamic-island-after/spotify-volume-popover-final.jpeg`
 - Live Agents capture: `/Users/vihaan/.codex/visualizations/2026/07/31/019fb6d5-150b-7ef0-900e-3daa5206e134/open-island-expanded-notch-audit/20-dynamic-island-after/agents-tab-prompt-icon-final.jpeg`
-- Deterministic Agents capture: `/Users/vihaan/.codex/worktrees/a54d/notch/output/harness/agents-prompt-icon-final/overlay.png`
+- Deterministic Agents capture: `/Users/vihaan/.codex/worktrees/a54d/notch/output/harness/agents-flat-status-final/overlay.png`
 - Long-completion regression capture: `/Users/vihaan/.codex/worktrees/a54d/notch/output/harness/long-completion-height-contract-184/overlay.png`
 - Implementation pixels: 1200 × 512 for the deterministic 600 × 256 point Retina capture.
 - State: Spotify selected and playing, dark appearance, built-in Retina display with notch-aware placement.
@@ -34,7 +34,8 @@
 - Controls: previous, pause, and next are larger, evenly spaced, and high-contrast. The native macOS slider deliberately keeps its thumb and accessibility behavior. Volume moves into a trailing button and native popover instead of consuming the transport row.
 - Responsive behavior: the 480-point safe content width is preserved; artwork shrinks from 76 to 64 points before metadata is crowded on narrow displays.
 - Agents integrity: changing tabs returns to the 500-point Agents surface without clipping or inheriting the Spotify height.
-- Agents identity: the inner tab now uses a direct 11.5-point SF Mono `>_` prompt, giving the meaningful terminal mark the full icon slot instead of shrinking it inside a boxed symbol.
+- Agents identity: the inner tabs use native 12-point caption labels with a 12.5-point SF Mono `>_` prompt, giving the control more presence without increasing its compact height.
+- Agents status color: running, completed, and attention colors use a muted low-chroma palette. Status dots are flat fills with no colored shadow; the active dot retains only a restrained five-percent scale pulse. The install-hooks icon is neutral gray rather than accent blue.
 - Long content: completion sizing and the SwiftUI scroll viewport now share one 184-point maximum. The verified 438-point fixture shows complete visible lines and preserves the remaining text in an accessible internal scroll area.
 - Interaction: the accessibility capture exposes Previous track, Pause Spotify, Next track, Spotify volume, both tabs, sound, settings, and quit. Provider tests cover seek and volume clamping.
 
@@ -57,6 +58,9 @@
 5. Agents-tab identity
    - Replaced the boxed terminal symbol with a direct SF Mono prompt mark so `>_` stays legible at tab scale.
    - Evidence: `/Users/vihaan/.codex/worktrees/a54d/notch/output/harness/agents-prompt-icon-final/overlay.png`.
+6. Agents typography and status color
+   - Raised the tab labels from `caption2` to `caption`, muted the status palette, removed the static and animated colored shadows, and neutralized the install-hooks icon.
+   - Evidence: `/Users/vihaan/.codex/worktrees/a54d/notch/output/harness/agents-flat-status-final/overlay.png`.
 
 ## Intentional platform adaptations
 

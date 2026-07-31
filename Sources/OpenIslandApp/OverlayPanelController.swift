@@ -480,8 +480,12 @@ final class OverlayPanelController {
     ) -> CGFloat {
         let popBonus: CGFloat = notchStatus == .popping ? 18 : 0
         if isNotchedDisplay {
+            let maximumLeadingContentWidth =
+                V6MacBookSlotMetrics.leadingActivityContentWidth(
+                    mediaActivityWidth: 21
+                )
             let maximumWingReserve = V6MacBookSlotMetrics.leadingReserve(
-                contentWidth: 45
+                contentWidth: maximumLeadingContentWidth
             )
             return notchWidth + (maximumWingReserve * 2) + popBonus
         }

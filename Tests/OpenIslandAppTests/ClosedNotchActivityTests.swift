@@ -35,13 +35,30 @@ struct ClosedNotchActivityTests {
     }
 
     @Test
-    func macBookSlotsBalanceOuterBreathingRoomAroundIndependentNotchGaps() {
+    func macBookLeadingActivityMovesGridRightWithoutMovingEqualizer() {
         #expect(V6MacBookSlotMetrics.outerEdgeInset == 12)
-        #expect(V6MacBookSlotMetrics.leadingNotchGap == 20)
+        #expect(V6MacBookSlotMetrics.leadingActivitySpacing == 7)
+        #expect(V6MacBookSlotMetrics.leadingNotchGap == 13)
         #expect(V6MacBookSlotMetrics.trailingNotchGap == 12)
-        #expect(V6MacBookSlotMetrics.leadingReserve(contentWidth: 45) == 77)
+
+        let contentWidth = V6MacBookSlotMetrics.leadingActivityContentWidth(
+            mediaActivityWidth: 21
+        )
+        let reserve = V6MacBookSlotMetrics.leadingReserve(contentWidth: contentWidth)
+
+        #expect(contentWidth == 52)
+        #expect(reserve == 77)
+        #expect(V6MacBookSlotMetrics.leadingContentOrigin(
+            notchLeft: 282,
+            reserve: reserve
+        ) == 217)
+        #expect(V6MacBookSlotMetrics.leadingGridOrigin(
+            notchLeft: 282,
+            reserve: reserve,
+            mediaActivityWidth: 21
+        ) == 245)
+
         #expect(V6MacBookSlotMetrics.trailingReserve(contentWidth: 14.4) == 38.4)
-        #expect(V6MacBookSlotMetrics.leadingContentOrigin == 12)
         #expect(V6MacBookSlotMetrics.trailingContentOrigin(
             notchRight: 282,
             reserve: 38.4,

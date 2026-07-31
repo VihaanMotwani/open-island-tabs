@@ -248,7 +248,7 @@ struct V6ClosedPill: View {
 
     @ViewBuilder
     private var leadingActivityCluster: some View {
-        HStack(spacing: 3) {
+        HStack(spacing: V6MacBookSlotMetrics.leadingActivitySpacing) {
             if mediaActivity != .hidden {
                 MediaActivityIndicator(
                     state: mediaActivity,
@@ -265,13 +265,15 @@ struct V6ClosedPill: View {
     // MARK: External (fluid)
 
     private var externalBody: some View {
-        let glyphW: CGFloat = 24
         let labelW = label.map { V6CenterLabelView.intrinsicWidth(of: $0) } ?? 0
         let rightW = rightSlot.map { V6RightSlotView.intrinsicWidth(of: $0) } ?? 0
 
         let labelBlock = (label == nil ? 0 : 6 + labelW)
         let rightBlock = (rightSlot == nil ? 0 : Self.innerGap + rightW)
-        let intrinsic = pad * 2 + mediaActivityWidth + glyphW + labelBlock + rightBlock
+        let leadingWidth = V6MacBookSlotMetrics.leadingActivityContentWidth(
+            mediaActivityWidth: mediaActivityWidth
+        )
+        let intrinsic = pad * 2 + leadingWidth + labelBlock + rightBlock
         let width = max(minWidth, intrinsic)
 
         return ZStack {
@@ -311,7 +313,9 @@ struct V6ClosedPill: View {
     // MARK: MacBook (content-balanced around the physical notch)
 
     private var macbookBody: some View {
-        let leadingWidth = mediaActivityWidth + 24
+        let leadingWidth = V6MacBookSlotMetrics.leadingActivityContentWidth(
+            mediaActivityWidth: mediaActivityWidth
+        )
         let trailingWidth = rightSlot.map { V6RightSlotView.intrinsicWidth(of: $0) } ?? 0
         let leadingReserve = V6MacBookSlotMetrics.leadingReserve(
             contentWidth: leadingWidth
@@ -360,8 +364,16 @@ enum V6ClosedLayout: Equatable {
 
 struct V6MacBookSlotMetrics {
     static let outerEdgeInset: CGFloat = 12
-    static let leadingNotchGap: CGFloat = 20
+    static let leadingActivitySpacing: CGFloat = 7
+    static let leadingNotchGap: CGFloat = 13
     static let trailingNotchGap: CGFloat = 12
+
+    static func leadingActivityContentWidth(
+        mediaActivityWidth: CGFloat
+    ) -> CGFloat {
+        let spacing = mediaActivityWidth > 0 ? leadingActivitySpacing : 0
+        return mediaActivityWidth + spacing + 24
+    }
 
     static func leadingReserve(contentWidth: CGFloat) -> CGFloat {
         outerEdgeInset + contentWidth + leadingNotchGap
@@ -371,7 +383,23 @@ struct V6MacBookSlotMetrics {
         trailingNotchGap + contentWidth + outerEdgeInset
     }
 
-    static var leadingContentOrigin: CGFloat { outerEdgeInset }
+    static func leadingContentOrigin(
+        notchLeft: CGFloat,
+        reserve: CGFloat
+    ) -> CGFloat {
+        notchLeft - reserve + outerEdgeInset
+    }
+
+    static func leadingGridOrigin(
+        notchLeft: CGFloat,
+        reserve: CGFloat,
+        mediaActivityWidth: CGFloat
+    ) -> CGFloat {
+        let spacing = mediaActivityWidth > 0 ? leadingActivitySpacing : 0
+        return leadingContentOrigin(notchLeft: notchLeft, reserve: reserve)
+            + mediaActivityWidth
+            + spacing
+    }
 
     static func trailingContentOrigin(
         notchRight: CGFloat,

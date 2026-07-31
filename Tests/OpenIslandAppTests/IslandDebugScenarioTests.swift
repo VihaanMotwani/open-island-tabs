@@ -59,6 +59,28 @@ struct IslandDebugScenarioTests {
         #expect(claudeSession?.claudeMetadata?.activeTasks.count == 3)
     }
 
+    @Test
+    func approvalScenarioUsesLaunchSafeSyntheticCopy() {
+        let snapshot = IslandDebugScenario.approvalCard.snapshot()
+        let session = snapshot.sessions.first
+
+        #expect(session?.phase == .waitingForApproval)
+        #expect(session?.permissionRequest?.title == "Approve release verification")
+        #expect(
+            session?.permissionRequest?.summary
+                == "Allow Codex to run the focused Swift UI tests?"
+        )
+        #expect(session?.jumpTarget?.workingDirectory == "/Users/demo/Projects/open-island")
+        #expect(
+            session?.codexMetadata?.currentCommandPreview
+                == "swift test --filter IslandDebugScenarioTests"
+        )
+        #expect(
+            session?.codexMetadata?.lastUserPrompt
+                == "Run the focused UI verification before exporting the build."
+        )
+    }
+
     @Test @MainActor
     func debugScenarioSuppressesTheRealHookSetupHint() {
         let model = AppModel()

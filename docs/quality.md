@@ -46,6 +46,14 @@ zsh scripts/launch-claude-demo.sh
 
 This uses the production Agents surface with three local demo-origin sessions: one active Codex task, one active Claude task with subagents and tasks, and one recently completed Claude task. The same fixture carries deterministic Spotify metadata and artwork so the recording can move from agent monitoring to music control without reading the user's live playback state. It launches as a temporary, separately identified app so the normal dev app can stay open alongside it. The launcher disables the live bridge, does not read hook or session history, hides real setup prompts, and remains open for manual interaction and screen recording. Use the existing `approvalCard` smoke scenario when recording a dedicated permission shot.
 
+To cut the physical-notch launch take into the 15-second Agents-to-Spotify launch sequence, run:
+
+```sh
+zsh scripts/render-launch-video.sh "/path/to/Screen Recording.mov"
+```
+
+The renderer preserves the real notch occlusion from the supplied take, removes dead time, accelerates the multitasking beat, adds restrained SF-system captions, and exports a silent 1920×1080 H.264 master under `output/launch-video/`. It does not add a demo-data label to the product surface or the video.
+
 Each smoke artifact directory now includes a minimal observability slice:
 
 - `report.json` for the scenario summary and runtime artifact index

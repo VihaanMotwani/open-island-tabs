@@ -535,28 +535,28 @@ private enum DebugSessionFactory {
             origin: .demo,
             attachmentState: .attached,
             phase: .waitingForApproval,
-            summary: "Allow exec_command to rewrite SettingsView.swift?",
+            summary: "Allow Codex to run the focused Swift UI tests?",
             updatedAt: now.addingTimeInterval(-20),
             permissionRequest: PermissionRequest(
-                title: "Approve file rewrite",
-                summary: "Allow exec_command to rewrite SettingsView.swift?",
-                affectedPath: "Sources/OpenIslandApp/Views/SettingsView.swift",
+                title: "Approve release verification",
+                summary: "Allow Codex to run the focused Swift UI tests?",
+                affectedPath: "Tests/OpenIslandAppTests/IslandDebugScenarioTests.swift",
                 primaryActionTitle: "Allow",
                 secondaryActionTitle: "Deny"
             ),
             jumpTarget: JumpTarget(
                 terminalApp: "Ghostty",
                 workspaceName: "open-island",
-                paneTitle: "codex ~/Personal/open-island",
-                workingDirectory: "/Users/wangruobing/Personal/open-island",
+                paneTitle: "codex ~/Projects/open-island",
+                workingDirectory: "/Users/demo/Projects/open-island",
                 terminalSessionID: "ghostty-approval"
             ),
             codexMetadata: CodexSessionMetadata(
-                initialUserPrompt: "接下来我打算继续补齐一些能力。",
-                lastUserPrompt: "askUserquestion 和权限审批，我想把他们也做到我们的 island 里。",
-                lastAssistantMessage: "已经准备好重写 DEV 页面，需要批准文件改动。",
+                initialUserPrompt: "Polish the expanded notch controls for the launch.",
+                lastUserPrompt: "Run the focused UI verification before exporting the build.",
+                lastAssistantMessage: "The launch UI is ready for final verification.",
                 currentTool: "exec_command",
-                currentCommandPreview: "head -5000 /Users/wangruobing/Personal/claude-research/extracts/claude-bun-2.1.81-v3/islands/000_cli.js.txt"
+                currentCommandPreview: "swift test --filter IslandDebugScenarioTests"
             )
         )
     }

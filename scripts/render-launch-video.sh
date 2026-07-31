@@ -30,53 +30,43 @@ mkdir -p "$captions_dir" "$module_cache"
 
 CLANG_MODULE_CACHE_PATH="$module_cache" xcrun swift "$caption_renderer" \
     hook \
-    "Vibe coding shouldn’t mean babysitting tabs." \
+    "Your agents already live here." \
     "$captions_dir/hook.png"
 CLANG_MODULE_CACHE_PATH="$module_cache" xcrun swift "$caption_renderer" \
     supporting \
-    "Keep doing your thing. They’ll tell you when they need you." \
+    "Now Spotify does too." \
     "$captions_dir/supporting.png"
 CLANG_MODULE_CACHE_PATH="$module_cache" xcrun swift "$caption_renderer" \
     end \
-    "Agents and music. One glance." \
+    "Control your music without leaving the work." \
     "$captions_dir/end.png"
 
 filter_complex="
-[0:v]trim=start=16.55:end=21.05,setpts=(PTS-STARTPTS)*41/45,
+[0:v]trim=start=33.35:end=43.8,setpts=(PTS-STARTPTS)*240/209,
 crop=2940:1654:0:0,scale=${working_size}:flags=lanczos,fps=$render_fps,
-zoompan=z='1+0.36*(1-cos(PI*min(on,54)/54))/2-0.06*(1-cos(PI*max(min(on-54,190),0)/190))/2':
+zoompan=z='1+0.30*(1-cos(PI*min(on,150)/150))/2-0.08*(1-cos(PI*max(min(on-150,300),0)/300))/2-0.14*(1-cos(PI*max(min(on-450,269),0)/269))/2':
 x='iw*0.5-(iw/zoom)*0.5':y=0:
-d=1:s=1920x1080:fps=${render_fps}[first_agents];
-[0:v]trim=start=22:end=33.6,setpts=(PTS-STARTPTS)/2,
+d=1:s=1920x1080:fps=${render_fps}[main_story];
+[0:v]trim=start=43.8:end=44.5,setpts=(PTS-STARTPTS)*30/7,
 crop=2940:1654:0:0,scale=${working_size}:flags=lanczos,fps=$render_fps,
-zoompan=z='1.30-0.30*(1-cos(PI*min(on,347)/347))/2':
+zoompan=z='1.08+0.14*(1-cos(PI*min(on,120)/120))/2':
 x='iw*0.5-(iw/zoom)*0.5':y=0:
-d=1:s=1920x1080:fps=${render_fps}[multitasking];
-[0:v]trim=start=33.6:end=36.7,setpts=PTS-STARTPTS,
-crop=2940:1654:0:0,scale=${working_size}:flags=lanczos,fps=$render_fps,
-zoompan=z='1+0.23*(1-cos(PI*min(on,56)/56))/2-0.03*(1-cos(PI*max(min(on-56,60),0)/60))/2':
-x='iw*0.5-(iw/zoom)*0.5':y=0:
-d=1:s=1920x1080:fps=${render_fps}[return_to_island];
-[0:v]trim=start=36.7:end=38.9,setpts=PTS-STARTPTS,
-crop=2940:1654:0:0,scale=${working_size}:flags=lanczos,fps=$render_fps,
-zoompan=z='1.20+0.08*(1-cos(PI*min(on,90)/90))/2':
-x='iw*0.5-(iw/zoom)*0.5':y=0:
-d=1:s=1920x1080:fps=${render_fps}[spotify];
-[first_agents][multitasking][return_to_island][spotify]
-concat=n=4:v=1:a=0,fade=t=in:st=0:d=0.15,fade=t=out:st=15:d=0.15[base];
+d=1:s=1920x1080:fps=${render_fps}[compact_spotify];
+[main_story][compact_spotify]concat=n=2:v=1:a=0,
+fade=t=in:st=0:d=0.15,fade=t=out:st=14.8:d=0.2[base];
 
-[1:v]trim=duration=4.1,setpts=PTS-STARTPTS,format=rgba,
-fade=t=in:st=0.15:d=0.2:alpha=1,fade=t=out:st=3.75:d=0.2:alpha=1[hook];
-[2:v]trim=duration=4.7,setpts=PTS-STARTPTS,format=rgba,
-fade=t=in:st=0:d=0.2:alpha=1,fade=t=out:st=4.35:d=0.2:alpha=1,
-setpts=PTS+4.3/TB[supporting];
-[3:v]trim=duration=2.6,setpts=PTS-STARTPTS,format=rgba,
-fade=t=in:st=0:d=0.2:alpha=1,fade=t=out:st=2.35:d=0.2:alpha=1,
-setpts=PTS+12.6/TB[end];
+[1:v]trim=duration=2.3,setpts=PTS-STARTPTS,format=rgba,
+fade=t=in:st=0.15:d=0.2:alpha=1,fade=t=out:st=2.05:d=0.2:alpha=1[hook];
+[2:v]trim=duration=5.1,setpts=PTS-STARTPTS,format=rgba,
+fade=t=in:st=0:d=0.2:alpha=1,fade=t=out:st=4.8:d=0.2:alpha=1,
+setpts=PTS+2.2/TB[supporting];
+[3:v]trim=duration=5.6,setpts=PTS-STARTPTS,format=rgba,
+fade=t=in:st=0:d=0.2:alpha=1,fade=t=out:st=5.3:d=0.2:alpha=1,
+setpts=PTS+9.2/TB[end];
 
 [base][hook]overlay=x=0:y='32*max(0,1-t/0.32)':eof_action=pass[with_hook];
-[with_hook][supporting]overlay=x=0:y='32*max(0,1-(t-4.3)/0.28)':eof_action=pass[with_supporting];
-[with_supporting][end]overlay=x=0:y='32*max(0,1-(t-12.6)/0.28)':eof_action=pass,
+[with_hook][supporting]overlay=x=0:y='32*max(0,1-(t-2.2)/0.28)':eof_action=pass[with_supporting];
+[with_supporting][end]overlay=x=0:y='32*max(0,1-(t-9.2)/0.28)':eof_action=pass,
 format=yuv420p[out]
 "
 
@@ -93,7 +83,7 @@ ffmpeg -hide_banner -loglevel warning -y \
     -crf 17 \
     -r "$render_fps" \
     -movflags +faststart \
-    -t 15.2 \
+    -t 15 \
     "$output_path"
 
 print "Launch video written to $output_path"

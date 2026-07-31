@@ -26,4 +26,37 @@ struct ExpandedNotchVisualStyleTests {
         #expect(secondary > tertiary)
         #expect(tertiary > subdued)
     }
+
+    @Test
+    func approvalActionsUseNeutralPaperAndDarkTonesWithPointerFeedback() {
+        #expect(ExpandedNotchVisualStyle.actionFillTone(for: .primary) == .paper)
+        #expect(ExpandedNotchVisualStyle.actionFillTone(for: .secondary) == .neutralDark)
+
+        let primaryResting = ExpandedNotchVisualStyle.actionFillOpacity(
+            for: .primary,
+            state: .resting
+        )
+        let primaryHovered = ExpandedNotchVisualStyle.actionFillOpacity(
+            for: .primary,
+            state: .hovered
+        )
+        let primaryPressed = ExpandedNotchVisualStyle.actionFillOpacity(
+            for: .primary,
+            state: .pressed
+        )
+        let secondaryResting = ExpandedNotchVisualStyle.actionFillOpacity(
+            for: .secondary,
+            state: .resting
+        )
+        let secondaryHovered = ExpandedNotchVisualStyle.actionFillOpacity(
+            for: .secondary,
+            state: .hovered
+        )
+
+        #expect(primaryResting >= 0.92)
+        #expect(primaryHovered > primaryResting)
+        #expect(primaryPressed < primaryResting)
+        #expect(secondaryResting <= 0.07)
+        #expect(secondaryHovered > secondaryResting)
+    }
 }

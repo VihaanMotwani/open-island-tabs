@@ -1891,7 +1891,7 @@ private struct IslandSessionRow: View {
                 Button(session.permissionRequest?.secondaryActionTitle ?? lang.t("approval.deny")) { onApprove?(.deny) }
                     .buttonStyle(IslandActionButtonStyle(kind: .secondary, expands: true))
                 Button(session.permissionRequest?.primaryActionTitle ?? lang.t("approval.allowOnce")) { onApprove?(.allowOnce) }
-                    .buttonStyle(IslandActionButtonStyle(kind: .warning, expands: true))
+                    .buttonStyle(IslandActionButtonStyle(kind: .primary, expands: true))
                 if let toolName = session.permissionRequest?.toolName {
                     Button(lang.t("approval.alwaysAllow", toolName)) {
                         let rule = ClaudePermissionRuleValue(toolName: toolName)
@@ -2781,77 +2781,73 @@ private struct IslandCompactButtonStyle: ButtonStyle {
 }
 
 private struct IslandActionButtonStyle: ButtonStyle {
-    enum Kind {
-        case primary
-        case secondary
-        case warning
-    }
-
-    let kind: Kind
+    let kind: ExpandedNotchActionRole
     var expands = false
 
-    @Environment(\.isEnabled) private var isEnabled
-
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: 11.8, weight: .semibold))
-            .foregroundStyle(foregroundColor)
+        IslandActionButtonBody(
+            label: configuration.label,
+            kind: kind,
+            expands: expands,
+            isPressed: configuration.isPressed
+        )
+    }
+}
+
+private struct IslandActionButtonBody<Label: View>: View {
+    let label: Label
+    let kind: ExpandedNotchActionRole
+    let expands: Bool
+    let isPressed: Bool
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var isHovered = false
+
+    var body: some View {
+        label
+            .font(.callout.weight(.medium))
+            .foregroundStyle(ExpandedNotchVisualStyle.actionTextColor(for: kind, state: actionState))
             .lineLimit(1)
             .frame(maxWidth: expands ? .infinity : nil)
             .padding(.horizontal, 13)
-            .padding(.vertical, 8)
-            .background(backgroundColor(configuration.isPressed), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .strokeBorder(strokeColor, lineWidth: 1)
+            .padding(.vertical, 7)
+            .background(
+                ExpandedNotchVisualStyle.actionFillColor(for: kind, state: actionState),
+                in: RoundedRectangle(cornerRadius: 8, style: .continuous)
             )
-            .opacity(configuration.isPressed ? 0.82 : 1)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(
+                        Color.white.opacity(strokeOpacity),
+                        lineWidth: colorSchemeContrast == .increased ? 1.5 : 1
+                    )
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .onHover { hovering in
+                isHovered = hovering
+            }
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isHovered)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.08), value: isPressed)
     }
 
-    private var foregroundColor: Color {
+    private var actionState: ExpandedNotchActionState {
         guard isEnabled else {
-            return V6Palette.paper.opacity(0.42)
+            return .disabled
         }
-
-        switch kind {
-        case .primary:
-            return .black.opacity(0.88)
-        case .warning:
-            return .white
-        case .secondary:
-            return V6Palette.paper.opacity(0.78)
+        if isPressed {
+            return .pressed
         }
+        return isHovered ? .hovered : .resting
     }
 
-    private var strokeColor: Color {
-        guard isEnabled else {
-            return .white.opacity(0.07)
-        }
-
-        switch kind {
-        case .primary:
-            return V6Palette.paper.opacity(0.86)
-        case .warning:
-            return Color(red: 0.85, green: 0.55, blue: 0.15).opacity(0.42)
-        case .secondary:
-            return .white.opacity(0.07)
-        }
-    }
-
-    private func backgroundColor(_ isPressed: Bool) -> Color {
-        guard isEnabled else {
-            return Color.white.opacity(0.055)
-        }
-
-        let pressedFactor: Double = isPressed ? 0.78 : 1
-        switch kind {
-        case .primary:
-            return V6Palette.paper.opacity(pressedFactor)
-        case .warning:
-            return Color(red: 0.85, green: 0.55, blue: 0.15).opacity(pressedFactor)
-        case .secondary:
-            return Color.white.opacity(isPressed ? 0.11 : 0.065)
-        }
+    private var strokeOpacity: Double {
+        let baseOpacity = ExpandedNotchVisualStyle.actionStrokeOpacity(
+            for: kind,
+            state: actionState
+        )
+        return colorSchemeContrast == .increased ? min(1, baseOpacity * 1.7) : baseOpacity
     }
 }
 

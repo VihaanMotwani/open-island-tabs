@@ -15,6 +15,7 @@
 - Live Agents capture: `/Users/vihaan/.codex/visualizations/2026/07/31/019fb6d5-150b-7ef0-900e-3daa5206e134/open-island-expanded-notch-audit/20-dynamic-island-after/agents-tab-prompt-icon-final.jpeg`
 - Deterministic Agents capture: `/Users/vihaan/.codex/worktrees/a54d/notch/output/harness/agents-flat-status-final/overlay.png`
 - Deterministic Claude launch-demo capture: `/Users/vihaan/.codex/worktrees/a54d/notch/output/harness/claude-demo-verified/overlay.png`
+- Deterministic approval-action capture: `/Users/vihaan/.codex/worktrees/a54d/notch/output/harness/approval-off-white-final/overlay.png`
 - Long-completion regression capture: `/Users/vihaan/.codex/worktrees/a54d/notch/output/harness/long-completion-height-contract-184/overlay.png`
 - Implementation pixels: 1200 × 512 for the deterministic 600 × 256 point Retina capture.
 - State: Spotify selected and playing, dark appearance, built-in Retina display with notch-aware placement.
@@ -37,6 +38,7 @@
 - Agents integrity: changing tabs returns to the 500-point Agents surface without clipping or inheriting the Spotify height.
 - Agents identity: the inner tabs use native 12-point caption labels with a 12.5-point SF Mono `>_` prompt, giving the control more presence without increasing its compact height.
 - Agents status color: running, completed, and attention colors use a muted low-chroma palette. Status dots are flat fills with no colored shadow; the active dot retains only a restrained five-percent scale pulse. The install-hooks icon is neutral gray rather than accent blue.
+- Approval actions: the primary action uses Open Island's cream-paper tone with ink text instead of warning orange. The secondary action remains neutral dark; both use semantic callout typography, compact continuous radii, pointer hover and press feedback, and accessibility-aware motion and contrast.
 - Long content: completion sizing and the SwiftUI scroll viewport now share one 184-point maximum. The verified 438-point fixture shows complete visible lines and preserves the remaining text in an accessible internal scroll area.
 - Interaction: the accessibility capture exposes Previous track, Pause Spotify, Next track, Spotify volume, both tabs, sound, settings, and quit. Provider tests cover seek and volume clamping.
 
@@ -66,6 +68,10 @@
    - Added a local-only fixture with two running Claude sessions, one completed session, two subagents, and three task states. The synthetic sessions suppress the real hook-setup prompt and remain fully visible in the expanded notch.
    - The recording launcher uses a separately identified temporary app bundle, so it does not collide with or replace the normal development app.
    - Evidence: `/Users/vihaan/.codex/worktrees/a54d/notch/output/harness/claude-demo-verified/overlay.png`; the same surface was verified live in `Open Island Claude Demo`.
+8. Approval action styling
+   - Replaced the amber permission CTA with the existing cream-paper system, kept Deny visually secondary, reduced the radius and vertical padding, and added restrained hover and press feedback.
+   - The final 500 × 326 point fixture contains the full command preview and all actions; the AX capture exposes Allow and Deny as buttons. The same surface was inspected live in a separately identified local preview app.
+   - Evidence: `/Users/vihaan/.codex/worktrees/a54d/notch/output/harness/approval-off-white-final/overlay.png`.
 
 ## Intentional platform adaptations
 

@@ -35,10 +35,10 @@ struct ClosedNotchActivityTests {
     }
 
     @Test
-    func macBookLeadingActivityMovesGridRightWithoutMovingEqualizer() {
+    func macBookLeadingActivityPositionsTheWholeWingWithoutChangingInternalSpacing() {
         #expect(V6MacBookSlotMetrics.outerEdgeInset == 12)
         #expect(V6MacBookSlotMetrics.leadingActivitySpacing == 7)
-        #expect(V6MacBookSlotMetrics.leadingNotchGap == 13)
+        #expect(V6MacBookSlotMetrics.leadingNotchGap == 10)
         #expect(V6MacBookSlotMetrics.trailingNotchGap == 12)
 
         let contentWidth = V6MacBookSlotMetrics.leadingActivityContentWidth(
@@ -47,16 +47,20 @@ struct ClosedNotchActivityTests {
         let reserve = V6MacBookSlotMetrics.leadingReserve(contentWidth: contentWidth)
 
         #expect(contentWidth == 52)
-        #expect(reserve == 77)
+        #expect(reserve == 74)
+        #expect(V6MacBookSlotMetrics.leadingSurfaceOrigin(
+            notchLeft: 282,
+            reserve: reserve
+        ) == 208)
         #expect(V6MacBookSlotMetrics.leadingContentOrigin(
             notchLeft: 282,
             reserve: reserve
-        ) == 217)
+        ) == 220)
         #expect(V6MacBookSlotMetrics.leadingGridOrigin(
             notchLeft: 282,
             reserve: reserve,
             mediaActivityWidth: 21
-        ) == 245)
+        ) == 248)
 
         #expect(V6MacBookSlotMetrics.trailingReserve(contentWidth: 14.4) == 38.4)
         #expect(V6MacBookSlotMetrics.trailingContentOrigin(
@@ -69,8 +73,8 @@ struct ClosedNotchActivityTests {
             reserve: 38.4
         ) == 301.2)
         #expect(V6MacBookSlotMetrics.hardwareAlignmentOffset(
-            leadingReserve: 77,
+            leadingReserve: 74,
             trailingReserve: 38.4
-        ) == -19.3)
+        ) == -17.8)
     }
 }

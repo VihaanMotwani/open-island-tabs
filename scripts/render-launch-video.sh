@@ -40,14 +40,14 @@ CLANG_MODULE_CACHE_PATH="$module_cache" xcrun swift "$caption_renderer" \
     "$captions_dir/end.png"
 
 filter_complex="
-[0:v]trim=start=16.55:end=20.65,setpts=PTS-STARTPTS,
+[0:v]trim=start=16.55:end=21.05,setpts=(PTS-STARTPTS)*41/45,
 crop=2940:1654:0:0,scale=1920:1080:flags=lanczos,fps=30,
-zoompan=z='1+0.18*(1-cos(PI*min(on,32)/32))/2-0.04*(1-cos(PI*max(min(on-32,38),0)/38))/2+0.015*(1-cos(PI*max(min(on-70,53),0)/53))/2':
+zoompan=z='1+0.36*(1-cos(PI*min(on,27)/27))/2-0.06*(1-cos(PI*max(min(on-27,95),0)/95))/2':
 x='iw*0.5-(iw/zoom)*0.5':y=0:
 d=1:s=1920x1080:fps=30[first_agents];
 [0:v]trim=start=22:end=33.6,setpts=(PTS-STARTPTS)/2,
 crop=2940:1654:0:0,scale=1920:1080:flags=lanczos,fps=30,
-zoompan=z='1.11-0.11*(1-cos(PI*min(on,150)/150))/2':
+zoompan=z='1.30-0.30*(1-cos(PI*min(on,173)/173))/2':
 x='iw*0.5-(iw/zoom)*0.5':y=0:
 d=1:s=1920x1080:fps=30[multitasking];
 [0:v]trim=start=33.6:end=36.7,setpts=PTS-STARTPTS,

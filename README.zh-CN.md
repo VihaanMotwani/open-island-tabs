@@ -1,40 +1,46 @@
 <p align="center">
-  <img src="docs/images/readme-banner.svg" alt="Open Island - agents in your menu bar" width="760">
+  <img src="docs/images/readme-banner.png" alt="Open Island 在 Mac 刘海中显示 Agent 会话、审批通知和音乐控制" width="1024">
 </p>
 
 <h1 align="center">Open Island</h1>
 
 <p align="center">
-  <strong>为什么要用闭源付费软件来监控你自己的 coding agents？</strong>
+  <strong>保持专注，不打断 flow。</strong>
   <br>
-  开源、本地优先、原生 macOS 的 AI coding agent 伴侣应用。
+  在同一个原生 macOS 界面中监控 coding agents 并控制音乐。
+  <br><br>
+  <strong>Open Island 的非官方 fork</strong> — 独立开发、独立分发。
   <br><br>
   <strong>中文</strong> | <a href="README.md">English</a>
 </p>
 
+> [!IMPORTANT]
+> 本仓库是 [Open Island](https://github.com/Octane0411/open-vibe-island) 的独立、**非官方 fork**。本 fork 并非由上游 Open Island 团队维护、认可、支持或发布。上游文档、支持渠道与 release 仅适用于上游项目。
+
 <p align="center">
-  <a href="https://github.com/Octane0411/open-vibe-island/releases/latest"><img src="https://img.shields.io/github/v/release/Octane0411/open-vibe-island?style=flat-square&label=release&color=blue" alt="最新版本"></a>
-  <a href="https://github.com/Octane0411/open-vibe-island/stargazers"><img src="https://img.shields.io/github/stars/Octane0411/open-vibe-island?style=flat-square&color=yellow" alt="Stars"></a>
-  <a href="https://discord.gg/bPF2HpbCFb"><img src="https://img.shields.io/discord/1490752192368476253?style=flat-square&logo=discord&label=discord&color=5865F2" alt="Discord"></a>
+  <a href="https://github.com/VihaanMotwani/open-island-tabs/stargazers"><img src="https://img.shields.io/github/stars/VihaanMotwani/open-island-tabs?style=flat-square&color=8f887d" alt="本 fork 的 Stars"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL%20v3-green?style=flat-square" alt="License: GPL v3"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/Octane0411/open-vibe-island/releases">下载</a> ·
   <a href="#快速开始">快速开始</a> ·
+  <a href="#这个-fork-增加了什么">Fork 新增内容</a> ·
   <a href="docs/roadmap.zh-CN.md">路线图</a> ·
-  <a href="CONTRIBUTING.zh-CN.md">参与贡献</a>
-</p>
-
-<p align="center">
-  <img src="docs/images/demo.gif" alt="Open Island 运行效果" width="720">
+  <a href="#上游项目与署名">上游项目</a>
 </p>
 
 ---
 
+## 这个 fork 增加了什么
+
+- **Agents 优先** — 无需离开当前任务，即可监控 Codex、Claude Code 和其他受支持的 coding agent 会话
+- **音乐其次** — 在展开的刘海中查看 Spotify 封面与歌曲信息、调整进度并控制播放
+- **一个紧凑界面** — 在 Agents 与 Spotify 之间切换，不必来回切换 app 窗口
+- **更精致的展开界面** — 更清晰的层级、原生感控件、更舒适的对比度与颜色，以及展开状态的布局修复
+
 ## Open Island 是什么？
 
-Open Island 驻留在 Mac 的**刘海区域**（或顶部栏），为你的 AI coding agents 提供实时控制面板——会话状态、权限审批、一键跳回正确的终端。全程不打断你的工作流。
+Open Island 驻留在 Mac 的**刘海区域**（或顶部栏），为你的 AI coding agents 提供实时控制面板——会话状态、权限审批、一键跳回正确的终端。本 fork 还把 Spotify 播放和进度放进同一个展开界面，让 agents 和音乐始终只需看一眼。
 
 可以理解为开源版的 [Vibe Island](https://vibeisland.app/)——**免费、本地运行、代码完全属于你**。
 
@@ -47,6 +53,7 @@ Open Island 驻留在 Mac 的**刘海区域**（或顶部栏），为你的 AI c
 - **原生 macOS** — SwiftUI + AppKit，不是 Electron 套壳
 - **多 Agent** — 一个界面管理 Claude Code、Codex、Cursor、Gemini CLI、OpenCode 等
 - **多终端** — 一键跳回到准确的终端/IDE 会话
+- **音乐控制** — 无需打开 Spotify 窗口即可查看正在播放、进度和播放控件
 
 ## 支持的 Agents 和终端
 
@@ -109,29 +116,20 @@ Open Island 驻留在 Mac 的**刘海区域**（或顶部栏），为你的 AI c
 
 ## 快速开始
 
-### 方式一：直接下载
-
-从 [GitHub Releases](https://github.com/Octane0411/open-vibe-island/releases) 下载最新 DMG——已签名公证，开箱即用。
-
-### 方式二：Homebrew
+本 fork 目前建议从源码构建：
 
 ```bash
-brew install --cask open-island
-```
-
-后续升级用 `brew upgrade --cask open-island`。
-
-### 方式三：从源码构建
-
-```bash
-git clone https://github.com/Octane0411/open-vibe-island.git
-cd open-vibe-island
+git clone https://github.com/VihaanMotwani/open-island-tabs.git
+cd open-island-tabs
 open Package.swift   # 在 Xcode 中打开，点击 Run
 ```
 
 首次启动时，Open Island 会自动发现活跃的 agent 会话并启动 live bridge。Hook 安装在 app 内的**设置**窗口管理。
 
 > **系统要求**：macOS 14+、Swift 6.2、Xcode
+
+> [!NOTE]
+> 上游项目发布的下载文件和 Homebrew 包属于上游 build，并非本 fork 的 release，也可能不包含这里介绍的 Agents/Spotify tab 功能。
 
 ## 工作原理
 
@@ -165,20 +163,15 @@ Hooks **fail open**——如果 Open Island 没在运行，你的 agents 不受�
 
 </details>
 
-## 社区
+## Fork 开发
 
-加入 **Discord** 参与讨论、反馈和更快的问题响应：
+本 fork 的 issue 和 pull request 请提交到 [VihaanMotwani/open-island-tabs](https://github.com/VihaanMotwani/open-island-tabs)。参与贡献前请阅读 [CONTRIBUTING.zh-CN.md](CONTRIBUTING.zh-CN.md)。
 
-[![Discord](https://img.shields.io/discord/1490752192368476253?style=for-the-badge&logo=discord&label=Join%20Discord&color=5865F2)](https://discord.gg/bPF2HpbCFb)
+## 上游项目与署名
 
-我们欢迎 issue、pull request 和新的 maintainer。详见 [CONTRIBUTING.zh-CN.md](CONTRIBUTING.zh-CN.md)。
+本代码库 fork 自 [Octane0411/open-vibe-island](https://github.com/Octane0411/open-vibe-island)，并继续使用 [GPL v3](LICENSE) 许可。上游项目的贡献归其[原始贡献者](https://github.com/Octane0411/open-vibe-island/graphs/contributors)所有。
 
-<details>
-<summary>微信群</summary>
-
-<img src="docs/images/wechat-group.jpg" alt="微信群二维码" width="240">
-
-</details>
+本 fork 独立维护。上游维护者不认可、不支持、不发布本 fork，也不对本 fork 负责。[上游仓库](https://github.com/Octane0411/open-vibe-island)、[上游 releases](https://github.com/Octane0411/open-vibe-island/releases)及上游社区渠道仅适用于上游项目。
 
 ## 通过 Code Agent 提交 Bug
 
@@ -188,7 +181,7 @@ Hooks **fail open**——如果 Open Island 没在运行，你的 agents 不受�
 <summary>点击展开</summary>
 
 ```
-我在使用 Open Island (https://github.com/Octane0411/open-vibe-island) 时遇到了问题。
+我在使用非官方 Open Island fork (https://github.com/VihaanMotwani/open-island-tabs) 时遇到了问题。
 
 请帮我提交一个 GitHub issue，按以下步骤操作：
 
@@ -209,28 +202,10 @@ Hooks **fail open**——如果 Open Island 没在运行，你的 agents 不受�
    - 正文包含以下部分：**环境信息**、**问题描述**、**复现步骤**、**期望行为 vs 实际行为**
    - 如果是 bug 请添加 "bug" 标签
 
-仓库：Octane0411/open-vibe-island
+仓库：VihaanMotwani/open-island-tabs
 ```
 
 </details>
-
-## Star History
-
-<a href="https://star-history.com/#Octane0411/open-vibe-island&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Octane0411/open-vibe-island&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=Octane0411/open-vibe-island&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=Octane0411/open-vibe-island&type=Date" />
- </picture>
-</a>
-
-## Contributors
-
-<a href="https://github.com/Octane0411/open-vibe-island/graphs/contributors">
-  <!-- CONTRIBUTORS-IMG:START -->
-  <img src="https://contrib.rocks/image?repo=Octane0411/open-vibe-island&t=1783932921" />
-  <!-- CONTRIBUTORS-IMG:END -->
-</a>
 
 ## 路线图
 

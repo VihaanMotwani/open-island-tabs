@@ -1,40 +1,46 @@
 <p align="center">
-  <img src="docs/images/readme-banner.svg" alt="Open Island - agents in your menu bar" width="760">
+  <img src="docs/images/readme-banner.png" alt="Open Island showing agent sessions, an approval notification, and music controls in the Mac notch" width="1024">
 </p>
 
 <h1 align="center">Open Island</h1>
 
 <p align="center">
-  <strong>Why pay for a closed-source app just to monitor your coding agents?</strong>
+  <strong>Stay in flow.</strong>
   <br>
-  Open-source, local-first, native macOS companion for AI coding agents.
+  Monitor your coding agents and control your music from one native macOS surface.
+  <br><br>
+  <strong>Unofficial fork of Open Island</strong> — independently developed and distributed.
   <br><br>
   <a href="README.zh-CN.md">中文</a> | <strong>English</strong>
 </p>
 
+> [!IMPORTANT]
+> This repository is an independent, **unofficial fork of [Open Island](https://github.com/Octane0411/open-vibe-island)**. It is not maintained, endorsed, supported, or released by the upstream Open Island team. Upstream documentation, support channels, and releases apply to the upstream project only.
+
 <p align="center">
-  <a href="https://github.com/Octane0411/open-vibe-island/releases/latest"><img src="https://img.shields.io/github/v/release/Octane0411/open-vibe-island?style=flat-square&label=release&color=blue" alt="Latest Release"></a>
-  <a href="https://github.com/Octane0411/open-vibe-island/stargazers"><img src="https://img.shields.io/github/stars/Octane0411/open-vibe-island?style=flat-square&color=yellow" alt="Stars"></a>
-  <a href="https://discord.gg/bPF2HpbCFb"><img src="https://img.shields.io/badge/discord-join-5865F2?style=flat-square&logo=discord" alt="Discord"></a>
+  <a href="https://github.com/VihaanMotwani/open-island-tabs/stargazers"><img src="https://img.shields.io/github/stars/VihaanMotwani/open-island-tabs?style=flat-square&color=8f887d" alt="Stars for this fork"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL%20v3-green?style=flat-square" alt="License: GPL v3"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/Octane0411/open-vibe-island/releases">Download</a> ·
   <a href="#quick-start">Quick Start</a> ·
+  <a href="#what-this-fork-adds">What This Fork Adds</a> ·
   <a href="docs/roadmap.md">Roadmap</a> ·
-  <a href="CONTRIBUTING.md">Contributing</a>
-</p>
-
-<p align="center">
-  <img src="docs/images/demo.gif" alt="Open Island in action" width="720">
+  <a href="#upstream-project-and-attribution">Upstream Project</a>
 </p>
 
 ---
 
+## What This Fork Adds
+
+- **Agents first** — Monitor Codex, Claude Code, and other supported coding-agent sessions without leaving the task you are already doing
+- **Music second** — See Spotify artwork and metadata, scrub progress, and use playback controls inside the expanded notch
+- **One compact surface** — Switch between Agents and Spotify without bouncing between app windows
+- **Refined expanded UI** — Tighter hierarchy, native-feeling controls, improved contrast, calmer color, and layout fixes for the expanded island
+
 ## What is Open Island?
 
-Open Island sits in your Mac's **notch** (or top bar) and gives you a real-time control surface for your AI coding agents — session status, permission approvals, and instant jump-back to the right terminal. All without leaving your flow.
+Open Island sits in your Mac's **notch** (or top bar) and gives you a real-time control surface for your AI coding agents — session status, permission approvals, and instant jump-back to the right terminal. This fork also puts Spotify playback and track progress in the same expanded surface, so your agents and music stay one glance away.
 
 Think of it as an open-source [Vibe Island](https://vibeisland.app/) — **free, local-first, and you own every bit of it**.
 
@@ -47,6 +53,7 @@ Think of it as an open-source [Vibe Island](https://vibeisland.app/) — **free,
 - **Native macOS** — SwiftUI + AppKit, not an Electron wrapper
 - **Multi-agent** — One surface for Claude Code, Codex, Cursor, Gemini CLI, OpenCode, and more
 - **Multi-terminal** — Jump back to the exact terminal/IDE session in one click
+- **Music controls** — Spotify now-playing details, progress, and transport controls without opening the Spotify window
 
 ## Supported Agents & Terminals
 
@@ -110,29 +117,20 @@ Think of it as an open-source [Vibe Island](https://vibeisland.app/) — **free,
 
 ## Quick Start
 
-### Option 1: Download
-
-Grab the latest DMG from [GitHub Releases](https://github.com/Octane0411/open-vibe-island/releases) — signed and notarized, ready to run.
-
-### Option 2: Homebrew
+This fork is currently intended to be built from source:
 
 ```bash
-brew install --cask open-island
-```
-
-Upgrade later with `brew upgrade --cask open-island`.
-
-### Option 3: Build from source
-
-```bash
-git clone https://github.com/Octane0411/open-vibe-island.git
-cd open-vibe-island
+git clone https://github.com/VihaanMotwani/open-island-tabs.git
+cd open-island-tabs
 open Package.swift   # Opens in Xcode — hit Run
 ```
 
 On first launch, Open Island auto-discovers your active agent sessions and starts the live bridge. Hook installation is managed from the **Settings** window inside the app.
 
 > **Requirements**: macOS 14+, Swift 6.2, Xcode
+
+> [!NOTE]
+> Downloads and Homebrew packages published by the upstream project are upstream builds; they are not releases of this fork and may not include the Agents/Spotify tab work described here.
 
 ## How It Works
 
@@ -166,20 +164,15 @@ See [docs/architecture.md](docs/architecture.md) for the full system design.
 
 </details>
 
-## Community
+## Fork Development
 
-Join us on **Discord** for discussion, feedback, and faster issue resolution:
+Issues and pull requests for this fork belong in [VihaanMotwani/open-island-tabs](https://github.com/VihaanMotwani/open-island-tabs). See [CONTRIBUTING.md](CONTRIBUTING.md) before contributing.
 
-[![Discord](https://img.shields.io/discord/1490752192368476253?style=for-the-badge&logo=discord&label=Join%20Discord&color=5865F2)](https://discord.gg/bPF2HpbCFb)
+## Upstream Project and Attribution
 
-We welcome issues, pull requests, and new maintainers. See [CONTRIBUTING.md](CONTRIBUTING.md) to get started.
+This codebase began as a fork of [Octane0411/open-vibe-island](https://github.com/Octane0411/open-vibe-island) and remains licensed under [GPL v3](LICENSE). Credit for the upstream project belongs to its [original contributors](https://github.com/Octane0411/open-vibe-island/graphs/contributors).
 
-<details>
-<summary>WeChat group (for Chinese-speaking users)</summary>
-
-<img src="docs/images/wechat-group.jpg" alt="WeChat group QR code" width="240">
-
-</details>
+This fork is independently maintained. The upstream maintainers do not endorse, support, release, or accept responsibility for this fork. Use the [upstream repository](https://github.com/Octane0411/open-vibe-island), [upstream releases](https://github.com/Octane0411/open-vibe-island/releases), and upstream community channels only for the upstream project.
 
 ## Report a Bug via Your Code Agent
 
@@ -189,7 +182,7 @@ Copy this prompt into your agent (Claude Code, Codex, etc.) to auto-generate a w
 <summary>Click to expand</summary>
 
 ```
-I'm having an issue with Open Island (https://github.com/Octane0411/open-vibe-island).
+I'm having an issue with the unofficial Open Island fork at https://github.com/VihaanMotwani/open-island-tabs.
 
 Please help me file a GitHub issue. Do the following:
 
@@ -210,28 +203,10 @@ Please help me file a GitHub issue. Do the following:
    - Body with sections: **Environment**, **Description**, **Steps to Reproduce**, **Expected vs Actual Behavior**
    - Add label "bug" if applicable
 
-Repository: Octane0411/open-vibe-island
+Repository: VihaanMotwani/open-island-tabs
 ```
 
 </details>
-
-## Star History
-
-<a href="https://star-history.com/#Octane0411/open-vibe-island&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Octane0411/open-vibe-island&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=Octane0411/open-vibe-island&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=Octane0411/open-vibe-island&type=Date" />
- </picture>
-</a>
-
-## Contributors
-
-<a href="https://github.com/Octane0411/open-vibe-island/graphs/contributors">
-  <!-- CONTRIBUTORS-IMG:START -->
-  <img src="https://contrib.rocks/image?repo=Octane0411/open-vibe-island&t=1783932921" />
-  <!-- CONTRIBUTORS-IMG:END -->
-</a>
 
 ---
 

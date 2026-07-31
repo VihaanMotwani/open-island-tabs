@@ -468,8 +468,8 @@ final class OverlayPanelController {
 
     /// Hit-area width of the v6 closed pill.
     ///
-    /// - On a MacBook (physical notch present) the pill is locked to
-    ///   `44 + notchWidth + 44`, per the v6 design spec.
+    /// - On a MacBook (physical notch present) the hit area is symmetric
+    ///   around the hardware notch and reaches the full leading activity wing.
     /// - On an external display the width is content-driven; we return a
     ///   generous fixed hit-area so hover / click detection works without
     ///   the controller having to introspect live session state.
@@ -480,7 +480,10 @@ final class OverlayPanelController {
     ) -> CGFloat {
         let popBonus: CGFloat = notchStatus == .popping ? 18 : 0
         if isNotchedDisplay {
-            return notchWidth + 88 + popBonus
+            let maximumWingReserve = V6MacBookSlotMetrics.leadingReserve(
+                contentWidth: 45
+            )
+            return notchWidth + (maximumWingReserve * 2) + popBonus
         }
         return 360 + popBonus
     }

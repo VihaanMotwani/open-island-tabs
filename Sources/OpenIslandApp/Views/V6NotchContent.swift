@@ -343,6 +343,12 @@ struct V6ClosedPill: View {
             }
         }
         .frame(width: outer, height: height)
+        .offset(
+            x: V6MacBookSlotMetrics.hardwareAlignmentOffset(
+                leadingReserve: leadingReserve,
+                trailingReserve: trailingReserve
+            )
+        )
         .animation(reduceMotion ? nil : .smooth(duration: 0.28), value: mediaActivity)
     }
 }
@@ -354,7 +360,7 @@ enum V6ClosedLayout: Equatable {
 
 struct V6MacBookSlotMetrics {
     static let outerEdgeInset: CGFloat = 12
-    static let leadingNotchGap: CGFloat = 14
+    static let leadingNotchGap: CGFloat = 20
     static let trailingNotchGap: CGFloat = 12
 
     static func leadingReserve(contentWidth: CGFloat) -> CGFloat {
@@ -380,6 +386,17 @@ struct V6MacBookSlotMetrics {
         reserve: CGFloat
     ) -> CGFloat {
         notchRight + (reserve / 2)
+    }
+
+    /// The closed pill has independently sized left and right wings. When
+    /// SwiftUI centers the pill's outer bounds, that asymmetry would move the
+    /// transparent notch span away from the hardware notch. Shift the visual
+    /// surface so the center of the transparent span remains screen-centered.
+    static func hardwareAlignmentOffset(
+        leadingReserve: CGFloat,
+        trailingReserve: CGFloat
+    ) -> CGFloat {
+        (trailingReserve - leadingReserve) / 2
     }
 }
 

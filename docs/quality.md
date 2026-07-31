@@ -49,10 +49,10 @@ This uses the production Agents surface with three local demo-origin sessions: o
 To cut the physical-notch launch take into the 15-second Agents-to-Spotify launch sequence, run:
 
 ```sh
-zsh scripts/render-launch-video.sh "/path/to/Screen Recording.mov"
+zsh scripts/render-launch-video.sh "/path/to/Screen Recording.mov" "/path/to/output.mp4" "/path/to/wallpaper.heic"
 ```
 
-The renderer preserves the real notch occlusion from the supplied take and gives newcomers clear notification and expanded Agents beats before centering the Spotify reveal, expanded controls, and compact playback. It joins the motion-matched beats with restrained cross-dissolves, adds moving SF-system captions, and exports a silent 1920×1080, 60 fps H.264 master under `output/launch-video/`. It does not add a demo-data label to the product surface or the video.
+The output and wallpaper arguments are optional. The renderer preserves the real notch occlusion from the supplied take while compositing it over a clean macOS wallpaper, defaulting to the built-in Big Sur Graphic Dark asset. It gives newcomers clear notification and expanded Agents beats before centering the Spotify reveal, expanded controls, and compact playback. It joins the motion-matched beats with restrained cross-dissolves, adds moving SF-system captions, and exports a silent 1920×1080, 60 fps H.264 master under `output/launch-video/`. It does not add a demo-data label to the product surface or the video.
 
 Each smoke artifact directory now includes a minimal observability slice:
 

@@ -37,9 +37,9 @@ struct ClosedNotchActivityTests {
     @Test
     func macBookSlotsBalanceOuterBreathingRoomAroundIndependentNotchGaps() {
         #expect(V6MacBookSlotMetrics.outerEdgeInset == 12)
-        #expect(V6MacBookSlotMetrics.leadingNotchGap == 10)
+        #expect(V6MacBookSlotMetrics.leadingNotchGap == 14)
         #expect(V6MacBookSlotMetrics.trailingNotchGap == 12)
-        #expect(V6MacBookSlotMetrics.leadingReserve(contentWidth: 45) == 67)
+        #expect(V6MacBookSlotMetrics.leadingReserve(contentWidth: 45) == 71)
         #expect(V6MacBookSlotMetrics.trailingReserve(contentWidth: 14.4) == 38.4)
         #expect(V6MacBookSlotMetrics.leadingContentOrigin == 12)
         #expect(V6MacBookSlotMetrics.trailingContentOrigin(

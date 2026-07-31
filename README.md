@@ -117,15 +117,36 @@ Think of it as an open-source [Vibe Island](https://vibeisland.app/) — **free,
 
 ## Quick Start
 
-This fork is currently intended to be built from source:
+This fork currently ships from source. The install script builds the app,
+places it at `~/Applications/Open Island Dev.app`, and opens it—no Xcode UI
+required:
 
 ```bash
 git clone https://github.com/VihaanMotwani/open-island-tabs.git
 cd open-island-tabs
-open Package.swift   # Opens in Xcode — hit Run
+zsh scripts/launch-dev-app.sh --skip-setup
 ```
 
-On first launch, Open Island auto-discovers your active agent sessions and starts the live bridge. Hook installation is managed from the **Settings** window inside the app.
+`--skip-setup` keeps the install from changing any agent configuration. On
+first launch, open **Settings → Setup** and install hooks only for the agents
+you use. If you want the script to install the managed Codex hooks during the
+build, run it without `--skip-setup`.
+
+To update later, pull the latest changes and run the same script again. It
+rebuilds and replaces the local development app.
+
+<details>
+<summary>Run directly from Xcode instead</summary>
+
+```bash
+open Package.swift
+```
+
+In Xcode, select the **OpenIslandApp** scheme and **My Mac**, then press Run.
+The default **OpenIsland-Package** scheme only builds the package; it does not
+launch the app.
+
+</details>
 
 > **Requirements**: macOS 14+, Swift 6.2, Xcode
 
@@ -289,11 +310,16 @@ Four targets in one Swift package:
 
 ### Quick Start (Agent)
 
-Build and run locally:
+Build, install, and run the local development app without changing agent
+configuration:
 
 ```bash
-open Package.swift
+zsh scripts/launch-dev-app.sh --skip-setup
 ```
+
+The script replaces `~/Applications/Open Island Dev.app` and launches it. For
+a direct Xcode run, open `Package.swift`, select the **OpenIslandApp** scheme
+and **My Mac**, then press Run.
 
 Build a local `.app` bundle:
 
@@ -305,7 +331,10 @@ That script creates `output/package/Open Island.app` and `output/package/Open Is
 
 #### Connect Codex
 
-Open the package in Xcode to run the macOS app target. On launch, the app restores its local cache, scans recent `~/.codex/sessions/**/rollout-*.jsonl` files for existing Codex sessions, and starts the live bridge for new hook events.
+Launch the app with `scripts/launch-dev-app.sh` or the **OpenIslandApp** Xcode
+scheme. On launch, the app restores its local cache, scans recent
+`~/.codex/sessions/**/rollout-*.jsonl` files for existing Codex sessions, and
+starts the live bridge for new hook events.
 
 The Settings window shows live Codex hook install status from `~/.codex`, and can install or uninstall managed hook entries directly. Installs copy the helper into `~/Library/Application Support/OpenIsland/bin/OpenIslandHooks` so repo renames do not break existing hooks.
 

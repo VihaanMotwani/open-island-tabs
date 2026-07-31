@@ -54,6 +54,14 @@ zsh scripts/render-launch-video.sh "/path/to/Screen Recording.mov" "/path/to/out
 
 The output and wallpaper arguments are optional. The renderer preserves the real notch occlusion from the supplied take while compositing it over a clean macOS wallpaper, defaulting to the built-in Big Sur Graphic Dark asset. It gives newcomers clear notification and expanded Agents beats before centering the Spotify reveal, expanded controls, and compact playback. It joins the motion-matched beats with restrained cross-dissolves, adds moving SF-system captions, and exports a silent 1920×1080, 60 fps H.264 master under `output/launch-video/`. It does not add a demo-data label to the product surface or the video.
 
+To burn the launch copy into an already edited 1920×1080 tabs demo while preserving its audio, run:
+
+```bash
+zsh scripts/render-tabs-demo-captions.sh /path/to/open-island-tabs-demo.mov
+```
+
+The optional second argument selects the output path. The renderer keeps the source at 29.97 fps, uses the shared SF-system caption treatment, fades one caption at a time over the 15.6-second story, and writes an H.264/AAC copy without changing the source master.
+
 Each smoke artifact directory now includes a minimal observability slice:
 
 - `report.json` for the scenario summary and runtime artifact index

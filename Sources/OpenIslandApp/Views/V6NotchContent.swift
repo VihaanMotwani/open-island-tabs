@@ -212,8 +212,12 @@ struct V6ClosedPill: View {
     var mode: UnifiedBars.Mode
     var label: String?          // suppressed automatically in MacBook layout
     var rightSlot: IslandRightSlotContent?
+    var mediaActivity: MediaActivityState = .hidden
+    var onMediaActivitySelected: (() -> Void)?
     var layout: V6ClosedLayout
     var height: CGFloat = 32
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// MacBook mode only — width of the physical notch cutout to wrap.
     var physicalNotchWidth: CGFloat = 0
@@ -238,6 +242,26 @@ struct V6ClosedPill: View {
     // label) and the right-slot content so they never touch at small widths.
     private static let innerGap: CGFloat = 6
 
+    private var mediaActivityWidth: CGFloat {
+        mediaActivity == .hidden ? 0 : 21
+    }
+
+    @ViewBuilder
+    private var leadingActivityCluster: some View {
+        HStack(spacing: 3) {
+            if mediaActivity != .hidden {
+                MediaActivityIndicator(
+                    state: mediaActivity,
+                    action: onMediaActivitySelected ?? {}
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.82)))
+            }
+
+            UnifiedBars(mode: mode, size: 24)
+                .frame(width: 24, height: 24)
+        }
+    }
+
     // MARK: External (fluid)
 
     private var externalBody: some View {
@@ -247,7 +271,7 @@ struct V6ClosedPill: View {
 
         let labelBlock = (label == nil ? 0 : 6 + labelW)
         let rightBlock = (rightSlot == nil ? 0 : Self.innerGap + rightW)
-        let intrinsic = pad * 2 + glyphW + labelBlock + rightBlock
+        let intrinsic = pad * 2 + mediaActivityWidth + glyphW + labelBlock + rightBlock
         let width = max(minWidth, intrinsic)
 
         return ZStack {
@@ -255,8 +279,7 @@ struct V6ClosedPill: View {
                 .fill(V6Palette.ink)
 
             HStack(spacing: 0) {
-                UnifiedBars(mode: mode, size: 24)
-                    .frame(width: glyphW, height: 24)
+                leadingActivityCluster
 
                 if let label {
                     V6CenterLabelView(text: label)
@@ -282,12 +305,13 @@ struct V6ClosedPill: View {
                 AnyHashable(mode),
             ])
         )
+        .animation(reduceMotion ? nil : .smooth(duration: 0.28), value: mediaActivity)
     }
 
     // MARK: MacBook (outer width locked)
 
     private var macbookBody: some View {
-        let halfReserve: CGFloat = 44
+        let halfReserve: CGFloat = mediaActivity == .hidden ? 44 : 58
         let outer = halfReserve + physicalNotchWidth + halfReserve
 
         return ZStack {
@@ -295,8 +319,7 @@ struct V6ClosedPill: View {
                 .fill(V6Palette.ink)
 
             HStack(spacing: 0) {
-                UnifiedBars(mode: mode, size: 24)
-                    .frame(width: 24, height: 24)
+                leadingActivityCluster
 
                 Spacer(minLength: 0)
 
@@ -307,6 +330,7 @@ struct V6ClosedPill: View {
             .padding(.horizontal, pad)
         }
         .frame(width: outer, height: height)
+        .animation(reduceMotion ? nil : .smooth(duration: 0.28), value: mediaActivity)
     }
 }
 

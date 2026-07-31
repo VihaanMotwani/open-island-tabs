@@ -78,83 +78,6 @@ private let closeAnimation = Animation.smooth(duration: 0.3)
 private let popAnimation = Animation.spring(response: 0.3, dampingFraction: 0.5)
 private let openedSurfaceUnmountDelay: TimeInterval = 0.36
 
-private enum InvertedBrowserTabSide {
-    case leading
-    case trailing
-}
-
-/// A compact browser-tab silhouette rotated 180 degrees so it hangs from
-/// the notch. Its top shoulder tucks behind the notch while both corners at
-/// the shared seam remain curved, like adjacent Chrome tabs.
-private struct InvertedBrowserTabShape: Shape {
-    let side: InvertedBrowserTabSide
-
-    func path(in rect: CGRect) -> Path {
-        let shoulder = min(10, rect.width * 0.22)
-        let outerCorner = min(8, rect.height * 0.3)
-        let innerCorner = min(6, rect.height * 0.22)
-        var path = Path()
-
-        switch side {
-        case .leading:
-            path.move(to: CGPoint(x: rect.maxX, y: rect.minY + innerCorner))
-            path.addCurve(
-                to: CGPoint(x: rect.maxX - innerCorner, y: rect.minY),
-                control1: CGPoint(x: rect.maxX, y: rect.minY + innerCorner * 0.35),
-                control2: CGPoint(x: rect.maxX - innerCorner * 0.35, y: rect.minY)
-            )
-            path.addLine(to: CGPoint(x: rect.minX + shoulder, y: rect.minY))
-            path.addCurve(
-                to: CGPoint(x: rect.minX, y: rect.minY + shoulder),
-                control1: CGPoint(x: rect.minX + shoulder * 0.42, y: rect.minY),
-                control2: CGPoint(x: rect.minX, y: rect.minY + shoulder * 0.42)
-            )
-            path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY - outerCorner))
-            path.addCurve(
-                to: CGPoint(x: rect.minX + outerCorner, y: rect.maxY),
-                control1: CGPoint(x: rect.minX, y: rect.maxY - outerCorner * 0.35),
-                control2: CGPoint(x: rect.minX + outerCorner * 0.35, y: rect.maxY)
-            )
-            path.addLine(to: CGPoint(x: rect.maxX - innerCorner, y: rect.maxY))
-            path.addCurve(
-                to: CGPoint(x: rect.maxX, y: rect.maxY - innerCorner),
-                control1: CGPoint(x: rect.maxX - innerCorner * 0.35, y: rect.maxY),
-                control2: CGPoint(x: rect.maxX, y: rect.maxY - innerCorner * 0.35)
-            )
-            path.closeSubpath()
-
-        case .trailing:
-            path.move(to: CGPoint(x: rect.minX, y: rect.minY + innerCorner))
-            path.addCurve(
-                to: CGPoint(x: rect.minX + innerCorner, y: rect.minY),
-                control1: CGPoint(x: rect.minX, y: rect.minY + innerCorner * 0.35),
-                control2: CGPoint(x: rect.minX + innerCorner * 0.35, y: rect.minY)
-            )
-            path.addLine(to: CGPoint(x: rect.maxX - shoulder, y: rect.minY))
-            path.addCurve(
-                to: CGPoint(x: rect.maxX, y: rect.minY + shoulder),
-                control1: CGPoint(x: rect.maxX - shoulder * 0.42, y: rect.minY),
-                control2: CGPoint(x: rect.maxX, y: rect.minY + shoulder * 0.42)
-            )
-            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - outerCorner))
-            path.addCurve(
-                to: CGPoint(x: rect.maxX - outerCorner, y: rect.maxY),
-                control1: CGPoint(x: rect.maxX, y: rect.maxY - outerCorner * 0.35),
-                control2: CGPoint(x: rect.maxX - outerCorner * 0.35, y: rect.maxY)
-            )
-            path.addLine(to: CGPoint(x: rect.minX + innerCorner, y: rect.maxY))
-            path.addCurve(
-                to: CGPoint(x: rect.minX, y: rect.maxY - innerCorner),
-                control1: CGPoint(x: rect.minX + innerCorner * 0.35, y: rect.maxY),
-                control2: CGPoint(x: rect.minX, y: rect.maxY - innerCorner * 0.35)
-            )
-            path.closeSubpath()
-        }
-
-        return path
-    }
-}
-
 // MARK: - Main island view
 
 struct IslandPanelView: View {
@@ -165,7 +88,7 @@ struct IslandPanelView: View {
     private static let notchHeaderHorizontalPadding: CGFloat = 46
     private static let notchLaneSafetyInset: CGFloat = 12
     private static let minimumRightUsageLaneWidth: CGFloat = 58
-    private static let openedTabStripHeight: CGFloat = 32
+    private static let openedTabSwitcherHeight: CGFloat = 30
 
     var model: AppModel
     private var lang: LanguageManager { model.lang }
@@ -174,6 +97,7 @@ struct IslandPanelView: View {
     @State private var showingQuitConfirmation = false
     @State private var keepsOpenedSurfaceMounted = false
     @State private var openedSurfaceMountGeneration: UInt64 = 0
+    @State private var hoveredIslandTab: IslandTab?
 
     private var isOpened: Bool {
         model.notchStatus == .opened
@@ -343,58 +267,23 @@ struct IslandPanelView: View {
     private func v6ClosedSurface() -> some View {
         let layout: V6ClosedLayout = isExternalDisplayPlacement ? .external : .macbook
         let physicalNotchWidth: CGFloat = targetOverlayScreen?.notchSize.width ?? 180
-        VStack(spacing: -6) {
-            V6ClosedPill(
-                mode: model.islandClosedMode,
-                label: layout == .external ? model.islandClosedLabel() : nil,
-                rightSlot: model.islandClosedRightSlotContent(),
-                layout: layout,
-                height: closedNotchHeight,
-                physicalNotchWidth: layout == .macbook ? physicalNotchWidth : 0,
-                minWidth: 70
-            )
-
-            closedTabStrip
-        }
+        V6ClosedPill(
+            mode: model.islandClosedMode,
+            label: layout == .external ? model.islandClosedLabel() : nil,
+            rightSlot: model.islandClosedRightSlotContent(),
+            mediaActivity: MediaActivityState(snapshot: model.spotifyPlayback.snapshot),
+            onMediaActivitySelected: openSpotifyTabFromActivityIndicator,
+            layout: layout,
+            height: closedNotchHeight,
+            physicalNotchWidth: layout == .macbook ? physicalNotchWidth : 0,
+            minWidth: 70
+        )
         .scaleEffect(isPopping ? 1.04 : 1, anchor: .top)
         .animation(popAnimation, value: isPopping)
     }
 
-    private var closedTabStrip: some View {
-        HStack(alignment: .top, spacing: -2) {
-            closedTab(.agents)
-            closedTab(.spotify)
-        }
-        .frame(width: 88, height: 30, alignment: .top)
-    }
-
-    private func closedTab(_ tab: IslandTab) -> some View {
-        let isSelected = model.preferredIslandTab == tab
-        let shape = invertedTabShape(for: tab)
-
-        return tabIcon(tab, size: tab == .spotify ? 16 : 17)
-            .opacity(closedTabOpacity(tab))
-            .frame(width: 45, height: 30)
-            .background(
-                shape
-                    .fill(isSelected ? .white.opacity(0.12) : V6Palette.ink.opacity(0.96))
-                    .overlay {
-                        shape.stroke(
-                            .white.opacity(isSelected ? 0.16 : 0.055),
-                            lineWidth: 1
-                        )
-                    }
-            )
-            .shadow(color: .black.opacity(isSelected ? 0.42 : 0), radius: 3, y: 2)
-            .zIndex(isSelected ? 1 : 0)
-    }
-
-    private func closedTabOpacity(_ tab: IslandTab) -> Double {
-        if tab == .spotify,
-           model.spotifyPlayback.snapshot.availability == .notRunning {
-            return model.preferredIslandTab == tab ? 0.88 : 0.64
-        }
-        return model.preferredIslandTab == tab ? 0.92 : 0.46
+    private func openSpotifyTabFromActivityIndicator() {
+        model.openIslandTab(.spotify)
     }
 
     // MARK: - Opened surface
@@ -419,15 +308,15 @@ struct IslandPanelView: View {
                     .frame(height: closedNotchHeight)
 
                 openedTabSwitcher
-                    .frame(height: Self.openedTabStripHeight)
-                    .offset(y: -6)
+                    .frame(height: Self.openedTabSwitcherHeight)
+                    .offset(y: -2)
 
                 openedContent
                     .frame(width: openedWidth)
                     .frame(
                         maxHeight: max(
                             0,
-                            openedHeight - closedNotchHeight - Self.openedTabStripHeight
+                            openedHeight - closedNotchHeight - Self.openedTabSwitcherHeight
                         ),
                         alignment: .top
                     )
@@ -519,12 +408,20 @@ struct IslandPanelView: View {
     }
 
     private var openedTabSwitcher: some View {
-        HStack(alignment: .top, spacing: -2) {
+        HStack(spacing: 2) {
             openedTabButton(.agents, accessibilityLabel: "Open Island agents")
             openedTabButton(.spotify, accessibilityLabel: "Spotify")
         }
-        .frame(width: 88, height: 30, alignment: .top)
+        .padding(2)
+        .background(.white.opacity(0.055), in: Capsule())
+        .overlay {
+            Capsule()
+                .stroke(.white.opacity(0.075), lineWidth: 1)
+        }
+        .frame(height: 28)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Island tabs")
     }
 
     private func openedTabButton(
@@ -535,7 +432,7 @@ struct IslandPanelView: View {
         let isUnavailableSpotify =
             tab == .spotify
             && model.spotifyPlayback.snapshot.availability == .notRunning
-        let shape = invertedTabShape(for: tab)
+        let isHovered = hoveredIslandTab == tab
 
         return Button {
             model.selectIslandTab(tab)
@@ -544,9 +441,9 @@ struct IslandPanelView: View {
             }
         } label: {
             ZStack(alignment: .topTrailing) {
-                tabIcon(tab, size: tab == .spotify ? 14 : 19)
+                tabIcon(tab, size: tab == .spotify ? 12 : 14)
                     .opacity(isUnavailableSpotify ? 0.68 : (isSelected ? 0.95 : 0.5))
-                    .frame(width: 45, height: 30)
+                    .frame(width: 40, height: 22)
 
                 if tab == .agents, model.liveAttentionCount > 0 {
                     Circle()
@@ -555,29 +452,37 @@ struct IslandPanelView: View {
                         .overlay {
                             Circle().stroke(V6Palette.ink, lineWidth: 1)
                         }
-                        .offset(x: -8, y: 5)
+                        .offset(x: -6, y: 3)
                 }
             }
             .background(
-                shape
-                    .fill(isSelected ? .white.opacity(0.12) : V6Palette.ink.opacity(0.96))
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(
+                        isSelected
+                            ? .white.opacity(0.13)
+                            : .white.opacity(isHovered ? 0.055 : 0)
+                    )
                     .overlay {
-                        shape.stroke(
-                            .white.opacity(isSelected ? 0.16 : 0.055),
-                            lineWidth: 1
-                        )
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .stroke(
+                                .white.opacity(isSelected ? 0.11 : 0),
+                                lineWidth: 1
+                            )
                     }
             )
-            .shadow(color: .black.opacity(isSelected ? 0.42 : 0), radius: 3, y: 2)
+            .shadow(color: .black.opacity(isSelected ? 0.24 : 0), radius: 2, y: 1)
         }
         .buttonStyle(.plain)
-        .contentShape(shape)
+        .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
         .zIndex(isSelected ? 1 : 0)
+        .onHover { hovering in
+            withAnimation(.easeOut(duration: 0.12)) {
+                hoveredIslandTab = hovering ? tab : nil
+            }
+        }
         .accessibilityLabel(accessibilityLabel)
-    }
-
-    private func invertedTabShape(for tab: IslandTab) -> InvertedBrowserTabShape {
-        InvertedBrowserTabShape(side: tab == .agents ? .leading : .trailing)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .help(accessibilityLabel)
     }
 
     @ViewBuilder

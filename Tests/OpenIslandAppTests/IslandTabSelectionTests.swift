@@ -3,6 +3,19 @@ import Testing
 
 struct IslandTabSelectionTests {
     @Test
+    @MainActor
+    func openingSpotifyTabSelectsItAndExpandsTheIsland() {
+        let overlay = OverlayUICoordinator()
+
+        overlay.openIslandTab(.spotify)
+
+        #expect(overlay.selectedIslandTab == .spotify)
+        #expect(overlay.preferredIslandTab == .spotify)
+        #expect(overlay.notchStatus == .opened)
+        #expect(overlay.notchOpenReason == .click)
+    }
+
+    @Test
     func selectingSpotifyMakesItVisibleAndPreferred() {
         var state = IslandTabSelectionState()
 

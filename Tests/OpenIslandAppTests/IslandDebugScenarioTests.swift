@@ -19,4 +19,13 @@ struct IslandDebugScenarioTests {
         #expect(snapshot.mediaSnapshot?.playbackState == .playing)
         #expect(snapshot.mediaSnapshot?.title.isEmpty == false)
     }
+
+    @Test
+    func closedScenarioCarriesPlayingStateForTheAmbientIndicator() {
+        let snapshot = IslandDebugScenario.closed.snapshot()
+
+        #expect(snapshot.notchStatus == .closed)
+        #expect(snapshot.mediaSnapshot?.availability == .running)
+        #expect(snapshot.mediaSnapshot?.playbackState == .playing)
+    }
 }

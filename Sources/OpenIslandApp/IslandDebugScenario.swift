@@ -100,7 +100,8 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
                 notchOpenReason: nil,
                 islandSurface: .sessionList(),
                 sessions: sessions,
-                selectedSessionID: sessions.first?.id
+                selectedSessionID: sessions.first?.id,
+                mediaSnapshot: Self.playingMediaSnapshot
             )
 
         case .sessionList:
@@ -179,20 +180,22 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
                 sessions: [],
                 selectedSessionID: nil,
                 selectedTab: .spotify,
-                mediaSnapshot: MediaPlaybackSnapshot(
-                    availability: .running,
-                    playbackState: .playing,
-                    title: "Midnight City",
-                    artist: "M83",
-                    album: "Hurry Up, We're Dreaming",
-                    artworkURL: nil,
-                    duration: 244,
-                    position: 61.5,
-                    volume: 0.62
-                )
+                mediaSnapshot: Self.playingMediaSnapshot
             )
         }
     }
+
+    private static let playingMediaSnapshot = MediaPlaybackSnapshot(
+        availability: .running,
+        playbackState: .playing,
+        title: "Midnight City",
+        artist: "M83",
+        album: "Hurry Up, We're Dreaming",
+        artworkURL: nil,
+        duration: 244,
+        position: 61.5,
+        volume: 0.62
+    )
 }
 
 private enum DebugSessionFactory {

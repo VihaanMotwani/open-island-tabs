@@ -1270,6 +1270,9 @@ final class AppModel {
         overlay.selectIslandTab(tab)
         overlay.refreshOverlayPlacementIfVisible()
     }
+    func openIslandTab(_ tab: IslandTab) {
+        overlay.openIslandTab(tab)
+    }
     func openSpotifyIfNeeded() {
         guard spotifyPlayback.snapshot.availability == .notRunning else { return }
         spotifyPlayback.perform(.open)

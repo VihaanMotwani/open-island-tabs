@@ -463,7 +463,7 @@ struct IslandPanelView: View {
         } label: {
             ZStack(alignment: .topTrailing) {
                 HStack(spacing: 5) {
-                    tabIcon(tab, size: tab == .spotify ? 10.5 : 11)
+                    tabIcon(tab, size: tab == .spotify ? 10.5 : 11.5)
                     Text(tab == .agents ? "Agents" : "Spotify")
                         .font(.caption2.weight(isSelected ? .semibold : .medium))
                 }
@@ -514,8 +514,8 @@ struct IslandPanelView: View {
     private func tabIcon(_ tab: IslandTab, size: CGFloat) -> some View {
         switch tab {
         case .agents:
-            Image(systemName: "terminal.fill")
-                .font(.system(size: size, weight: .medium))
+            Text(">_")
+                .font(.system(size: size, weight: .bold, design: .monospaced))
                 .accessibilityHidden(true)
         case .spotify:
             SpotifyGlyph(

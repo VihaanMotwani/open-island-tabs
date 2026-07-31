@@ -12,8 +12,8 @@
 - Deterministic Spotify capture: `/Users/vihaan/.codex/worktrees/a54d/notch/output/harness/spotify-dynamic-island-final/overlay.png`
 - Live Spotify capture: `/Users/vihaan/.codex/visualizations/2026/07/31/019fb6d5-150b-7ef0-900e-3daa5206e134/open-island-expanded-notch-audit/20-dynamic-island-after/spotify-after-final.jpeg`
 - Live volume-popover capture: `/Users/vihaan/.codex/visualizations/2026/07/31/019fb6d5-150b-7ef0-900e-3daa5206e134/open-island-expanded-notch-audit/20-dynamic-island-after/spotify-volume-popover-final.jpeg`
-- Live Agents capture: `/Users/vihaan/.codex/visualizations/2026/07/31/019fb6d5-150b-7ef0-900e-3daa5206e134/open-island-expanded-notch-audit/20-dynamic-island-after/agents-tab-terminal-icon.jpeg`
-- Deterministic Agents capture: `/Users/vihaan/.codex/worktrees/a54d/notch/output/harness/agents-terminal-icon-final/overlay.png`
+- Live Agents capture: `/Users/vihaan/.codex/visualizations/2026/07/31/019fb6d5-150b-7ef0-900e-3daa5206e134/open-island-expanded-notch-audit/20-dynamic-island-after/agents-tab-prompt-icon-final.jpeg`
+- Deterministic Agents capture: `/Users/vihaan/.codex/worktrees/a54d/notch/output/harness/agents-prompt-icon-final/overlay.png`
 - Long-completion regression capture: `/Users/vihaan/.codex/worktrees/a54d/notch/output/harness/long-completion-height-contract-184/overlay.png`
 - Implementation pixels: 1200 × 512 for the deterministic 600 × 256 point Retina capture.
 - State: Spotify selected and playing, dark appearance, built-in Retina display with notch-aware placement.
@@ -34,7 +34,7 @@
 - Controls: previous, pause, and next are larger, evenly spaced, and high-contrast. The native macOS slider deliberately keeps its thumb and accessibility behavior. Volume moves into a trailing button and native popover instead of consuming the transport row.
 - Responsive behavior: the 480-point safe content width is preserved; artwork shrinks from 76 to 64 points before metadata is crowded on narrow displays.
 - Agents integrity: changing tabs returns to the 500-point Agents surface without clipping or inheriting the Spotify height.
-- Agents identity: the inner tab now uses the native `terminal.fill` symbol, which represents monitored coding-agent sessions clearly at the 11-point tab scale without introducing another product brand.
+- Agents identity: the inner tab now uses a direct 11.5-point SF Mono `>_` prompt, giving the meaningful terminal mark the full icon slot instead of shrinking it inside a boxed symbol.
 - Long content: completion sizing and the SwiftUI scroll viewport now share one 184-point maximum. The verified 438-point fixture shows complete visible lines and preserves the remaining text in an accessible internal scroll area.
 - Interaction: the accessibility capture exposes Previous track, Pause Spotify, Next track, Spotify volume, both tabs, sound, settings, and quit. Provider tests cover seek and volume clamping.
 
@@ -55,8 +55,8 @@
    - Raised the default transport and volume contrast to match the reference while retaining restrained hover fills.
    - Evidence: `/Users/vihaan/.codex/visualizations/2026/07/31/019fb6d5-150b-7ef0-900e-3daa5206e134/open-island-expanded-notch-audit/20-dynamic-island-after/reference-vs-spotify-final.png`.
 5. Agents-tab identity
-   - Replaced the ambiguous Open Island brand mark with the native filled terminal symbol.
-   - Evidence: `/Users/vihaan/.codex/worktrees/a54d/notch/output/harness/agents-terminal-icon-final/overlay.png`.
+   - Replaced the boxed terminal symbol with a direct SF Mono prompt mark so `>_` stays legible at tab scale.
+   - Evidence: `/Users/vihaan/.codex/worktrees/a54d/notch/output/harness/agents-prompt-icon-final/overlay.png`.
 
 ## Intentional platform adaptations
 

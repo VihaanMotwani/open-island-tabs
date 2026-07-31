@@ -89,6 +89,10 @@ struct HarnessArtifactReport: Codable {
     let selectedSessionID: String?
     let islandSurface: String
     let notchStatus: String
+    let selectedTab: String
+    let mediaAvailability: String
+    let mediaPlaybackState: String
+    let mediaTitle: String
     let runtime: HarnessRuntimeArtifacts?
     let sessions: [SessionSnapshot]
 }
@@ -165,6 +169,14 @@ enum HarnessArtifactRecorder {
             selectedSessionID: model.selectedSessionID,
             islandSurface: surfaceDescription(model.islandSurface),
             notchStatus: notchStatusDescription(model.notchStatus),
+            selectedTab: model.selectedIslandTab == .spotify ? "spotify" : "agents",
+            mediaAvailability: model.spotifyPlayback.snapshot.availability == .running
+                ? "running"
+                : "notRunning",
+            mediaPlaybackState: mediaPlaybackStateDescription(
+                model.spotifyPlayback.snapshot.playbackState
+            ),
+            mediaTitle: model.spotifyPlayback.snapshot.title,
             runtime: runtimeArtifacts,
             sessions: model.sessions.map {
                 HarnessArtifactReport.SessionSnapshot(
@@ -286,6 +298,17 @@ enum HarnessArtifactRecorder {
             "opened"
         case .popping:
             "popping"
+        }
+    }
+
+    private static func mediaPlaybackStateDescription(_ state: MediaPlaybackState) -> String {
+        switch state {
+        case .stopped:
+            "stopped"
+        case .paused:
+            "paused"
+        case .playing:
+            "playing"
         }
     }
 

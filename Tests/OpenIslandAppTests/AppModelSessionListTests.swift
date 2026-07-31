@@ -33,6 +33,96 @@ struct AppModelSessionListTests {
     }
 
     @Test
+    func agentApprovalInterruptsOpenSpotifyAndRestoresItAfterResolution() {
+        let model = AppModel()
+        model.isSoundMuted = true
+        model.suppressFrontmostNotifications = false
+        model.selectIslandTab(.spotify)
+        model.notchOpen(reason: .click)
+        model.applyTrackedEvent(
+            .sessionStarted(SessionStarted(
+                sessionID: "spotify-interrupt",
+                title: "Codex · notch",
+                tool: .codex,
+                summary: "Working",
+                timestamp: .now
+            )),
+            updateLastActionMessage: false
+        )
+
+        model.applyTrackedEvent(
+            .permissionRequested(PermissionRequested(
+                sessionID: "spotify-interrupt",
+                request: PermissionRequest(
+                    title: "Edit files",
+                    summary: "Allow the agent to edit the player",
+                    affectedPath: "/tmp/SpotifyPlayerView.swift"
+                ),
+                timestamp: .now
+            )),
+            updateLastActionMessage: false
+        )
+
+        #expect(model.selectedIslandTab == .agents)
+        #expect(model.preferredIslandTab == .spotify)
+        #expect(model.notchStatus == .opened)
+        #expect(model.notchOpenReason == .notification)
+
+        model.applyTrackedEvent(
+            .actionableStateResolved(ActionableStateResolved(
+                sessionID: "spotify-interrupt",
+                summary: "Approved",
+                timestamp: .now
+            )),
+            updateLastActionMessage: false
+        )
+
+        #expect(model.selectedIslandTab == .spotify)
+        #expect(model.notchStatus == .opened)
+        #expect(model.notchOpenReason == .click)
+        #expect(model.islandSurface == .sessionList())
+    }
+
+    @Test
+    func completionInterruptUsesSpotifyRestorationTakeover() {
+        let model = AppModel()
+        model.isSoundMuted = true
+        model.suppressFrontmostNotifications = false
+        model.selectIslandTab(.spotify)
+        model.notchOpen(reason: .click)
+        model.applyTrackedEvent(
+            .sessionStarted(SessionStarted(
+                sessionID: "spotify-completion",
+                title: "Codex · notch",
+                tool: .codex,
+                summary: "Working",
+                timestamp: .now
+            )),
+            updateLastActionMessage: false
+        )
+
+        model.applyTrackedEvent(
+            .sessionCompleted(SessionCompleted(
+                sessionID: "spotify-completion",
+                summary: "Player ready",
+                timestamp: .now
+            )),
+            updateLastActionMessage: false
+        )
+
+        #expect(model.selectedIslandTab == .agents)
+        #expect(model.preferredIslandTab == .spotify)
+        #expect(model.overlay.tabSelection.activeTakeover == .completion)
+        #expect(model.hasPendingNotificationAutoCollapse)
+
+        model.overlay.handleNotificationAutoCollapseDeadline()
+
+        #expect(model.selectedIslandTab == .spotify)
+        #expect(model.notchStatus == .opened)
+        #expect(model.notchOpenReason == .click)
+    }
+
+    @Test
     func islandListSessionsOnlyIncludeLiveAttachedSessions() {
         let now = Date(timeIntervalSince1970: 2_000)
         let model = AppModel()

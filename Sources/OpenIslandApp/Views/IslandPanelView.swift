@@ -78,6 +78,83 @@ private let closeAnimation = Animation.smooth(duration: 0.3)
 private let popAnimation = Animation.spring(response: 0.3, dampingFraction: 0.5)
 private let openedSurfaceUnmountDelay: TimeInterval = 0.36
 
+private enum InvertedBrowserTabSide {
+    case leading
+    case trailing
+}
+
+/// A compact browser-tab silhouette rotated 180 degrees so it hangs from
+/// the notch. Its top shoulder tucks behind the notch while both corners at
+/// the shared seam remain curved, like adjacent Chrome tabs.
+private struct InvertedBrowserTabShape: Shape {
+    let side: InvertedBrowserTabSide
+
+    func path(in rect: CGRect) -> Path {
+        let shoulder = min(10, rect.width * 0.22)
+        let outerCorner = min(8, rect.height * 0.3)
+        let innerCorner = min(6, rect.height * 0.22)
+        var path = Path()
+
+        switch side {
+        case .leading:
+            path.move(to: CGPoint(x: rect.maxX, y: rect.minY + innerCorner))
+            path.addCurve(
+                to: CGPoint(x: rect.maxX - innerCorner, y: rect.minY),
+                control1: CGPoint(x: rect.maxX, y: rect.minY + innerCorner * 0.35),
+                control2: CGPoint(x: rect.maxX - innerCorner * 0.35, y: rect.minY)
+            )
+            path.addLine(to: CGPoint(x: rect.minX + shoulder, y: rect.minY))
+            path.addCurve(
+                to: CGPoint(x: rect.minX, y: rect.minY + shoulder),
+                control1: CGPoint(x: rect.minX + shoulder * 0.42, y: rect.minY),
+                control2: CGPoint(x: rect.minX, y: rect.minY + shoulder * 0.42)
+            )
+            path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY - outerCorner))
+            path.addCurve(
+                to: CGPoint(x: rect.minX + outerCorner, y: rect.maxY),
+                control1: CGPoint(x: rect.minX, y: rect.maxY - outerCorner * 0.35),
+                control2: CGPoint(x: rect.minX + outerCorner * 0.35, y: rect.maxY)
+            )
+            path.addLine(to: CGPoint(x: rect.maxX - innerCorner, y: rect.maxY))
+            path.addCurve(
+                to: CGPoint(x: rect.maxX, y: rect.maxY - innerCorner),
+                control1: CGPoint(x: rect.maxX - innerCorner * 0.35, y: rect.maxY),
+                control2: CGPoint(x: rect.maxX, y: rect.maxY - innerCorner * 0.35)
+            )
+            path.closeSubpath()
+
+        case .trailing:
+            path.move(to: CGPoint(x: rect.minX, y: rect.minY + innerCorner))
+            path.addCurve(
+                to: CGPoint(x: rect.minX + innerCorner, y: rect.minY),
+                control1: CGPoint(x: rect.minX, y: rect.minY + innerCorner * 0.35),
+                control2: CGPoint(x: rect.minX + innerCorner * 0.35, y: rect.minY)
+            )
+            path.addLine(to: CGPoint(x: rect.maxX - shoulder, y: rect.minY))
+            path.addCurve(
+                to: CGPoint(x: rect.maxX, y: rect.minY + shoulder),
+                control1: CGPoint(x: rect.maxX - shoulder * 0.42, y: rect.minY),
+                control2: CGPoint(x: rect.maxX, y: rect.minY + shoulder * 0.42)
+            )
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - outerCorner))
+            path.addCurve(
+                to: CGPoint(x: rect.maxX - outerCorner, y: rect.maxY),
+                control1: CGPoint(x: rect.maxX, y: rect.maxY - outerCorner * 0.35),
+                control2: CGPoint(x: rect.maxX - outerCorner * 0.35, y: rect.maxY)
+            )
+            path.addLine(to: CGPoint(x: rect.minX + innerCorner, y: rect.maxY))
+            path.addCurve(
+                to: CGPoint(x: rect.minX, y: rect.maxY - innerCorner),
+                control1: CGPoint(x: rect.minX + innerCorner * 0.35, y: rect.maxY),
+                control2: CGPoint(x: rect.minX, y: rect.maxY - innerCorner * 0.35)
+            )
+            path.closeSubpath()
+        }
+
+        return path
+    }
+}
+
 // MARK: - Main island view
 
 struct IslandPanelView: View {
@@ -88,6 +165,7 @@ struct IslandPanelView: View {
     private static let notchHeaderHorizontalPadding: CGFloat = 46
     private static let notchLaneSafetyInset: CGFloat = 12
     private static let minimumRightUsageLaneWidth: CGFloat = 58
+    private static let openedTabStripHeight: CGFloat = 32
 
     var model: AppModel
     private var lang: LanguageManager { model.lang }
@@ -177,6 +255,10 @@ struct IslandPanelView: View {
         }
         .onAppear {
             syncOpenedSurfaceMount(with: model.notchStatus, immediate: true)
+            model.spotifyPlayback.start()
+        }
+        .onDisappear {
+            model.spotifyPlayback.stop()
         }
         .onChange(of: model.notchStatus) { _, status in
             syncOpenedSurfaceMount(with: status)
@@ -261,17 +343,58 @@ struct IslandPanelView: View {
     private func v6ClosedSurface() -> some View {
         let layout: V6ClosedLayout = isExternalDisplayPlacement ? .external : .macbook
         let physicalNotchWidth: CGFloat = targetOverlayScreen?.notchSize.width ?? 180
-        V6ClosedPill(
-            mode: model.islandClosedMode,
-            label: layout == .external ? model.islandClosedLabel() : nil,
-            rightSlot: model.islandClosedRightSlotContent(),
-            layout: layout,
-            height: closedNotchHeight,
-            physicalNotchWidth: layout == .macbook ? physicalNotchWidth : 0,
-            minWidth: 70
-        )
+        VStack(spacing: -6) {
+            V6ClosedPill(
+                mode: model.islandClosedMode,
+                label: layout == .external ? model.islandClosedLabel() : nil,
+                rightSlot: model.islandClosedRightSlotContent(),
+                layout: layout,
+                height: closedNotchHeight,
+                physicalNotchWidth: layout == .macbook ? physicalNotchWidth : 0,
+                minWidth: 70
+            )
+
+            closedTabStrip
+        }
         .scaleEffect(isPopping ? 1.04 : 1, anchor: .top)
         .animation(popAnimation, value: isPopping)
+    }
+
+    private var closedTabStrip: some View {
+        HStack(alignment: .top, spacing: -2) {
+            closedTab(.agents)
+            closedTab(.spotify)
+        }
+        .frame(width: 88, height: 30, alignment: .top)
+    }
+
+    private func closedTab(_ tab: IslandTab) -> some View {
+        let isSelected = model.preferredIslandTab == tab
+        let shape = invertedTabShape(for: tab)
+
+        return tabIcon(tab, size: tab == .spotify ? 16 : 17)
+            .opacity(closedTabOpacity(tab))
+            .frame(width: 45, height: 30)
+            .background(
+                shape
+                    .fill(isSelected ? .white.opacity(0.12) : V6Palette.ink.opacity(0.96))
+                    .overlay {
+                        shape.stroke(
+                            .white.opacity(isSelected ? 0.16 : 0.055),
+                            lineWidth: 1
+                        )
+                    }
+            )
+            .shadow(color: .black.opacity(isSelected ? 0.42 : 0), radius: 3, y: 2)
+            .zIndex(isSelected ? 1 : 0)
+    }
+
+    private func closedTabOpacity(_ tab: IslandTab) -> Double {
+        if tab == .spotify,
+           model.spotifyPlayback.snapshot.availability == .notRunning {
+            return model.preferredIslandTab == tab ? 0.88 : 0.64
+        }
+        return model.preferredIslandTab == tab ? 0.92 : 0.46
     }
 
     // MARK: - Opened surface
@@ -295,9 +418,19 @@ struct IslandPanelView: View {
                 openedHeaderContent
                     .frame(height: closedNotchHeight)
 
+                openedTabSwitcher
+                    .frame(height: Self.openedTabStripHeight)
+                    .offset(y: -6)
+
                 openedContent
                     .frame(width: openedWidth)
-                    .frame(maxHeight: max(0, openedHeight - closedNotchHeight), alignment: .top)
+                    .frame(
+                        maxHeight: max(
+                            0,
+                            openedHeight - closedNotchHeight - Self.openedTabStripHeight
+                        ),
+                        alignment: .top
+                    )
                     .clipped()
             }
             .frame(width: openedWidth, height: openedHeight, alignment: .top)
@@ -385,6 +518,85 @@ struct IslandPanelView: View {
         }
     }
 
+    private var openedTabSwitcher: some View {
+        HStack(alignment: .top, spacing: -2) {
+            openedTabButton(.agents, accessibilityLabel: "Open Island agents")
+            openedTabButton(.spotify, accessibilityLabel: "Spotify")
+        }
+        .frame(width: 88, height: 30, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    private func openedTabButton(
+        _ tab: IslandTab,
+        accessibilityLabel: String
+    ) -> some View {
+        let isSelected = model.selectedIslandTab == tab
+        let isUnavailableSpotify =
+            tab == .spotify
+            && model.spotifyPlayback.snapshot.availability == .notRunning
+        let shape = invertedTabShape(for: tab)
+
+        return Button {
+            model.selectIslandTab(tab)
+            if tab == .spotify {
+                model.openSpotifyIfNeeded()
+            }
+        } label: {
+            ZStack(alignment: .topTrailing) {
+                tabIcon(tab, size: tab == .spotify ? 14 : 19)
+                    .opacity(isUnavailableSpotify ? 0.68 : (isSelected ? 0.95 : 0.5))
+                    .frame(width: 45, height: 30)
+
+                if tab == .agents, model.liveAttentionCount > 0 {
+                    Circle()
+                        .fill(IslandDesignPalette.Status.waitingAggregate)
+                        .frame(width: 5, height: 5)
+                        .overlay {
+                            Circle().stroke(V6Palette.ink, lineWidth: 1)
+                        }
+                        .offset(x: -8, y: 5)
+                }
+            }
+            .background(
+                shape
+                    .fill(isSelected ? .white.opacity(0.12) : V6Palette.ink.opacity(0.96))
+                    .overlay {
+                        shape.stroke(
+                            .white.opacity(isSelected ? 0.16 : 0.055),
+                            lineWidth: 1
+                        )
+                    }
+            )
+            .shadow(color: .black.opacity(isSelected ? 0.42 : 0), radius: 3, y: 2)
+        }
+        .buttonStyle(.plain)
+        .contentShape(shape)
+        .zIndex(isSelected ? 1 : 0)
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    private func invertedTabShape(for tab: IslandTab) -> InvertedBrowserTabShape {
+        InvertedBrowserTabShape(side: tab == .agents ? .leading : .trailing)
+    }
+
+    @ViewBuilder
+    private func tabIcon(_ tab: IslandTab, size: CGFloat) -> some View {
+        switch tab {
+        case .agents:
+            OpenIslandBrandMark(
+                size: size,
+                tint: V6Palette.paper,
+                style: .template
+            )
+        case .spotify:
+            SpotifyGlyph(
+                isDimmed: model.spotifyPlayback.snapshot.availability == .notRunning
+            )
+            .frame(width: size, height: size)
+        }
+    }
+
     private func headerIconButton(
         systemName: String,
         tint: Color,
@@ -402,27 +614,34 @@ struct IslandPanelView: View {
         .accessibilityLabel(accessibilityLabel ?? systemName)
     }
 
+    @ViewBuilder
     private var openedContent: some View {
-        VStack(spacing: 8) {
-            if !model.hasAnyInstalledAgent {
-                installHooksHint
-                    .padding(.horizontal, 18)
-                    .padding(.top, 8)
-            }
+        if model.selectedIslandTab == .spotify {
+            SpotifyPlayerView(model: model.spotifyPlayback)
+                .transition(.opacity.combined(with: .scale(scale: 0.985)))
+        } else {
+            VStack(spacing: 8) {
+                if !model.hasAnyInstalledAgent {
+                    installHooksHint
+                        .padding(.horizontal, 18)
+                        .padding(.top, 8)
+                }
 
-            if model.shouldShowSessionBootstrapPlaceholder {
-                sessionBootstrapPlaceholder
-                    .padding(.horizontal, 18)
-                    .padding(.top, 8)
-            } else if model.islandListSessions.isEmpty {
-                emptyState
-                    .padding(.horizontal, 18)
-                    .padding(.top, 8)
-            } else {
-                sessionList
+                if model.shouldShowSessionBootstrapPlaceholder {
+                    sessionBootstrapPlaceholder
+                        .padding(.horizontal, 18)
+                        .padding(.top, 8)
+                } else if model.islandListSessions.isEmpty {
+                    emptyState
+                        .padding(.horizontal, 18)
+                        .padding(.top, 8)
+                } else {
+                    sessionList
+                }
             }
+            .padding(.bottom, 0)
+            .transition(.opacity.combined(with: .scale(scale: 0.985)))
         }
-        .padding(.bottom, 0)
     }
 
     /// Persistent hint at the top of the expanded island while no agent

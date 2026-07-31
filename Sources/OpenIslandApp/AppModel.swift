@@ -68,6 +68,7 @@ final class AppModel {
     let monitoring = ProcessMonitoringCoordinator()
     let codexAppServer = CodexAppServerCoordinator()
     let updateChecker = UpdateChecker()
+    let spotifyPlayback = SpotifyPlaybackModel()
 
     var notchStatus: NotchStatus {
         get { overlay.notchStatus }
@@ -81,6 +82,8 @@ final class AppModel {
         get { overlay.islandSurface }
         set { overlay.islandSurface = newValue }
     }
+    var selectedIslandTab: IslandTab { overlay.selectedIslandTab }
+    var preferredIslandTab: IslandTab { overlay.preferredIslandTab }
     var isOverlayVisible: Bool { overlay.isOverlayVisible }
     var isOverlayCloseTransitionPending: Bool { overlay.isCloseTransitionPending }
     var isCodexSetupBusy: Bool { hooks.isCodexSetupBusy }
@@ -636,6 +639,9 @@ final class AppModel {
         }
         overlay.activeIslandCardSessionAccessor = { [weak self] in
             self?.activeIslandCardSession
+        }
+        overlay.islandSessionAccessor = { [weak self] sessionID in
+            self?.state.session(id: sessionID)
         }
         overlay.isSoundMutedAccessor = { [weak self] in
             self?.isSoundMuted ?? false
@@ -1260,6 +1266,14 @@ final class AppModel {
     // MARK: - Overlay forwarding
 
     func toggleOverlay() { overlay.toggleOverlay() }
+    func selectIslandTab(_ tab: IslandTab) {
+        overlay.selectIslandTab(tab)
+        overlay.refreshOverlayPlacementIfVisible()
+    }
+    func openSpotifyIfNeeded() {
+        guard spotifyPlayback.snapshot.availability == .notRunning else { return }
+        spotifyPlayback.perform(.open)
+    }
     func notchOpen(reason: NotchOpenReason, surface: IslandSurface = .sessionList()) { overlay.notchOpen(reason: reason, surface: surface) }
     func notchClose() { overlay.notchClose() }
     func notchPop() { overlay.notchPop() }
@@ -1296,6 +1310,10 @@ final class AppModel {
         lastActionMessage = "Loaded debug scenario: \(snapshot.title)."
         harnessRuntimeMonitor?.recordMilestone("scenarioLoaded", message: snapshot.title)
 
+        overlay.selectIslandTab(snapshot.selectedTab)
+        if let mediaSnapshot = snapshot.mediaSnapshot {
+            spotifyPlayback.applyDebugSnapshot(mediaSnapshot)
+        }
         overlay.applyOverlayState(from: snapshot, presentOverlay: presentOverlay, autoCollapseNotificationCards: autoCollapseNotificationCards)
     }
 
@@ -1675,7 +1693,11 @@ final class AppModel {
         }
 
         return (ingress == .bridge || !isResolvingInitialLiveSessions)
-            && (notchStatus == .closed || notchOpenReason == .notification)
+            && (
+                notchStatus == .closed
+                || notchOpenReason == .notification
+                || selectedIslandTab == .spotify
+            )
             && !overlay.shouldPreserveCurrentNotificationSurface(against: surface)
             && surface.matchesCurrentState(of: session)
     }

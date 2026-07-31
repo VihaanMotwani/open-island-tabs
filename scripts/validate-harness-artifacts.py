@@ -218,8 +218,14 @@ def main() -> None:
             height=(35, 500),
             context="closed overlay frame",
         )
-        if report.get("liveSessionCount") != 9 and not any("9" in value for value in text_values):
-            fail("closed scenario is missing the live session count value")
+        live_session_count = report.get("liveSessionCount")
+        if not isinstance(live_session_count, int) or live_session_count < 1:
+            fail("closed scenario is missing a positive live session count")
+        if not any(str(live_session_count) in value for value in text_values):
+            fail(
+                "closed scenario accessibility output is missing "
+                f"the live session count value {live_session_count}"
+            )
 
     elif scenario == "sessionList":
         if notch_status != "opened":
@@ -294,6 +300,26 @@ def main() -> None:
         )
         if selected_session(report).get("id") != "session-completion-long":
             assert_contains_any(text_values, ["README.md", "worktree"], "longCompletionCard text values")
+
+    elif scenario == "spotifyPlayer":
+        if notch_status != "opened":
+            fail(f"expected opened notch for spotifyPlayer, got {notch_status!r}")
+        if island_surface != "sessionList":
+            fail(f"expected spotifyPlayer to use the base sessionList surface, got {island_surface!r}")
+        require_frame_between(
+            overlay_frame,
+            width=(520, 780),
+            height=(190, 340),
+            context="spotifyPlayer overlay frame",
+        )
+        if report.get("selectedTab") != "spotify":
+            fail("spotifyPlayer did not select the Spotify tab")
+        if report.get("mediaAvailability") != "running":
+            fail("spotifyPlayer is missing its deterministic running media fixture")
+        if report.get("mediaPlaybackState") != "playing":
+            fail("spotifyPlayer is missing its deterministic playing state")
+        if not report.get("mediaTitle"):
+            fail("spotifyPlayer is missing track metadata")
 
     else:
         fail(f"unsupported scenario {scenario!r}")

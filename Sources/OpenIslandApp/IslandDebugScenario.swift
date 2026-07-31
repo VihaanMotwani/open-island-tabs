@@ -11,6 +11,32 @@ struct IslandDebugSnapshot {
     let islandSurface: IslandSurface
     let sessions: [AgentSession]
     let selectedSessionID: String?
+    let selectedTab: IslandTab
+    let mediaSnapshot: MediaPlaybackSnapshot?
+
+    init(
+        title: String,
+        summary: String,
+        previewHeight: CGFloat,
+        notchStatus: NotchStatus,
+        notchOpenReason: NotchOpenReason?,
+        islandSurface: IslandSurface,
+        sessions: [AgentSession],
+        selectedSessionID: String?,
+        selectedTab: IslandTab = .agents,
+        mediaSnapshot: MediaPlaybackSnapshot? = nil
+    ) {
+        self.title = title
+        self.summary = summary
+        self.previewHeight = previewHeight
+        self.notchStatus = notchStatus
+        self.notchOpenReason = notchOpenReason
+        self.islandSurface = islandSurface
+        self.sessions = sessions
+        self.selectedSessionID = selectedSessionID
+        self.selectedTab = selectedTab
+        self.mediaSnapshot = mediaSnapshot
+    }
 }
 
 enum IslandDebugScenario: String, CaseIterable, Identifiable {
@@ -20,6 +46,7 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
     case questionCard
     case completionCard
     case longCompletionCard
+    case spotifyPlayer
 
     var id: String { rawValue }
 
@@ -37,6 +64,8 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
             "Completion Card"
         case .longCompletionCard:
             "Long Completion Card"
+        case .spotifyPlayer:
+            "Spotify Player"
         }
     }
 
@@ -54,6 +83,8 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
             "Auto-expanded finished-task reminder surface after a turn completes."
         case .longCompletionCard:
             "Long finished-task reply stays inside the card and scrolls internally."
+        case .spotifyPlayer:
+            "Expanded Spotify tab with deterministic playback metadata and controls."
         }
     }
 
@@ -135,6 +166,30 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
                 islandSurface: .sessionList(actionableSessionID: session.id),
                 sessions: DebugSessionFactory.notificationSessions(lead: session, now: now),
                 selectedSessionID: session.id
+            )
+
+        case .spotifyPlayer:
+            return IslandDebugSnapshot(
+                title: title,
+                summary: summary,
+                previewHeight: 236,
+                notchStatus: .opened,
+                notchOpenReason: .click,
+                islandSurface: .sessionList(),
+                sessions: [],
+                selectedSessionID: nil,
+                selectedTab: .spotify,
+                mediaSnapshot: MediaPlaybackSnapshot(
+                    availability: .running,
+                    playbackState: .playing,
+                    title: "Midnight City",
+                    artist: "M83",
+                    album: "Hurry Up, We're Dreaming",
+                    artworkURL: nil,
+                    duration: 244,
+                    position: 61.5,
+                    volume: 0.62
+                )
             )
         }
     }

@@ -12,7 +12,10 @@ final class OverlayUICoordinator {
     var notchStatus: NotchStatus = .closed
     var notchOpenReason: NotchOpenReason?
     var islandSurface: IslandSurface = .sessionList()
+    private(set) var tabSelection = IslandTabSelectionState()
     var isOverlayVisible: Bool { notchStatus != .closed }
+    var selectedIslandTab: IslandTab { tabSelection.selectedTab }
+    var preferredIslandTab: IslandTab { tabSelection.preferredTab }
 
     var overlayDisplayOptions: [OverlayDisplayOption] = []
     var overlayPlacementDiagnostics: OverlayPlacementDiagnostics?
@@ -37,6 +40,9 @@ final class OverlayUICoordinator {
     var activeIslandCardSessionAccessor: (() -> AgentSession?)?
 
     @ObservationIgnored
+    var islandSessionAccessor: ((String) -> AgentSession?)?
+
+    @ObservationIgnored
     var isSoundMutedAccessor: (() -> Bool)?
 
     @ObservationIgnored
@@ -56,6 +62,15 @@ final class OverlayUICoordinator {
 
     @ObservationIgnored
     private var notificationAutoCollapseTask: Task<Void, Never>?
+
+    @ObservationIgnored
+    private var shouldResumeOpenedSpotifyAfterTakeover = false
+
+    @ObservationIgnored
+    private var spotifyOpenReasonBeforeTakeover: NotchOpenReason?
+
+    @ObservationIgnored
+    private var spotifyCompletionRestorationDelay: TimeInterval?
 
     var hasPendingNotificationAutoCollapse: Bool {
         notificationAutoCollapseTask != nil
@@ -132,6 +147,25 @@ final class OverlayUICoordinator {
         }
     }
 
+    func selectIslandTab(_ tab: IslandTab) {
+        tabSelection.select(tab)
+
+        guard tabSelection.activeTakeover != nil else {
+            return
+        }
+
+        // An explicit tab click takes ownership from the transient takeover.
+        // The underlying agent state remains available in the Agents tab.
+        tabSelection.resolveAgentTakeover()
+        clearSpotifyTakeoverResumeContext()
+        notificationAutoCollapseTask?.cancel()
+        notificationAutoCollapseTask = nil
+        islandSurface = .sessionList()
+        if notchStatus == .opened {
+            notchOpenReason = .click
+        }
+    }
+
     func notchOpen(reason: NotchOpenReason, surface: IslandSurface = .sessionList()) {
         transitionOverlay(
             to: .opened,
@@ -153,6 +187,11 @@ final class OverlayUICoordinator {
     }
 
     func notchClose() {
+        if tabSelection.activeTakeover != nil {
+            tabSelection.resolveAgentTakeover()
+            clearSpotifyTakeoverResumeContext()
+        }
+
         transitionOverlay(
             to: .closed,
             reason: nil,
@@ -355,6 +394,7 @@ final class OverlayUICoordinator {
             return
         }
 
+        beginAgentTakeover(for: surface)
         appModel?.measuredNotificationContentHeight = 0
         NotificationSoundService.playNotification(isMuted: isSoundMuted)
         notchOpen(reason: .notification, surface: surface)
@@ -379,7 +419,9 @@ final class OverlayUICoordinator {
 
         let session = activeIslandCardSession
         guard islandSurface.matchesCurrentState(of: session) else {
-            if notchOpenReason == .notification {
+            if tabSelection.activeTakeover != nil {
+                finishAgentTakeover()
+            } else if notchOpenReason == .notification {
                 notchClose()
             } else {
                 islandSurface = .sessionList()
@@ -422,9 +464,12 @@ final class OverlayUICoordinator {
             return
         }
 
+        let delay = spotifyCompletionRestorationDelay
+            ?? Self.notificationSurfaceAutoCollapseDelay
+
         notificationAutoCollapseTask = Task { @MainActor [weak self] in
             do {
-                try await Task.sleep(for: .seconds(Self.notificationSurfaceAutoCollapseDelay))
+                try await Task.sleep(for: .seconds(delay))
             } catch {
                 // Task was cancelled (e.g. a new event reset the timer).
                 // Do NOT proceed — the replacement task owns the new timer.
@@ -442,8 +487,66 @@ final class OverlayUICoordinator {
                 return
             }
 
-            self.notchClose()
+            self.handleNotificationAutoCollapseDeadline()
         }
+    }
+
+    func handleNotificationAutoCollapseDeadline() {
+        notificationAutoCollapseTask?.cancel()
+        notificationAutoCollapseTask = nil
+
+        if tabSelection.activeTakeover == .completion {
+            finishAgentTakeover()
+        } else {
+            notchClose()
+        }
+    }
+
+    private func beginAgentTakeover(for surface: IslandSurface) {
+        if tabSelection.activeTakeover == nil {
+            shouldResumeOpenedSpotifyAfterTakeover =
+                selectedIslandTab == .spotify && notchStatus == .opened
+            spotifyOpenReasonBeforeTakeover = shouldResumeOpenedSpotifyAfterTakeover
+                ? notchOpenReason
+                : nil
+        }
+
+        let candidateSession = surface.sessionID.flatMap {
+            islandSessionAccessor?($0)
+        }
+        let takeover: AgentTabTakeover =
+            surface.autoDismissesWhenPresentedAsNotification(session: candidateSession)
+                ? .completion
+                : .actionRequired
+        spotifyCompletionRestorationDelay = tabSelection.beginAgentTakeover(takeover)
+    }
+
+    private func finishAgentTakeover() {
+        let shouldResumeSpotify =
+            shouldResumeOpenedSpotifyAfterTakeover
+            && preferredIslandTab == .spotify
+        let resumeReason = spotifyOpenReasonBeforeTakeover ?? .click
+
+        if tabSelection.activeTakeover == .completion {
+            tabSelection.resolveCompletionTakeover()
+        } else {
+            tabSelection.resolveAgentTakeover()
+        }
+        clearSpotifyTakeoverResumeContext()
+
+        if shouldResumeSpotify {
+            notchOpen(reason: resumeReason, surface: .sessionList())
+        } else if notchOpenReason == .notification {
+            notchClose()
+        } else {
+            islandSurface = .sessionList()
+        }
+    }
+
+    private func clearSpotifyTakeoverResumeContext() {
+        shouldResumeOpenedSpotifyAfterTakeover = false
+        spotifyOpenReasonBeforeTakeover = nil
+        spotifyCompletionRestorationDelay = nil
     }
 
     var shouldDeferTimedNotificationAutoCollapse: Bool {

@@ -7,6 +7,7 @@ import OpenIslandCore
 @MainActor
 final class OverlayPanelController {
     private static let preferredNotchOpenedPanelWidth: CGFloat = 540
+    private static let preferredSpotifyOpenedPanelWidth: CGFloat = 660
     private static let preferredTopBarOpenedPanelWidth: CGFloat = 520
     private static let preferredNotificationPanelWidth: CGFloat = 620
     private static let openedContentWidthPadding: CGFloat = 0
@@ -31,6 +32,9 @@ final class OverlayPanelController {
     private static let completionCardChromeHeight: CGFloat = 187
     private static let completionCardMinHeight: CGFloat = 210
     private static let completionCardMaxHeight: CGFloat = 400
+    nonisolated private static let closedTabPeekHeight: CGFloat = 30
+    nonisolated private static let closedTabStripWidth: CGFloat = 88
+    private static let openedTabStripHeight: CGFloat = 32
 
     private var panel: NotchPanel?
     private var eventMonitors = NotchEventMonitors()
@@ -244,6 +248,10 @@ final class OverlayPanelController {
         let inClosedSurfaceArea = isPointInClosedSurfaceArea(screenLocation)
 
         if model.notchStatus == .closed && inClosedSurfaceArea {
+            if let tab = Self.closedTab(at: screenLocation, notchRect: notchRect),
+               model.preferredIslandTab != tab {
+                model.selectIslandTab(tab)
+            }
             scheduleHoverOpen()
         } else if model.notchStatus == .closed && !inClosedSurfaceArea {
             cancelHoverOpen()
@@ -269,6 +277,12 @@ final class OverlayPanelController {
 
         if model.notchStatus == .closed && inClosedSurfaceArea {
             cancelHoverOpenImmediately()
+            if let tab = Self.closedTab(at: screenLocation, notchRect: notchRect) {
+                model.selectIslandTab(tab)
+                if tab == .spotify {
+                    model.openSpotifyIfNeeded()
+                }
+            }
             model.notchOpen(reason: .click)
         } else if model.notchStatus == .opened {
             if !isPointInExpandedArea(screenLocation) {
@@ -413,6 +427,38 @@ final class OverlayPanelController {
         )
     }
 
+    nonisolated static func closedInteractionRect(
+        notchRect: NSRect,
+        closedWidth: CGFloat
+    ) -> NSRect {
+        let surfaceRect = closedSurfaceRect(
+            notchRect: notchRect,
+            closedWidth: max(closedWidth, closedTabStripWidth)
+        )
+        return NSRect(
+            x: surfaceRect.minX,
+            y: surfaceRect.minY - closedTabPeekHeight,
+            width: surfaceRect.width,
+            height: surfaceRect.height + closedTabPeekHeight
+        )
+    }
+
+    nonisolated static func closedTab(
+        at screenPoint: NSPoint,
+        notchRect: NSRect
+    ) -> IslandTab? {
+        let tabRect = NSRect(
+            x: notchRect.midX - closedTabStripWidth / 2,
+            y: notchRect.minY - closedTabPeekHeight,
+            width: closedTabStripWidth,
+            height: closedTabPeekHeight
+        )
+        guard rectContainsIncludingEdges(tabRect, point: screenPoint) else {
+            return nil
+        }
+        return screenPoint.x < notchRect.midX ? .agents : .spotify
+    }
+
     nonisolated static func rectContainsIncludingEdges(_ rect: NSRect, point: NSPoint) -> Bool {
         point.x >= rect.minX
             && point.x <= rect.maxX
@@ -445,7 +491,7 @@ final class OverlayPanelController {
         }
 
         let closedWidth = closedPanelWidth(for: model, on: screen)
-        return Self.closedSurfaceRect(
+        return Self.closedInteractionRect(
             notchRect: notchRect,
             closedWidth: closedWidth
         )
@@ -470,15 +516,23 @@ final class OverlayPanelController {
         guard let model else {
             return CGSize(
                 width: openedPanelWidth(for: screen) + Self.openedContentWidthPadding + (insets.horizontal * 2),
-                height: screen.notchSize.height + Self.openedEmptyStateHeight + Self.openedContentBottomPadding + insets.bottom
+                height: screen.notchSize.height
+                    + Self.openedTabStripHeight
+                    + Self.openedEmptyStateHeight
+                    + Self.openedContentBottomPadding
+                    + insets.bottom
             )
         }
 
-        let panelWidth = openedPanelWidth(for: screen)
+        let panelWidth = openedPanelWidth(for: model, on: screen)
         let contentHeight = openedContentHeight(for: model)
         // Use at least the empty-state height so the window doesn't shrink
         // when sessions come and go while opened.
-        let height = screen.notchSize.height + max(contentHeight, Self.openedEmptyStateHeight) + Self.openedContentBottomPadding + insets.bottom
+        let height = screen.notchSize.height
+            + Self.openedTabStripHeight
+            + max(contentHeight, Self.openedEmptyStateHeight)
+            + Self.openedContentBottomPadding
+            + insets.bottom
 
         return CGSize(
             width: panelWidth + Self.openedContentWidthPadding + (insets.horizontal * 2),
@@ -505,6 +559,10 @@ final class OverlayPanelController {
     }
 
     private func openedContentHeight(for model: AppModel) -> CGFloat {
+        if model.selectedIslandTab == .spotify {
+            return 148
+        }
+
         let now = Date.now
         let visibleSessions = openedVisibleSessions(
             sessions: model.islandListSessions
@@ -549,6 +607,17 @@ final class OverlayPanelController {
         // Cap to match AutoHeightScrollView's maxHeight in IslandPanelView.
         let cappedListHeight = min(listHeight, Self.maxSessionListHeight)
         return cappedListHeight + Self.openedContentVerticalInsets
+    }
+
+    private func openedPanelWidth(for model: AppModel, on screen: NSScreen) -> CGFloat {
+        guard model.selectedIslandTab == .spotify else {
+            return openedPanelWidth(for: screen)
+        }
+
+        return max(
+            360,
+            min(Self.preferredSpotifyOpenedPanelWidth, screen.visibleFrame.width - 32)
+        )
     }
 
     /// Additional height for the actionable session's inline action area.

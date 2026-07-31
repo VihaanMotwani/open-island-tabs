@@ -13,6 +13,8 @@ output_path="${2:-$repo_root/output/launch-video/open-island-launch-real-15s.mp4
 captions_dir="${output_path:h}/captions"
 module_cache="${output_path:h}/swift-module-cache"
 caption_renderer="$repo_root/scripts/render-launch-caption.swift"
+render_fps=60
+working_size="3840:2160"
 
 if [[ ! -f "$source_recording" ]]; then
     print -u2 "Missing source recording: $source_recording"
@@ -41,25 +43,25 @@ CLANG_MODULE_CACHE_PATH="$module_cache" xcrun swift "$caption_renderer" \
 
 filter_complex="
 [0:v]trim=start=16.55:end=21.05,setpts=(PTS-STARTPTS)*41/45,
-crop=2940:1654:0:0,scale=1920:1080:flags=lanczos,fps=30,
-zoompan=z='1+0.36*(1-cos(PI*min(on,27)/27))/2-0.06*(1-cos(PI*max(min(on-27,95),0)/95))/2':
+crop=2940:1654:0:0,scale=${working_size}:flags=lanczos,fps=$render_fps,
+zoompan=z='1+0.36*(1-cos(PI*min(on,54)/54))/2-0.06*(1-cos(PI*max(min(on-54,190),0)/190))/2':
 x='iw*0.5-(iw/zoom)*0.5':y=0:
-d=1:s=1920x1080:fps=30[first_agents];
+d=1:s=1920x1080:fps=${render_fps}[first_agents];
 [0:v]trim=start=22:end=33.6,setpts=(PTS-STARTPTS)/2,
-crop=2940:1654:0:0,scale=1920:1080:flags=lanczos,fps=30,
-zoompan=z='1.30-0.30*(1-cos(PI*min(on,173)/173))/2':
+crop=2940:1654:0:0,scale=${working_size}:flags=lanczos,fps=$render_fps,
+zoompan=z='1.30-0.30*(1-cos(PI*min(on,347)/347))/2':
 x='iw*0.5-(iw/zoom)*0.5':y=0:
-d=1:s=1920x1080:fps=30[multitasking];
+d=1:s=1920x1080:fps=${render_fps}[multitasking];
 [0:v]trim=start=33.6:end=36.7,setpts=PTS-STARTPTS,
-crop=2940:1654:0:0,scale=1920:1080:flags=lanczos,fps=30,
-zoompan=z='1+0.23*(1-cos(PI*min(on,28)/28))/2-0.03*(1-cos(PI*max(min(on-28,30),0)/30))/2':
+crop=2940:1654:0:0,scale=${working_size}:flags=lanczos,fps=$render_fps,
+zoompan=z='1+0.23*(1-cos(PI*min(on,56)/56))/2-0.03*(1-cos(PI*max(min(on-56,60),0)/60))/2':
 x='iw*0.5-(iw/zoom)*0.5':y=0:
-d=1:s=1920x1080:fps=30[return_to_island];
+d=1:s=1920x1080:fps=${render_fps}[return_to_island];
 [0:v]trim=start=36.7:end=38.9,setpts=PTS-STARTPTS,
-crop=2940:1654:0:0,scale=1920:1080:flags=lanczos,fps=30,
-zoompan=z='1.20+0.08*(1-cos(PI*min(on,45)/45))/2':
+crop=2940:1654:0:0,scale=${working_size}:flags=lanczos,fps=$render_fps,
+zoompan=z='1.20+0.08*(1-cos(PI*min(on,90)/90))/2':
 x='iw*0.5-(iw/zoom)*0.5':y=0:
-d=1:s=1920x1080:fps=30[spotify];
+d=1:s=1920x1080:fps=${render_fps}[spotify];
 [first_agents][multitasking][return_to_island][spotify]
 concat=n=4:v=1:a=0,fade=t=in:st=0:d=0.15,fade=t=out:st=15:d=0.15[base];
 
@@ -80,15 +82,16 @@ format=yuv420p[out]
 
 ffmpeg -hide_banner -loglevel warning -y \
     -i "$source_recording" \
-    -loop 1 -framerate 30 -i "$captions_dir/hook.png" \
-    -loop 1 -framerate 30 -i "$captions_dir/supporting.png" \
-    -loop 1 -framerate 30 -i "$captions_dir/end.png" \
+    -loop 1 -framerate "$render_fps" -i "$captions_dir/hook.png" \
+    -loop 1 -framerate "$render_fps" -i "$captions_dir/supporting.png" \
+    -loop 1 -framerate "$render_fps" -i "$captions_dir/end.png" \
     -filter_complex "$filter_complex" \
     -map "[out]" \
     -an \
     -c:v libx264 \
     -preset slow \
     -crf 17 \
+    -r "$render_fps" \
     -movflags +faststart \
     -t 15.2 \
     "$output_path"

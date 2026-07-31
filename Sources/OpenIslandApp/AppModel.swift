@@ -64,7 +64,7 @@ final class AppModel {
     var selectedSessionID: String?
     let hooks = HookInstallationCoordinator()
     let overlay = OverlayUICoordinator()
-    let discovery = SessionDiscoveryCoordinator()
+    let discovery: SessionDiscoveryCoordinator
     let monitoring = ProcessMonitoringCoordinator()
     let codexAppServer = CodexAppServerCoordinator()
     let updateChecker = UpdateChecker()
@@ -592,6 +592,7 @@ final class AppModel {
     }
 
     init(
+        discovery: SessionDiscoveryCoordinator = SessionDiscoveryCoordinator(),
         terminalJumpAction: @escaping @Sendable (JumpTarget) throws -> String = { target in
             try TerminalJumpService().jump(to: target)
         },
@@ -599,6 +600,7 @@ final class AppModel {
             await ForegroundTerminalSessionProbe().matches(session: session)
         }
     ) {
+        self.discovery = discovery
         self.terminalJumpAction = terminalJumpAction
         self.isNotificationSessionAlreadyFrontmost = isNotificationSessionAlreadyFrontmost
         UserDefaults.standard.register(defaults: [
@@ -1588,10 +1590,12 @@ final class AppModel {
         synchronizeSelection()
         discovery.refreshCodexRolloutTracking()
         refreshOverlayPlacementIfVisible()
-        discovery.scheduleCodexSessionPersistence()
-        discovery.scheduleClaudeSessionPersistence()
-        discovery.scheduleOpenCodeSessionPersistence()
-        discovery.scheduleCursorSessionPersistence()
+        if hasStarted {
+            discovery.scheduleCodexSessionPersistence()
+            discovery.scheduleClaudeSessionPersistence()
+            discovery.scheduleOpenCodeSessionPersistence()
+            discovery.scheduleCursorSessionPersistence()
+        }
 
         // Push relevant events to the Watch/iPhone via the relay
         if let relay = watchRelay {

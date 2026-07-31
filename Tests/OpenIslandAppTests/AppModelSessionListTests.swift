@@ -33,6 +33,51 @@ struct AppModelSessionListTests {
     }
 
     @Test
+    func unstartedAppModelDoesNotPersistTrackedTestSessions() async {
+        let testDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("open-island-unstarted-model-\(UUID().uuidString)", isDirectory: true)
+        let storeURL = testDirectory.appendingPathComponent("session-terminals.json")
+        let discovery = SessionDiscoveryCoordinator(
+            codexSessionStore: CodexSessionStore(fileURL: storeURL)
+        )
+        defer { try? FileManager.default.removeItem(at: testDirectory) }
+
+        let model = AppModel(discovery: discovery)
+        var session = AgentSession(
+            id: "unit-test-session",
+            title: "Unit test task",
+            tool: .codex,
+            origin: .live,
+            attachmentState: .attached,
+            phase: .running,
+            summary: "Thinking.",
+            updatedAt: .now,
+            codexMetadata: CodexSessionMetadata(
+                transcriptPath: "/tmp/unit-test-rollout.jsonl"
+            )
+        )
+        session.isCodexAppSession = true
+        session.isProcessAlive = true
+        model.state = SessionState(sessions: [session])
+
+        model.applyTrackedEvent(
+            .activityUpdated(
+                SessionActivityUpdated(
+                    sessionID: session.id,
+                    summary: "Still thinking.",
+                    phase: .running,
+                    timestamp: .now
+                )
+            ),
+            updateLastActionMessage: false,
+            ingress: .rollout
+        )
+        await discovery.waitForCodexSessionPersistence()
+
+        #expect(!FileManager.default.fileExists(atPath: storeURL.path))
+    }
+
+    @Test
     func agentApprovalInterruptsOpenSpotifyAndRestoresItAfterResolution() {
         let model = AppModel()
         model.isSoundMuted = true

@@ -320,14 +320,20 @@ struct V6ClosedPill: View {
 
             HStack(spacing: 0) {
                 leadingActivityCluster
+                    .padding(.trailing, V6MacBookSlotMetrics.leadingNotchGap)
+                    .frame(width: halfReserve, alignment: .trailing)
 
-                Spacer(minLength: 0)
+                Color.clear
+                    .frame(width: physicalNotchWidth)
 
-                if let rightSlot {
-                    V6RightSlotView(content: rightSlot)
+                ZStack(alignment: .leading) {
+                    if let rightSlot {
+                        V6RightSlotView(content: rightSlot)
+                            .padding(.leading, V6MacBookSlotMetrics.trailingNotchGap)
+                    }
                 }
+                .frame(width: halfReserve, height: height, alignment: .leading)
             }
-            .padding(.horizontal, pad)
         }
         .frame(width: outer, height: height)
         .animation(reduceMotion ? nil : .smooth(duration: 0.28), value: mediaActivity)
@@ -337,6 +343,22 @@ struct V6ClosedPill: View {
 enum V6ClosedLayout: Equatable {
     case external
     case macbook
+}
+
+struct V6MacBookSlotMetrics {
+    static let leadingNotchGap: CGFloat = 7
+    static let trailingNotchGap: CGFloat = 10
+
+    static func leadingContentOrigin(
+        halfReserve: CGFloat,
+        contentWidth: CGFloat
+    ) -> CGFloat {
+        halfReserve - leadingNotchGap - contentWidth
+    }
+
+    static func trailingContentOrigin(notchRight: CGFloat) -> CGFloat {
+        notchRight + trailingNotchGap
+    }
 }
 
 private enum RightSlotKey: Hashable {

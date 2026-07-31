@@ -214,10 +214,10 @@ struct MediaEqualizerPattern: Equatable {
         case .playing:
             let restingScales: [CGFloat] = [0.28, 0.38, 0.24, 0.32]
             let peakScales: [CGFloat] = [0.68, 0.92, 0.74, 0.84]
-            let delays: [TimeInterval] = [0.00, 0.20, 0.40, 0.60]
+            let delays: [TimeInterval] = [0.00, 0.19, 0.38, 0.57]
             return MediaEqualizerPattern(
                 motion: .equalizing,
-                duration: 1.6,
+                duration: 1.5,
                 bars: delays.indices.map { index in
                     Bar(
                         restingScale: restingScales[index],

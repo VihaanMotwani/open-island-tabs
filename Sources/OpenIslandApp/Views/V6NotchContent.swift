@@ -337,11 +337,9 @@ struct V6ClosedPill: View {
                 ZStack(alignment: .leading) {
                     if let rightSlot {
                         V6RightSlotView(content: rightSlot)
-                            .padding(.leading, V6MacBookSlotMetrics.trailingNotchGap)
-                            .padding(.trailing, V6MacBookSlotMetrics.outerEdgeInset)
                     }
                 }
-                .frame(width: trailingReserve, height: height, alignment: .leading)
+                .frame(width: trailingReserve, height: height, alignment: .center)
             }
         }
         .frame(width: outer, height: height)
@@ -356,8 +354,8 @@ enum V6ClosedLayout: Equatable {
 
 struct V6MacBookSlotMetrics {
     static let outerEdgeInset: CGFloat = 12
-    static let leadingNotchGap: CGFloat = 7
-    static let trailingNotchGap: CGFloat = 10
+    static let leadingNotchGap: CGFloat = 10
+    static let trailingNotchGap: CGFloat = 12
 
     static func leadingReserve(contentWidth: CGFloat) -> CGFloat {
         outerEdgeInset + contentWidth + leadingNotchGap
@@ -369,15 +367,19 @@ struct V6MacBookSlotMetrics {
 
     static var leadingContentOrigin: CGFloat { outerEdgeInset }
 
-    static func trailingContentOrigin(notchRight: CGFloat) -> CGFloat {
-        notchRight + trailingNotchGap
-    }
-
-    static func trailingOuterGap(
+    static func trailingContentOrigin(
+        notchRight: CGFloat,
         reserve: CGFloat,
         contentWidth: CGFloat
     ) -> CGFloat {
-        reserve - trailingNotchGap - contentWidth
+        notchRight + ((reserve - contentWidth) / 2)
+    }
+
+    static func trailingContentCenter(
+        notchRight: CGFloat,
+        reserve: CGFloat
+    ) -> CGFloat {
+        notchRight + (reserve / 2)
     }
 }
 

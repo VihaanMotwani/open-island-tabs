@@ -17,11 +17,11 @@ struct ClosedNotchActivityTests {
         let pattern = MediaEqualizerPattern.make(for: .playing, reduceMotion: false)
 
         #expect(pattern.motion == .equalizing)
-        #expect(pattern.duration == 1.6)
+        #expect(pattern.duration == 1.5)
         #expect(pattern.bars.count == 4)
         #expect(pattern.bars.map(\.restingScale) == [0.28, 0.38, 0.24, 0.32])
         #expect(pattern.bars.map(\.peakScale) == [0.68, 0.92, 0.74, 0.84])
-        #expect(pattern.bars.map(\.delay) == [0.00, 0.20, 0.40, 0.60])
+        #expect(pattern.bars.map(\.delay) == [0.00, 0.19, 0.38, 0.57])
     }
 
     @Test
@@ -37,16 +37,19 @@ struct ClosedNotchActivityTests {
     @Test
     func macBookSlotsBalanceOuterBreathingRoomAroundIndependentNotchGaps() {
         #expect(V6MacBookSlotMetrics.outerEdgeInset == 12)
-        #expect(V6MacBookSlotMetrics.leadingNotchGap == 7)
-        #expect(V6MacBookSlotMetrics.trailingNotchGap == 10)
-        #expect(V6MacBookSlotMetrics.leadingReserve(contentWidth: 45) == 64)
-        #expect(V6MacBookSlotMetrics.trailingReserve(contentWidth: 14.4) == 36.4)
+        #expect(V6MacBookSlotMetrics.leadingNotchGap == 10)
+        #expect(V6MacBookSlotMetrics.trailingNotchGap == 12)
+        #expect(V6MacBookSlotMetrics.leadingReserve(contentWidth: 45) == 67)
+        #expect(V6MacBookSlotMetrics.trailingReserve(contentWidth: 14.4) == 38.4)
         #expect(V6MacBookSlotMetrics.leadingContentOrigin == 12)
-        #expect(V6MacBookSlotMetrics.trailingContentOrigin(notchRight: 282) == 292)
-        let trailingOuterGap = V6MacBookSlotMetrics.trailingOuterGap(
-            reserve: 36.4,
+        #expect(V6MacBookSlotMetrics.trailingContentOrigin(
+            notchRight: 282,
+            reserve: 38.4,
             contentWidth: 14.4
-        )
-        #expect(abs(trailingOuterGap - 12) < 0.001)
+        ) == 294)
+        #expect(V6MacBookSlotMetrics.trailingContentCenter(
+            notchRight: 282,
+            reserve: 38.4
+        ) == 301.2)
     }
 }

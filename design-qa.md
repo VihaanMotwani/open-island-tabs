@@ -80,3 +80,48 @@
 - Native macOS slider, hover, popover, and accessibility behavior take precedence over reproducing iOS controls literally.
 
 final result: passed
+
+---
+
+# README Banner Design QA
+
+## Comparison target
+
+- Source visual truth: `/Users/vihaan/.codex/generated_images/019fb6d5-150b-7ef0-900e-3daa5206e134/exec-91b9ad5d-3caf-4661-bc2e-6671d4a77c54.png`
+- Checked-in implementation: `docs/images/readme-banner.png`
+- Combined comparison evidence: `/tmp/readme-banner-comparison.png` (source left, implementation right)
+- State: static GitHub README hero
+- Intended viewport: 1024 x 384 CSS px via the README `width="1024"` image attribute
+- Source pixels: 2048 x 768
+- Implementation pixels: 2048 x 768
+- Density normalization: both files are pixel-identical 2x assets displayed at 1024 x 384 CSS px
+
+## Findings
+
+- No P0, P1, or P2 differences found.
+- Fonts and typography: exact raster match; headline, supporting line, and UI labels retain the selected visual's weight, spacing, and antialiasing.
+- Spacing and layout rhythm: exact raster match; silhouette proportions, internal divisions, notification, Agents area, music area, and lower copy remain aligned.
+- Colors and visual tokens: exact raster match; warm graphite background, cream text, muted status accents, and subtle path lighting are unchanged.
+- Image quality and asset fidelity: the checked-in PNG has the same SHA-256 digest as the selected source and keeps the original 2048 x 768 resolution without recompression.
+- Copy and content: exact raster match; `Stay in flow.` and `Agents and music. One glance away.` are preserved.
+
+## Focused comparison
+
+A separate crop comparison was not needed because the source and implementation have identical dimensions and SHA-256 digests. The original-resolution full-view comparison keeps the small session labels and transport controls readable enough to verify.
+
+## Comparison history
+
+- First pass: no actionable P0/P1/P2 mismatch; no visual fix was required.
+
+## Implementation checklist
+
+- [x] Use the selected generated banner without redraw or approximation.
+- [x] Preserve its 8:3 aspect ratio at a GitHub-friendly 1024 px display width.
+- [x] Point both English and Chinese READMEs at the new banner.
+- [x] Keep fork ownership and upstream attribution outside the image as accessible README text.
+
+## Follow-up polish
+
+- None required for fidelity. A future iteration could replace synthetic session copy with a newly generated privacy-neutral variant if desired.
+
+final result: passed

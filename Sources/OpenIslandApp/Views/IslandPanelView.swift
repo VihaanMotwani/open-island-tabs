@@ -514,11 +514,9 @@ struct IslandPanelView: View {
     private func tabIcon(_ tab: IslandTab, size: CGFloat) -> some View {
         switch tab {
         case .agents:
-            OpenIslandBrandMark(
-                size: size,
-                tint: V6Palette.paper,
-                style: .template
-            )
+            Image(systemName: "terminal.fill")
+                .font(.system(size: size, weight: .medium))
+                .accessibilityHidden(true)
         case .spotify:
             SpotifyGlyph(
                 isDimmed: model.spotifyPlayback.snapshot.availability == .notRunning

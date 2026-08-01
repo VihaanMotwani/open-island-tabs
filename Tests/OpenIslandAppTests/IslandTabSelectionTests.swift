@@ -10,6 +10,15 @@ struct IslandTabSelectionTests {
     }
 
     @Test
+    func tabMotionFollowsMacIslandNavigationDirection() {
+        #expect(IslandTab.spotify.transitionDirection(from: .agents) == .forward)
+        #expect(IslandTab.tasks.transitionDirection(from: .spotify) == .forward)
+        #expect(IslandTab.spotify.transitionDirection(from: .tasks) == .backward)
+        #expect(IslandTab.agents.transitionDirection(from: .spotify) == .backward)
+        #expect(IslandTab.agents.transitionDirection(from: .agents) == .stationary)
+    }
+
+    @Test
     @MainActor
     func openingSpotifyTabSelectsItAndKeepsHoverCollapseBehavior() {
         let overlay = OverlayUICoordinator()

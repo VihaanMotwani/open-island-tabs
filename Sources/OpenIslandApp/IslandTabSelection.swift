@@ -1,12 +1,33 @@
 import Foundation
 
-enum IslandTab: Equatable, Sendable {
+enum IslandTabTransitionDirection: Equatable, Sendable {
+    case backward
+    case stationary
+    case forward
+}
+
+enum IslandTab: Hashable, Sendable {
     case agents
     case spotify
     case tasks
 
     var showsAgentUsage: Bool {
         self == .agents
+    }
+
+    func transitionDirection(from previousTab: IslandTab) -> IslandTabTransitionDirection {
+        if order == previousTab.order {
+            return .stationary
+        }
+        return order > previousTab.order ? .forward : .backward
+    }
+
+    private var order: Int {
+        switch self {
+        case .agents: 0
+        case .spotify: 1
+        case .tasks: 2
+        }
     }
 }
 

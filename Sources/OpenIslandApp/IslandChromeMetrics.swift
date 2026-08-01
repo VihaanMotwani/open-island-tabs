@@ -23,8 +23,16 @@ struct ExpandedNotchLayoutMetrics: Equatable, Sendable {
     static let contentHorizontalInset: CGFloat = 15
     static let safeContentHorizontalInset =
         silhouetteHorizontalInset + contentHorizontalInset
+    static let headerControlButtonSize: CGFloat = 22
+    static let headerControlSpacing: CGFloat = 8
+    static let headerControlCount: CGFloat = 3
+    static let headerControlButtonsWidth =
+        (headerControlButtonSize * headerControlCount)
+        + (headerControlSpacing * (headerControlCount - 1))
+    static let notchHeaderHorizontalPadding: CGFloat = 11
     static let tabSwitcherHeight: CGFloat = 36
     static let tabControlHeight: CGFloat = 26
+    static let tabSegmentedControlWidth: CGFloat = 216
     static let sessionHeaderHeight: CGFloat = 30
     static let sessionFooterHeight: CGFloat = 22
     static let spotifyContentHeight: CGFloat = 124
@@ -54,16 +62,48 @@ struct ExpandedNotchLayoutMetrics: Equatable, Sendable {
         )
     }
 
-    static func spotifySurfaceWidth(availableScreenWidth: CGFloat) -> CGFloat {
-        min(
-            preferredSpotifyVisibleBodyWidth + (silhouetteHorizontalInset * 2),
-            max(0, availableScreenWidth - screenEdgeMargin)
+    static func spotifySurfaceWidth(
+        availableScreenWidth: CGFloat,
+        notchWidth: CGFloat = 0
+    ) -> CGFloat {
+        compactSurfaceWidth(
+            preferredVisibleBodyWidth: preferredSpotifyVisibleBodyWidth,
+            availableScreenWidth: availableScreenWidth,
+            notchWidth: notchWidth
         )
     }
 
-    static func tasksSurfaceWidth(availableScreenWidth: CGFloat) -> CGFloat {
-        min(
-            preferredTasksVisibleBodyWidth + (silhouetteHorizontalInset * 2),
+    static func tasksSurfaceWidth(
+        availableScreenWidth: CGFloat,
+        notchWidth: CGFloat = 0
+    ) -> CGFloat {
+        compactSurfaceWidth(
+            preferredVisibleBodyWidth: preferredTasksVisibleBodyWidth,
+            availableScreenWidth: availableScreenWidth,
+            notchWidth: notchWidth
+        )
+    }
+
+    static func minimumNotchHeaderSurfaceWidth(notchWidth: CGFloat) -> CGFloat {
+        max(
+            0,
+            notchWidth + (2 * (notchHeaderHorizontalPadding + headerControlButtonsWidth))
+        )
+    }
+
+    private static func compactSurfaceWidth(
+        preferredVisibleBodyWidth: CGFloat,
+        availableScreenWidth: CGFloat,
+        notchWidth: CGFloat
+    ) -> CGFloat {
+        let preferredSurfaceWidth =
+            preferredVisibleBodyWidth + (silhouetteHorizontalInset * 2)
+        let headerSafeWidth = notchWidth > 0
+            ? minimumNotchHeaderSurfaceWidth(notchWidth: notchWidth)
+            : 0
+
+        return min(
+            max(preferredSurfaceWidth, headerSafeWidth),
             max(0, availableScreenWidth - screenEdgeMargin)
         )
     }

@@ -4,6 +4,17 @@ import Testing
 
 struct OverlayPanelControllerTests {
     @Test
+    func panelResizeAnimationMatchesMacIslandMotionAndReducedMotion() {
+        #expect(PanelResizeAnimationPolicy.duration == 0.30)
+        #expect(PanelResizeAnimationPolicy.shouldAnimate(
+            requested: true,
+            reduceMotion: false
+        ))
+        #expect(!PanelResizeAnimationPolicy.shouldAnimate(requested: true, reduceMotion: true))
+        #expect(!PanelResizeAnimationPolicy.shouldAnimate(requested: false, reduceMotion: false))
+    }
+
+    @Test
     func standaloneMouseWheelUsesSingle60HzFrameDriver() {
         #expect(SmoothWheelScrollPolicy.shouldHandle(
             phase: [],

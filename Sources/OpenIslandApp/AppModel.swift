@@ -1278,7 +1278,6 @@ final class AppModel {
     func toggleOverlay() { overlay.toggleOverlay() }
     func selectIslandTab(_ tab: IslandTab) {
         overlay.selectIslandTab(tab)
-        overlay.refreshOverlayPlacementIfVisible()
     }
     func openIslandTab(_ tab: IslandTab) {
         overlay.openIslandTab(tab)

@@ -137,6 +137,10 @@ final result: passed
 - Source measurements verified directly against `ExpandedIslandLayout.swift`,
   `ExpandedIslandView.swift`, `MusicTabView.swift`, `TasksView.swift`, and
   `TaskRowView.swift`
+- The source tab control is a native small segmented `Picker`, 144 points wide
+  for two 72-point text segments, with a 0.30-second snappy transition.
+- Open Island adapts that exact native control to three 72-point text segments:
+  Agents, Spotify, and To-do.
 
 The reference app was not relaunched after the forced reference harness caused
 its screen-sized transparent panel to remain interactive. Final QA deliberately
@@ -144,16 +148,27 @@ uses Open Island's bounded deterministic harness instead.
 
 ## Captures checked
 
-- Spotify: `output/harness/final-spotify/overlay.png` — 426 x 214 points
-- To-do: `output/harness/final-tasks-five-rows/overlay.png` — 446 x 360 points
-- Agents: `output/harness/macisland-agents/overlay.png` — 486 x 296 points
-- Approval: `output/harness/macisland-approval/overlay.png` — 486 x 321 points
+- Spotify: `output/harness/macisland-motion/spotifyPlayer/overlay.png` — 426 x 214 points
+- To-do: `output/harness/macisland-motion/tasksList/overlay.png` — 446 x 360 points
+- Agents: `output/harness/macisland-motion/sessionList/overlay.png` — 486 x 296 points
+- Approval: `output/harness/macisland-motion/approvalCard/overlay.png` — 486 x 321 points
+- Before/after tab-chrome comparison:
+  `output/harness/macisland-motion/spotify-tabs-before-after.png`
 
 ## Visual and behavior checks
 
 - Unified black surface stretches through the physical-notch header.
-- Header usage lanes and mute, settings, and quit controls remain available.
-- Segmented tabs read Agents, Spotify, and To-do with the selected macIsland-style fill.
+- Mute, settings, and quit remain visible in the physical notch's right wing on
+  all three panel widths. Width calculations reserve the complete 82-point
+  control group instead of allowing the hardware notch to occlude it.
+- Agent usage is rendered only when Agents is selected; Spotify and To-do
+  captures contain no usage percentage or provider chip.
+- The previous custom icon-and-label Open Island tabs are gone. Tabs now use
+  macIsland's native small segmented `Picker`, with text-only segments and the
+  platform-selected fill.
+- Forward selection slides content in from the trailing edge; backward selection
+  slides it in from the leading edge. Panel width and height animate over the
+  same 0.30-second interval instead of snapping between tab sizes.
 - Spotify uses 68-point artwork, a 15-point radius, centered title and artist,
   source-matched transport sizing, a thin seek control, and a volume popover.
 - To-do uses the source-matched checklist field, 36-point input, 34-point rows,
@@ -172,5 +187,7 @@ uses Open Island's bounded deterministic harness instead.
   screen-sized interactive window is used.
 - Harness accessibility snapshots expose all tabs, transport buttons, task
   completion controls, header controls, jump controls, and approval actions.
+- Reduced Motion disables both directional content movement and AppKit panel
+  resizing while keeping a simple opacity change.
 
 final result: passed

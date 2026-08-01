@@ -4,6 +4,14 @@ import QuartzCore
 import SwiftUI
 import OpenIslandCore
 
+enum PanelResizeAnimationPolicy {
+    static let duration: TimeInterval = 0.30
+
+    static func shouldAnimate(requested: Bool, reduceMotion: Bool) -> Bool {
+        requested && !reduceMotion
+    }
+}
+
 @MainActor
 final class OverlayPanelController {
     private static let preferredNotificationPanelWidth: CGFloat = 620
@@ -153,20 +161,32 @@ final class OverlayPanelController {
 
         let windowFrame = panelFrame(for: model, on: screen)
 
-        // Always set the panel frame instantly — no AppKit animation.
-        // All visual transitions (shape, size, opacity, corner radius) are
-        // driven by SwiftUI's .animation() modifier on the content view.
-        // Mixing NSAnimationContext with SwiftUI spring animations caused
-        // visible jank because the two systems have different timing curves,
-        // durations, and start times (AppKit was deferred by one runloop).
         if panel.frame != windowFrame {
-            panel.setFrame(windowFrame, display: true)
+            let shouldAnimate = PanelResizeAnimationPolicy.shouldAnimate(
+                requested: animated && panel.isVisible,
+                reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+            )
+
+            if shouldAnimate {
+                NSAnimationContext.runAnimationGroup { context in
+                    context.duration = PanelResizeAnimationPolicy.duration
+                    context.timingFunction = CAMediaTimingFunction(
+                        controlPoints: 0.16,
+                        1,
+                        0.3,
+                        1
+                    )
+                    panel.animator().setFrame(windowFrame, display: true)
+                }
+            } else {
+                panel.setFrame(windowFrame, display: true)
+            }
         }
         computeNotchRect(screen: screen)
 
         return OverlayDisplayResolver.diagnostics(
             preferredScreenID: preferredScreenID,
-            panelSize: panel.frame.size
+            panelSize: windowFrame.size
         )
     }
 
@@ -597,11 +617,13 @@ final class OverlayPanelController {
             return openedPanelWidth(for: screen)
         case .spotify:
             return ExpandedNotchLayoutMetrics.spotifySurfaceWidth(
-                availableScreenWidth: screen.visibleFrame.width
+                availableScreenWidth: screen.visibleFrame.width,
+                notchWidth: screen.safeAreaInsets.top > 0 ? screen.notchSize.width : 0
             )
         case .tasks:
             return ExpandedNotchLayoutMetrics.tasksSurfaceWidth(
-                availableScreenWidth: screen.visibleFrame.width
+                availableScreenWidth: screen.visibleFrame.width,
+                notchWidth: screen.safeAreaInsets.top > 0 ? screen.notchSize.width : 0
             )
         }
     }

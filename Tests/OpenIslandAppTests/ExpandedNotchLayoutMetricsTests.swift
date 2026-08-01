@@ -48,7 +48,6 @@ struct ExpandedNotchLayoutMetricsTests {
         let tasksWidth = ExpandedNotchLayoutMetrics.tasksSurfaceWidth(
             availableScreenWidth: 1_440
         )
-
         #expect(agentsWidth == 450)
         #expect(spotifyWidth == 390)
         #expect(tasksWidth == 410)
@@ -56,6 +55,34 @@ struct ExpandedNotchLayoutMetricsTests {
         #expect(ExpandedNotchLayoutMetrics.visibleBodyWidth(surfaceWidth: spotifyWidth) == 360)
         #expect(ExpandedNotchLayoutMetrics.visibleBodyWidth(surfaceWidth: tasksWidth) == 380)
         #expect(ExpandedNotchLayoutMetrics.spotifyPlayerContentWidth(containerWidth: spotifyWidth) == 330)
+    }
+
+    @Test
+    func compactSurfacesKeepHeaderControlsOutsideThePhysicalNotch() {
+        let minimumWidth = ExpandedNotchLayoutMetrics.minimumNotchHeaderSurfaceWidth(
+            notchWidth: 204
+        )
+        let spotifyWidth = ExpandedNotchLayoutMetrics.spotifySurfaceWidth(
+            availableScreenWidth: 1_440
+        )
+        let tasksWidth = ExpandedNotchLayoutMetrics.tasksSurfaceWidth(
+            availableScreenWidth: 1_440
+        )
+        let wideNotchSpotifyWidth = ExpandedNotchLayoutMetrics.spotifySurfaceWidth(
+            availableScreenWidth: 1_440,
+            notchWidth: 224
+        )
+
+        #expect(ExpandedNotchLayoutMetrics.notchHeaderHorizontalPadding == 11)
+        #expect(ExpandedNotchLayoutMetrics.headerControlButtonsWidth == 82)
+        #expect(minimumWidth == 390)
+        #expect(spotifyWidth >= minimumWidth)
+        #expect(tasksWidth >= minimumWidth)
+        #expect(wideNotchSpotifyWidth == 410)
+        #expect(
+            wideNotchSpotifyWidth
+                >= ExpandedNotchLayoutMetrics.minimumNotchHeaderSurfaceWidth(notchWidth: 224)
+        )
     }
 
     @Test

@@ -167,8 +167,8 @@ struct OverlayPanelControllerTests {
     }
 
     @Test
-    func clickOpensActivateThePanel() {
-        #expect(OverlayPanelController.shouldActivatePanel(for: .click))
+    func clickOpensDoNotProactivelyTakeKeyboardFocus() {
+        #expect(!OverlayPanelController.shouldActivatePanel(for: .click))
     }
 
     @Test

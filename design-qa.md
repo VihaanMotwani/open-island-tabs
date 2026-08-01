@@ -148,9 +148,9 @@ uses Open Island's bounded deterministic harness instead.
 
 ## Captures checked
 
-- Spotify: `output/harness/macisland-motion/spotifyPlayer/overlay.png` — 426 x 214 points
-- To-do: `output/harness/macisland-motion/tasksList/overlay.png` — 446 x 360 points
-- Agents: `output/harness/macisland-motion/sessionList/overlay.png` — 486 x 296 points
+- Spotify: `output/harness/header-insets/spotifyPlayer/overlay.png` — 443 x 214 points
+- To-do: `output/harness/header-insets/tasksList/overlay.png` — 446 x 360 points
+- Agents: `output/harness/header-insets/sessionList/overlay.png` — 486 x 296 points
 - Approval: `output/harness/macisland-motion/approvalCard/overlay.png` — 486 x 321 points
 - Before/after tab-chrome comparison:
   `output/harness/macisland-motion/spotify-tabs-before-after.png`
@@ -161,6 +161,9 @@ uses Open Island's bounded deterministic harness instead.
 - Mute, settings, and quit remain visible in the physical notch's right wing on
   all three panel widths. Width calculations reserve the complete 82-point
   control group instead of allowing the hardware notch to occlude it.
+- Usage and header controls share the same 30-point horizontal content inset,
+  so neither cluster sits against the concave silhouette edge. Compact tabs
+  widen only when the hardware-notch clearance requires it.
 - Agent usage is rendered only when Agents is selected; Spotify and To-do
   captures contain no usage percentage or provider chip.
 - The previous custom icon-and-label Open Island tabs are gone. Tabs now use

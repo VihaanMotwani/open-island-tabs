@@ -29,7 +29,7 @@ struct ExpandedNotchLayoutMetrics: Equatable, Sendable {
     static let headerControlButtonsWidth =
         (headerControlButtonSize * headerControlCount)
         + (headerControlSpacing * (headerControlCount - 1))
-    static let notchHeaderHorizontalPadding: CGFloat = 11
+    static let notchHeaderHorizontalPadding = safeContentHorizontalInset
     static let tabSwitcherHeight: CGFloat = 36
     static let tabControlHeight: CGFloat = 26
     static let tabSegmentedControlWidth: CGFloat = 216

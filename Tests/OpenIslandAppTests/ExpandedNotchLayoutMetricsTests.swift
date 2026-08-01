@@ -63,22 +63,27 @@ struct ExpandedNotchLayoutMetricsTests {
             notchWidth: 204
         )
         let spotifyWidth = ExpandedNotchLayoutMetrics.spotifySurfaceWidth(
-            availableScreenWidth: 1_440
+            availableScreenWidth: 1_440,
+            notchWidth: 204
         )
         let tasksWidth = ExpandedNotchLayoutMetrics.tasksSurfaceWidth(
-            availableScreenWidth: 1_440
+            availableScreenWidth: 1_440,
+            notchWidth: 204
         )
         let wideNotchSpotifyWidth = ExpandedNotchLayoutMetrics.spotifySurfaceWidth(
             availableScreenWidth: 1_440,
             notchWidth: 224
         )
 
-        #expect(ExpandedNotchLayoutMetrics.notchHeaderHorizontalPadding == 11)
+        #expect(
+            ExpandedNotchLayoutMetrics.notchHeaderHorizontalPadding
+                == ExpandedNotchLayoutMetrics.safeContentHorizontalInset
+        )
         #expect(ExpandedNotchLayoutMetrics.headerControlButtonsWidth == 82)
-        #expect(minimumWidth == 390)
+        #expect(minimumWidth == 428)
         #expect(spotifyWidth >= minimumWidth)
         #expect(tasksWidth >= minimumWidth)
-        #expect(wideNotchSpotifyWidth == 410)
+        #expect(wideNotchSpotifyWidth == 448)
         #expect(
             wideNotchSpotifyWidth
                 >= ExpandedNotchLayoutMetrics.minimumNotchHeaderSurfaceWidth(notchWidth: 224)

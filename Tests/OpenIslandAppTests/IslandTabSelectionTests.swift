@@ -4,7 +4,7 @@ import Testing
 struct IslandTabSelectionTests {
     @Test
     @MainActor
-    func openingSpotifyTabSelectsItAndExpandsTheIsland() {
+    func openingSpotifyTabSelectsItAndKeepsHoverCollapseBehavior() {
         let overlay = OverlayUICoordinator()
 
         overlay.openIslandTab(.spotify)
@@ -12,7 +12,7 @@ struct IslandTabSelectionTests {
         #expect(overlay.selectedIslandTab == .spotify)
         #expect(overlay.preferredIslandTab == .spotify)
         #expect(overlay.notchStatus == .opened)
-        #expect(overlay.notchOpenReason == .click)
+        #expect(overlay.notchOpenReason == .hover)
     }
 
     @Test
@@ -23,6 +23,44 @@ struct IslandTabSelectionTests {
 
         #expect(state.selectedTab == .spotify)
         #expect(state.preferredTab == .spotify)
+    }
+
+    @Test
+    func selectingTasksMakesItVisibleAndPreferred() {
+        var state = IslandTabSelectionState()
+
+        state.select(.tasks)
+
+        #expect(state.selectedTab == .tasks)
+        #expect(state.preferredTab == .tasks)
+    }
+
+    @Test
+    func actionableAgentTakeoverRestoresTasksAfterResolution() {
+        var state = IslandTabSelectionState()
+        state.select(.tasks)
+
+        state.beginAgentTakeover(.actionRequired)
+
+        #expect(state.selectedTab == .agents)
+        #expect(state.preferredTab == .tasks)
+
+        state.resolveAgentTakeover()
+
+        #expect(state.selectedTab == .tasks)
+        #expect(state.activeTakeover == nil)
+    }
+
+    @Test
+    func completionTakeoverRequestsSevenSecondTaskRestoration() {
+        var state = IslandTabSelectionState()
+        state.select(.tasks)
+
+        let restorationDelay = state.beginAgentTakeover(.completion)
+
+        #expect(state.selectedTab == .agents)
+        #expect(state.preferredTab == .tasks)
+        #expect(restorationDelay == 7)
     }
 
     @Test

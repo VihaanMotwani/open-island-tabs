@@ -13,6 +13,7 @@ struct IslandDebugSnapshot {
     let selectedSessionID: String?
     let selectedTab: IslandTab
     let mediaSnapshot: MediaPlaybackSnapshot?
+    let tasks: [TaskItem]
 
     init(
         title: String,
@@ -24,7 +25,8 @@ struct IslandDebugSnapshot {
         sessions: [AgentSession],
         selectedSessionID: String?,
         selectedTab: IslandTab = .agents,
-        mediaSnapshot: MediaPlaybackSnapshot? = nil
+        mediaSnapshot: MediaPlaybackSnapshot? = nil,
+        tasks: [TaskItem] = []
     ) {
         self.title = title
         self.summary = summary
@@ -36,6 +38,7 @@ struct IslandDebugSnapshot {
         self.selectedSessionID = selectedSessionID
         self.selectedTab = selectedTab
         self.mediaSnapshot = mediaSnapshot
+        self.tasks = tasks
     }
 }
 
@@ -48,6 +51,7 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
     case completionCard
     case longCompletionCard
     case spotifyPlayer
+    case tasksList
 
     var id: String { rawValue }
 
@@ -69,6 +73,8 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
             "Long Completion Card"
         case .spotifyPlayer:
             "Spotify Player"
+        case .tasksList:
+            "To-do List"
         }
     }
 
@@ -90,6 +96,8 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
             "Long finished-task reply stays inside the card and scrolls internally."
         case .spotifyPlayer:
             "Expanded Spotify tab with deterministic playback metadata and controls."
+        case .tasksList:
+            "Expanded To-do tab with active, completed, editable, and scrollable tasks."
         }
     }
 
@@ -201,8 +209,49 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
                 selectedTab: .spotify,
                 mediaSnapshot: Self.playingMediaSnapshot
             )
+
+        case .tasksList:
+            return IslandDebugSnapshot(
+                title: title,
+                summary: summary,
+                previewHeight: 340,
+                notchStatus: .opened,
+                notchOpenReason: .hover,
+                islandSurface: .sessionList(),
+                sessions: [],
+                selectedSessionID: nil,
+                selectedTab: .tasks,
+                tasks: Self.demoTasks
+            )
         }
     }
+
+    private static let demoTasks: [TaskItem] = {
+        let baseDate = Date(timeIntervalSince1970: 1_750_000_000)
+        return [
+            TaskItem(id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!, title: "Review agent approvals", createdAt: baseDate),
+            TaskItem(id: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!, title: "Reply to design feedback", createdAt: baseDate.addingTimeInterval(60)),
+            TaskItem(id: UUID(uuidString: "00000000-0000-0000-0000-000000000003")!, title: "Run the Swift test suite", createdAt: baseDate.addingTimeInterval(120)),
+            TaskItem(id: UUID(uuidString: "00000000-0000-0000-0000-000000000004")!, title: "Polish the Spotify player", createdAt: baseDate.addingTimeInterval(180)),
+            TaskItem(id: UUID(uuidString: "00000000-0000-0000-0000-000000000005")!, title: "Capture final screenshots", createdAt: baseDate.addingTimeInterval(240)),
+            TaskItem(
+                id: UUID(uuidString: "00000000-0000-0000-0000-000000000006")!,
+                title: "Match the macIsland header",
+                isCompleted: true,
+                createdAt: baseDate.addingTimeInterval(300),
+                completedAt: baseDate.addingTimeInterval(600),
+                updatedAt: baseDate.addingTimeInterval(600)
+            ),
+            TaskItem(
+                id: UUID(uuidString: "00000000-0000-0000-0000-000000000007")!,
+                title: "Keep the collapsed animations",
+                isCompleted: true,
+                createdAt: baseDate.addingTimeInterval(360),
+                completedAt: baseDate.addingTimeInterval(660),
+                updatedAt: baseDate.addingTimeInterval(660)
+            ),
+        ]
+    }()
 
     private static let playingMediaSnapshot = MediaPlaybackSnapshot(
         availability: .running,

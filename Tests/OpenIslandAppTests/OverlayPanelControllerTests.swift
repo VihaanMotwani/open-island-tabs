@@ -99,41 +99,16 @@ struct OverlayPanelControllerTests {
     }
 
     @Test
-    func closedInteractionAreaIncludesTabsPeekingBelowNotch() {
+    func closedInteractionAreaMatchesTheVisibleClosedSurface() {
         let notchRect = NSRect(x: 400, y: 1_000, width: 200, height: 38)
         let rect = OverlayPanelController.closedInteractionRect(
             notchRect: notchRect,
             closedWidth: 288
         )
 
-        #expect(rect.minY == 970)
+        #expect(rect.minY == notchRect.minY)
         #expect(rect.maxY == notchRect.maxY)
-        #expect(rect.height == 68)
-    }
-
-    @Test
-    func peekingTabHitTestingMapsLeftToAgentsAndRightToSpotify() {
-        let notchRect = NSRect(x: 400, y: 1_000, width: 200, height: 38)
-        let tabY = notchRect.minY - 15
-
-        #expect(
-            OverlayPanelController.closedTab(
-                at: NSPoint(x: notchRect.midX - 18, y: tabY),
-                notchRect: notchRect
-            ) == .agents
-        )
-        #expect(
-            OverlayPanelController.closedTab(
-                at: NSPoint(x: notchRect.midX + 18, y: tabY),
-                notchRect: notchRect
-            ) == .spotify
-        )
-        #expect(
-            OverlayPanelController.closedTab(
-                at: NSPoint(x: notchRect.midX, y: notchRect.midY),
-                notchRect: notchRect
-            ) == nil
-        )
+        #expect(rect.height == notchRect.height)
     }
 
     @Test

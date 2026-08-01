@@ -343,7 +343,7 @@ def main() -> None:
             fail(f"expected spotifyPlayer to use the base sessionList surface, got {island_surface!r}")
         require_frame_between(
             overlay_frame,
-            width=(500, 620),
+            width=(400, 470),
             height=(190, 340),
             context="spotifyPlayer overlay frame",
         )
@@ -355,6 +355,27 @@ def main() -> None:
             fail("spotifyPlayer is missing its deterministic playing state")
         if not report.get("mediaTitle"):
             fail("spotifyPlayer is missing track metadata")
+
+    elif scenario == "tasksList":
+        if notch_status != "opened":
+            fail(f"expected opened notch for tasksList, got {notch_status!r}")
+        if island_surface != "sessionList":
+            fail(f"expected tasksList to use the base sessionList surface, got {island_surface!r}")
+        require_frame_between(
+            overlay_frame,
+            width=(420, 480),
+            height=(250, 370),
+            context="tasksList overlay frame",
+        )
+        if report.get("selectedTab") != "tasks":
+            fail("tasksList did not select the To-do tab")
+        if "Mark complete" not in button_labels or "Mark incomplete" not in button_labels:
+            fail("tasksList is missing completion controls")
+        assert_contains_any(
+            text_values,
+            ["Review agent approvals", "Run the Swift test suite"],
+            "tasksList text values",
+        )
 
     else:
         fail(f"unsupported scenario {scenario!r}")

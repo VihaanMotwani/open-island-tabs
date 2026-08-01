@@ -69,6 +69,7 @@ final class AppModel {
     let codexAppServer = CodexAppServerCoordinator()
     let updateChecker = UpdateChecker()
     let spotifyPlayback = SpotifyPlaybackModel()
+    let taskStore: TaskStore
 
     var notchStatus: NotchStatus {
         get { overlay.notchStatus }
@@ -598,6 +599,7 @@ final class AppModel {
 
     init(
         discovery: SessionDiscoveryCoordinator = SessionDiscoveryCoordinator(),
+        taskStore: TaskStore = TaskStore(),
         terminalJumpAction: @escaping @Sendable (JumpTarget) throws -> String = { target in
             try TerminalJumpService().jump(to: target)
         },
@@ -606,6 +608,7 @@ final class AppModel {
         }
     ) {
         self.discovery = discovery
+        self.taskStore = taskStore
         self.terminalJumpAction = terminalJumpAction
         self.isNotificationSessionAlreadyFrontmost = isNotificationSessionAlreadyFrontmost
         UserDefaults.standard.register(defaults: [
@@ -1321,6 +1324,7 @@ final class AppModel {
         harnessRuntimeMonitor?.recordMilestone("scenarioLoaded", message: snapshot.title)
 
         overlay.selectIslandTab(snapshot.selectedTab)
+        taskStore.replaceTasksForDebug(snapshot.tasks)
         if let mediaSnapshot = snapshot.mediaSnapshot {
             spotifyPlayback.applyDebugSnapshot(mediaSnapshot)
         }

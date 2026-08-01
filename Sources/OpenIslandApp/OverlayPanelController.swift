@@ -22,8 +22,6 @@ final class OverlayPanelController {
     private static let completionCardChromeHeight: CGFloat = 187
     private static let completionCardMinHeight: CGFloat = 210
     private static let completionCardMaxHeight: CGFloat = 400
-    nonisolated private static let closedTabPeekHeight: CGFloat = 30
-    nonisolated private static let closedTabStripWidth: CGFloat = 88
     private static let openedTabStripHeight = ExpandedNotchLayoutMetrics.tabSwitcherHeight
 
     private var panel: NotchPanel?
@@ -238,10 +236,6 @@ final class OverlayPanelController {
         let inClosedSurfaceArea = isPointInClosedSurfaceArea(screenLocation)
 
         if model.notchStatus == .closed && inClosedSurfaceArea {
-            if let tab = Self.closedTab(at: screenLocation, notchRect: notchRect),
-               model.preferredIslandTab != tab {
-                model.selectIslandTab(tab)
-            }
             scheduleHoverOpen()
         } else if model.notchStatus == .closed && !inClosedSurfaceArea {
             cancelHoverOpen()
@@ -267,13 +261,6 @@ final class OverlayPanelController {
 
         if model.notchStatus == .closed && inClosedSurfaceArea {
             cancelHoverOpenImmediately()
-            if let tab = Self.closedTab(at: screenLocation, notchRect: notchRect) {
-                model.selectIslandTab(tab)
-                if tab == .spotify {
-                    model.openSpotifyIfNeeded()
-                }
-            }
-            model.notchOpen(reason: .click)
         } else if model.notchStatus == .opened {
             if !isPointInExpandedArea(screenLocation) {
                 model.notchClose()
@@ -425,30 +412,9 @@ final class OverlayPanelController {
     ) -> NSRect {
         let surfaceRect = closedSurfaceRect(
             notchRect: notchRect,
-            closedWidth: max(closedWidth, closedTabStripWidth)
+            closedWidth: closedWidth
         )
-        return NSRect(
-            x: surfaceRect.minX,
-            y: surfaceRect.minY - closedTabPeekHeight,
-            width: surfaceRect.width,
-            height: surfaceRect.height + closedTabPeekHeight
-        )
-    }
-
-    nonisolated static func closedTab(
-        at screenPoint: NSPoint,
-        notchRect: NSRect
-    ) -> IslandTab? {
-        let tabRect = NSRect(
-            x: notchRect.midX - closedTabStripWidth / 2,
-            y: notchRect.minY - closedTabPeekHeight,
-            width: closedTabStripWidth,
-            height: closedTabPeekHeight
-        )
-        guard rectContainsIncludingEdges(tabRect, point: screenPoint) else {
-            return nil
-        }
-        return screenPoint.x < notchRect.midX ? .agents : .spotify
+        return surfaceRect
     }
 
     nonisolated static func rectContainsIncludingEdges(_ rect: NSRect, point: NSPoint) -> Bool {
@@ -525,11 +491,9 @@ final class OverlayPanelController {
 
         let panelWidth = openedPanelWidth(for: model, on: screen)
         let contentHeight = openedContentHeight(for: model)
-        // Use at least the empty-state height so the window doesn't shrink
-        // when sessions come and go while opened.
         let height = screen.notchSize.height
             + Self.openedTabStripHeight
-            + max(contentHeight, ExpandedNotchLayoutMetrics.agentsEmptyStateHeight)
+            + contentHeight
             + Self.openedContentBottomPadding
             + insets.bottom
 
@@ -558,8 +522,15 @@ final class OverlayPanelController {
     }
 
     private func openedContentHeight(for model: AppModel) -> CGFloat {
-        if model.selectedIslandTab == .spotify {
+        switch model.selectedIslandTab {
+        case .spotify:
             return ExpandedNotchLayoutMetrics.spotifyContentHeight
+        case .tasks:
+            return ExpandedNotchLayoutMetrics.tasksContentHeight(
+                totalCount: model.taskStore.tasks.count
+            )
+        case .agents:
+            break
         }
 
         let now = Date.now
@@ -621,13 +592,18 @@ final class OverlayPanelController {
     }
 
     private func openedPanelWidth(for model: AppModel, on screen: NSScreen) -> CGFloat {
-        guard model.selectedIslandTab == .spotify else {
+        switch model.selectedIslandTab {
+        case .agents:
             return openedPanelWidth(for: screen)
+        case .spotify:
+            return ExpandedNotchLayoutMetrics.spotifySurfaceWidth(
+                availableScreenWidth: screen.visibleFrame.width
+            )
+        case .tasks:
+            return ExpandedNotchLayoutMetrics.tasksSurfaceWidth(
+                availableScreenWidth: screen.visibleFrame.width
+            )
         }
-
-        return ExpandedNotchLayoutMetrics.spotifySurfaceWidth(
-            availableScreenWidth: screen.visibleFrame.width
-        )
     }
 
     /// Additional height for the actionable session's inline action area.

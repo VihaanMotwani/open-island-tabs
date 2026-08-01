@@ -125,3 +125,52 @@ A separate crop comparison was not needed because the source and implementation 
 - None required for fidelity. A future iteration could replace synthetic session copy with a newly generated privacy-neutral variant if desired.
 
 final result: passed
+
+---
+
+# macIsland UI Design QA
+
+## Reference
+
+- AyushmanMalla/macIsland at commit `7f8a6efb3a28e7c85efee973184c811e457306a6`
+- Local reference bundle: `/Users/vihaan/Downloads/macIsland.app.zip`
+- Source measurements verified directly against `ExpandedIslandLayout.swift`,
+  `ExpandedIslandView.swift`, `MusicTabView.swift`, `TasksView.swift`, and
+  `TaskRowView.swift`
+
+The reference app was not relaunched after the forced reference harness caused
+its screen-sized transparent panel to remain interactive. Final QA deliberately
+uses Open Island's bounded deterministic harness instead.
+
+## Captures checked
+
+- Spotify: `output/harness/final-spotify/overlay.png` — 426 x 214 points
+- To-do: `output/harness/final-tasks-five-rows/overlay.png` — 446 x 360 points
+- Agents: `output/harness/macisland-agents/overlay.png` — 486 x 296 points
+- Approval: `output/harness/macisland-approval/overlay.png` — 486 x 321 points
+
+## Visual and behavior checks
+
+- Unified black surface stretches through the physical-notch header.
+- Header usage lanes and mute, settings, and quit controls remain available.
+- Segmented tabs read Agents, Spotify, and To-do with the selected macIsland-style fill.
+- Spotify uses 68-point artwork, a 15-point radius, centered title and artist,
+  source-matched transport sizing, a thin seek control, and a volume popover.
+- To-do uses the source-matched checklist field, 36-point input, 34-point rows,
+  8-point row spacing, 12-point radii, context-menu edit/delete, completion
+  ordering, and five fully visible rows before scrolling.
+- Agents keep compact expandable rows, dedicated jump controls, timers,
+  grouping, approvals, questions, replies, and auto-expanded actionable content.
+- Agents, Spotify, and To-do use different bounded panel sizes.
+- Closed hit testing no longer extends into a hidden peeking-tab strip, and a
+  closed click no longer pins the island open.
+- Reduced Motion disables the custom spring/blur/scale transitions.
+
+## Safety and accessibility
+
+- Every deterministic overlay remained between 426 and 486 points wide; no
+  screen-sized interactive window is used.
+- Harness accessibility snapshots expose all tabs, transport buttons, task
+  completion controls, header controls, jump controls, and approval actions.
+
+final result: passed

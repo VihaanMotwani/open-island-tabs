@@ -80,6 +80,8 @@ For the deterministic scenario suite, the harness now performs these semantic ch
 - `questionCard`: overlay stays open and the three answer choices appear as buttons
 - `completionCard`: overlay stays open and exposes the `Done` completion copy
 - `longCompletionCard`: overlay stays open and exposes the long completion response text instead of collapsing away
+- `spotifyPlayer`: compact Spotify tab exposes deterministic track metadata and transport controls
+- `tasksList`: dynamically sized To-do tab exposes active and completed task controls with a five-row viewport
 
 ## Evidence Expectations
 

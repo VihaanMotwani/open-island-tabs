@@ -16,6 +16,26 @@ private struct ContentHeightKey: PreferenceKey {
     }
 }
 
+private struct IslandTabTransitionModifier: ViewModifier {
+    let isActive: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(isActive ? 0 : 1)
+            .scaleEffect(isActive ? 0.985 : 1, anchor: .top)
+            .blur(radius: isActive ? 5 : 0)
+    }
+}
+
+private extension AnyTransition {
+    static var islandTab: AnyTransition {
+        AnyTransition.modifier(
+            active: IslandTabTransitionModifier(isActive: true),
+            identity: IslandTabTransitionModifier(isActive: false)
+        )
+    }
+}
+
 /// Auto-height container: renders content directly (auto-sizing).
 /// When content exceeds maxHeight, wraps in ScrollView at fixed maxHeight.
 private struct AutoHeightScrollView<Content: View>: View {
@@ -78,8 +98,8 @@ extension AgentSession {
 
 // MARK: - Animations
 
-private let openAnimation = Animation.spring(response: 0.32, dampingFraction: 0.92, blendDuration: 0)
-private let closeAnimation = Animation.smooth(duration: 0.24)
+private let openAnimation = Animation.snappy(duration: 0.30, extraBounce: 0.04)
+private let closeAnimation = Animation.snappy(duration: 0.24)
 private let popAnimation = Animation.spring(response: 0.3, dampingFraction: 0.5)
 private let openedSurfaceUnmountDelay: TimeInterval = 0.36
 
@@ -234,11 +254,6 @@ struct IslandPanelView: View {
                 isHovering = hovering
             }
         }
-        .onTapGesture {
-            if model.notchStatus != .opened {
-                model.notchOpen(reason: .click)
-            }
-        }
     }
 
     private func syncOpenedSurfaceMount(with status: NotchStatus, immediate: Bool = false) {
@@ -310,6 +325,7 @@ struct IslandPanelView: View {
             surfaceShape
                 .fill(V6Palette.ink)
                 .frame(width: surfaceWidth, height: surfaceHeight)
+                .shadow(color: .black.opacity(0.62), radius: 10, y: 5)
 
             VStack(spacing: 0) {
                 openedHeaderContent
@@ -334,10 +350,6 @@ struct IslandPanelView: View {
             .padding(.horizontal, horizontalInset)
             .padding(.bottom, bottomInset)
             .clipShape(surfaceShape)
-            .overlay {
-                surfaceShape
-                    .stroke(Color.white.opacity(0.07), lineWidth: 1)
-            }
         }
         .frame(width: surfaceWidth, height: surfaceHeight, alignment: .top)
     }
@@ -426,14 +438,15 @@ struct IslandPanelView: View {
         HStack(spacing: 2) {
             openedTabButton(.agents, accessibilityLabel: "Open Island agents")
             openedTabButton(.spotify, accessibilityLabel: "Spotify")
+            openedTabButton(.tasks, accessibilityLabel: "To-do list")
         }
         .padding(2)
-        .background(.white.opacity(0.025), in: Capsule())
+        .background(.white.opacity(0.045), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
         .overlay {
-            Capsule()
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
                 .stroke(
-                    .white.opacity(ExpandedNotchVisualStyle.dividerOpacity),
-                    lineWidth: 1
+                    .white.opacity(0.055),
+                    lineWidth: 0.5
                 )
         }
         .frame(height: ExpandedNotchLayoutMetrics.tabControlHeight + 4)
@@ -464,13 +477,13 @@ struct IslandPanelView: View {
             ZStack(alignment: .topTrailing) {
                 HStack(spacing: 5) {
                     tabIcon(tab, size: tab == .spotify ? 11 : 12.5)
-                    Text(tab == .agents ? "Agents" : "Spotify")
-                        .font(.caption.weight(isSelected ? .semibold : .medium))
+                    Text(tabTitle(tab))
+                        .font(.system(size: 11, weight: isSelected ? .semibold : .medium))
                 }
                 .foregroundStyle(ExpandedNotchVisualStyle.textColor(labelRole))
                 .opacity(isUnavailableSpotify ? 0.78 : 1)
                 .frame(
-                    minWidth: tab == .agents ? 68 : 70,
+                    minWidth: tab == .spotify ? 70 : 66,
                     minHeight: ExpandedNotchLayoutMetrics.tabControlHeight
                 )
 
@@ -510,6 +523,14 @@ struct IslandPanelView: View {
         .help(accessibilityLabel)
     }
 
+    private func tabTitle(_ tab: IslandTab) -> String {
+        switch tab {
+        case .agents: "Agents"
+        case .spotify: "Spotify"
+        case .tasks: "To-do"
+        }
+    }
+
     @ViewBuilder
     private func tabIcon(_ tab: IslandTab, size: CGFloat) -> some View {
         switch tab {
@@ -522,6 +543,10 @@ struct IslandPanelView: View {
                 isDimmed: model.spotifyPlayback.snapshot.availability == .notRunning
             )
             .frame(width: size, height: size)
+        case .tasks:
+            Image(systemName: "checklist")
+                .font(.system(size: size, weight: .semibold))
+                .accessibilityHidden(true)
         }
     }
 
@@ -543,10 +568,17 @@ struct IslandPanelView: View {
     @ViewBuilder
     private var openedContent: some View {
         Group {
-            if model.selectedIslandTab == .spotify {
+            switch model.selectedIslandTab {
+            case .spotify:
                 SpotifyPlayerView(model: model.spotifyPlayback)
-                    .transition(.opacity)
-            } else {
+                    .transition(reduceMotion ? .opacity : .islandTab)
+            case .tasks:
+                TasksView(
+                    store: model.taskStore,
+                    onContentHeightChange: model.refreshOverlayPlacement
+                )
+                .transition(reduceMotion ? .opacity : .islandTab)
+            case .agents:
                 VStack(spacing: 8) {
                     if model.shouldShowInstallHooksHint {
                         installHooksHint
@@ -567,10 +599,13 @@ struct IslandPanelView: View {
                     }
                 }
                 .padding(.bottom, 0)
-                .transition(.opacity)
+                .transition(reduceMotion ? .opacity : .islandTab)
             }
         }
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: model.selectedIslandTab)
+        .animation(
+            reduceMotion ? nil : .snappy(duration: 0.30, extraBounce: 0.03),
+            value: model.selectedIslandTab
+        )
     }
 
     /// Persistent hint at the top of the expanded island while no agent
@@ -660,7 +695,7 @@ struct IslandPanelView: View {
         model.notchOpenReason == .notification && actionableSessionID != nil
     }
 
-    private static let maxSessionListHeight: CGFloat = 560
+    private static let maxSessionListHeight = ExpandedNotchLayoutMetrics.maximumSessionListHeight
 
     private var sessionListSideInset: CGFloat {
         ExpandedNotchLayoutMetrics.safeContentHorizontalInset
@@ -1447,7 +1482,9 @@ private struct IslandSessionRow: View {
         .opacity(isStaleCompleted ? 0.7 : 1)
         .contentShape(Rectangle())
         .animation(reduceMotion ? nil : .easeOut(duration: 0.1), value: isHighlighted)
-        .onTapGesture(perform: handlePrimaryTap)
+        .onTapGesture {
+            handlePrimaryTap(isOpen: showsDetail)
+        }
         .onHover { hovering in
             guard isInteractive, allowsRowHoverHighlight else { return }
             isHighlighted = hovering
@@ -1477,6 +1514,7 @@ private struct IslandSessionRow: View {
                 Spacer(minLength: 8)
 
                 HStack(spacing: 6) {
+                    jumpButton
                     detailToggleButton(isOpen: showsDetail)
                     if let onDismiss {
                         DismissButton(action: onDismiss)
@@ -2190,9 +2228,27 @@ private struct IslandSessionRow: View {
         return session.jumpTarget != nil ? "Ready" : "Completed"
     }
 
-    private func handlePrimaryTap() {
+    private func handlePrimaryTap(isOpen: Bool) {
         guard isInteractive else { return }
-        onJump()
+        withAnimation(reduceMotion ? nil : .snappy(duration: 0.24, extraBounce: 0.03)) {
+            detailOverride = !isOpen
+        }
+    }
+
+    private var jumpButton: some View {
+        Button {
+            guard isInteractive else { return }
+            onJump()
+        } label: {
+            Image(systemName: "arrow.up.forward.app")
+                .font(.system(size: 8.5, weight: .semibold))
+                .foregroundStyle(ExpandedNotchVisualStyle.textColor(.tertiary))
+                .frame(width: 22, height: 22)
+                .background(.white.opacity(isHighlighted ? 0.04 : 0), in: Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Jump to session")
+        .help("Jump to session")
     }
 
     private func detailToggleButton(isOpen: Bool) -> some View {

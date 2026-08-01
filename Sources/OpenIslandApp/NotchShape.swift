@@ -67,8 +67,8 @@ extension NotchShape {
     /// with the physical MacBook notch on built-in displays. The closed
     /// state no longer uses this shape — it renders via `V6ClosedPillShape`
     /// instead.
-    static let openedTopRadius: CGFloat = 22
-    static let openedBottomRadius: CGFloat = 22
+    static let openedTopRadius: CGFloat = 15
+    static let openedBottomRadius: CGFloat = 20
 
     static var opened: NotchShape {
         NotchShape(topCornerRadius: openedTopRadius, bottomCornerRadius: openedBottomRadius)

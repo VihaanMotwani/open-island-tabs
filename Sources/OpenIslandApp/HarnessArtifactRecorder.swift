@@ -169,7 +169,7 @@ enum HarnessArtifactRecorder {
             selectedSessionID: model.selectedSessionID,
             islandSurface: surfaceDescription(model.islandSurface),
             notchStatus: notchStatusDescription(model.notchStatus),
-            selectedTab: model.selectedIslandTab == .spotify ? "spotify" : "agents",
+            selectedTab: selectedTabDescription(model.selectedIslandTab),
             mediaAvailability: model.spotifyPlayback.snapshot.availability == .running
                 ? "running"
                 : "notRunning",
@@ -298,6 +298,17 @@ enum HarnessArtifactRecorder {
             "opened"
         case .popping:
             "popping"
+        }
+    }
+
+    private static func selectedTabDescription(_ tab: IslandTab) -> String {
+        switch tab {
+        case .agents:
+            "agents"
+        case .spotify:
+            "spotify"
+        case .tasks:
+            "tasks"
         }
     }
 

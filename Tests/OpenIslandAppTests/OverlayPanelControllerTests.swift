@@ -4,6 +4,17 @@ import Testing
 
 struct OverlayPanelControllerTests {
     @Test
+    func panelResizeAnimationMatchesMacIslandMotionAndReducedMotion() {
+        #expect(PanelResizeAnimationPolicy.duration == 0.30)
+        #expect(PanelResizeAnimationPolicy.shouldAnimate(
+            requested: true,
+            reduceMotion: false
+        ))
+        #expect(!PanelResizeAnimationPolicy.shouldAnimate(requested: true, reduceMotion: true))
+        #expect(!PanelResizeAnimationPolicy.shouldAnimate(requested: false, reduceMotion: false))
+    }
+
+    @Test
     func standaloneMouseWheelUsesSingle60HzFrameDriver() {
         #expect(SmoothWheelScrollPolicy.shouldHandle(
             phase: [],
@@ -99,41 +110,16 @@ struct OverlayPanelControllerTests {
     }
 
     @Test
-    func closedInteractionAreaIncludesTabsPeekingBelowNotch() {
+    func closedInteractionAreaMatchesTheVisibleClosedSurface() {
         let notchRect = NSRect(x: 400, y: 1_000, width: 200, height: 38)
         let rect = OverlayPanelController.closedInteractionRect(
             notchRect: notchRect,
             closedWidth: 288
         )
 
-        #expect(rect.minY == 970)
+        #expect(rect.minY == notchRect.minY)
         #expect(rect.maxY == notchRect.maxY)
-        #expect(rect.height == 68)
-    }
-
-    @Test
-    func peekingTabHitTestingMapsLeftToAgentsAndRightToSpotify() {
-        let notchRect = NSRect(x: 400, y: 1_000, width: 200, height: 38)
-        let tabY = notchRect.minY - 15
-
-        #expect(
-            OverlayPanelController.closedTab(
-                at: NSPoint(x: notchRect.midX - 18, y: tabY),
-                notchRect: notchRect
-            ) == .agents
-        )
-        #expect(
-            OverlayPanelController.closedTab(
-                at: NSPoint(x: notchRect.midX + 18, y: tabY),
-                notchRect: notchRect
-            ) == .spotify
-        )
-        #expect(
-            OverlayPanelController.closedTab(
-                at: NSPoint(x: notchRect.midX, y: notchRect.midY),
-                notchRect: notchRect
-            ) == nil
-        )
+        #expect(rect.height == notchRect.height)
     }
 
     @Test
@@ -191,6 +177,22 @@ struct OverlayPanelControllerTests {
         #expect(!OverlayPanelController.shouldActivatePanel(for: .notification))
         #expect(!OverlayPanelController.shouldActivatePanel(for: .boot))
         #expect(!OverlayPanelController.shouldActivatePanel(for: nil))
+    }
+
+    @Test
+    func pointerExitRelinquishesKeyboardFocusAfterIslandInteraction() {
+        #expect(OverlayPanelController.shouldResignPanelKey(
+            isPointerInsideExpandedArea: false,
+            isPanelKey: true
+        ))
+        #expect(!OverlayPanelController.shouldResignPanelKey(
+            isPointerInsideExpandedArea: true,
+            isPanelKey: true
+        ))
+        #expect(!OverlayPanelController.shouldResignPanelKey(
+            isPointerInsideExpandedArea: false,
+            isPanelKey: false
+        ))
     }
 
     // MARK: - islandClosedHeight

@@ -125,3 +125,100 @@ A separate crop comparison was not needed because the source and implementation 
 - None required for fidelity. A future iteration could replace synthetic session copy with a newly generated privacy-neutral variant if desired.
 
 final result: passed
+
+---
+
+# macIsland UI Design QA
+
+## Reference
+
+- AyushmanMalla/macIsland at commit `7f8a6efb3a28e7c85efee973184c811e457306a6`
+- Local reference bundle: `/Users/vihaan/Downloads/macIsland.app.zip`
+- Source measurements verified directly against `ExpandedIslandLayout.swift`,
+  `ExpandedIslandView.swift`, `MusicTabView.swift`, `TasksView.swift`, and
+  `TaskRowView.swift`
+- The closest source visual truth for the Agents body is macIsland's task row:
+  a 12-point continuous radius, 12-point horizontal content inset, 8-point row
+  gap, 0.08 white fill for active rows, and 0.05 fill for completed rows.
+- The source tab control is a native small segmented `Picker`, 144 points wide
+  for two 72-point text segments, with a 0.30-second snappy transition.
+- Open Island adapts that exact native control to three 72-point text segments:
+  Agents, Spotify, and To-do.
+
+The reference app was not relaunched after the forced reference harness caused
+its screen-sized transparent panel to remain interactive. Final QA deliberately
+uses Open Island's bounded deterministic harness instead.
+
+## Captures checked
+
+- Spotify: `output/harness/header-insets/spotifyPlayer/overlay.png` — 443 x 214 points
+- To-do: `output/harness/header-insets/tasksList/overlay.png` — 446 x 360 points
+- Agents: `output/harness/agents-card-final/sessionList/overlay.png` — 486 x 350 points
+- Claude demo: `output/harness/agents-card-final/claudeDemo/overlay.png` — 486 x 350 points
+- Approval: `output/harness/agents-card-final/approvalCard/overlay.png` — 486 x 329 points
+- Question: `output/harness/agents-card-final/questionCard/overlay.png` — 486 x 457 points
+- Completion: `output/harness/agents-card-final/completionCard/overlay.png` — 486 x 257 points
+- Before/after tab-chrome comparison:
+  `output/harness/macisland-motion/spotify-tabs-before-after.png`
+- macIsland task-row / Open Island agent-card comparison:
+  `output/harness/agents-card-final/macisland-tasks-vs-agents.png`
+
+## Visual and behavior checks
+
+- Unified black surface stretches through the physical-notch header.
+- Mute, settings, and quit remain visible in the physical notch's right wing on
+  all three panel widths. Width calculations reserve the complete 82-point
+  control group instead of allowing the hardware notch to occlude it.
+- Usage and header controls share the same 30-point horizontal content inset,
+  so neither cluster sits against the concave silhouette edge. Compact tabs
+  widen only when the hardware-notch clearance requires it.
+- Agent usage is rendered only when Agents is selected; Spotify and To-do
+  captures contain no usage percentage or provider chip.
+- The previous custom icon-and-label Open Island tabs are gone. Tabs now use
+  macIsland's native small segmented `Picker`, with text-only segments and the
+  platform-selected fill.
+- Forward selection slides content in from the trailing edge; backward selection
+  slides it in from the leading edge. Panel width and height animate over the
+  same 0.30-second interval instead of snapping between tab sizes.
+- Spotify uses 68-point artwork, a 15-point radius, centered title and artist,
+  source-matched transport sizing, a thin seek control, and a volume popover.
+- To-do uses the source-matched checklist field, 36-point input, 34-point rows,
+  8-point row spacing, 12-point radii, context-menu edit/delete, completion
+  ordering, and five fully visible rows before scrolling.
+- Agents use the same card radius, fill, inner padding, and row spacing as
+  macIsland's task list. The section title and metadata hierarchy are quieter,
+  without the old full-width divider treatment.
+- Agents keep expandable rows, dedicated jump controls, timers, grouping,
+  approvals, questions, replies, and auto-expanded actionable content.
+- Agents, Spotify, and To-do use different bounded panel sizes.
+- Closed hit testing no longer extends into a hidden peeking-tab strip, and a
+  closed click no longer pins the island open.
+- Reduced Motion disables the custom spring/blur/scale transitions.
+
+## Safety and accessibility
+
+- Every deterministic overlay remained between 426 and 486 points wide; no
+  screen-sized interactive window is used.
+- Harness accessibility snapshots expose all tabs, transport buttons, task
+  completion controls, header controls, jump controls, and approval actions.
+- Reduced Motion disables both directional content movement and AppKit panel
+  resizing while keeping a simple opacity change.
+
+## Agents comparison history
+
+- The source-matched Open Island task capture is 892 x 720 pixels (446 x 360
+  points at 2x); the Agents implementation capture is 972 x 700 pixels (486 x
+  350 points at 2x). The side-by-side comparison preserves both at original
+  resolution and pads only the Agents canvas by 10 points at the bottom for
+  alignment.
+- macIsland has no Agents surface, so the task row is the closest source state.
+  The comparison intentionally checks the shared card visual tokens; the
+  separate approval, question, completion, and Claude captures verify Open
+  Island's agent-specific behavior.
+- First pass replaced the flat rows with source-matched cards but exposed a
+  clipped second-row sliver. The final pass updated the row-height estimator to
+  include the two-line summary, card gaps, and list padding. Both representative
+  cards are now fully visible, and every deterministic expanded state fits its
+  bounded panel.
+
+final result: passed

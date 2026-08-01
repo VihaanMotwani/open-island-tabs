@@ -150,6 +150,10 @@ final class OverlayUICoordinator {
     func selectIslandTab(_ tab: IslandTab) {
         tabSelection.select(tab)
 
+        if notchStatus == .opened {
+            refreshOverlayPlacement()
+        }
+
         guard tabSelection.activeTakeover != nil else {
             return
         }
@@ -168,7 +172,7 @@ final class OverlayUICoordinator {
 
     func openIslandTab(_ tab: IslandTab) {
         selectIslandTab(tab)
-        notchOpen(reason: .click)
+        notchOpen(reason: .hover)
     }
 
     func notchOpen(reason: NotchOpenReason, surface: IslandSurface = .sessionList()) {

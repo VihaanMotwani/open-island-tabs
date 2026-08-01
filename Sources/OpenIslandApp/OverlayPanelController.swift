@@ -4,6 +4,14 @@ import QuartzCore
 import SwiftUI
 import OpenIslandCore
 
+enum PanelResizeAnimationPolicy {
+    static let duration: TimeInterval = 0.30
+
+    static func shouldAnimate(requested: Bool, reduceMotion: Bool) -> Bool {
+        requested && !reduceMotion
+    }
+}
+
 @MainActor
 final class OverlayPanelController {
     private static let preferredNotificationPanelWidth: CGFloat = 620
@@ -22,8 +30,6 @@ final class OverlayPanelController {
     private static let completionCardChromeHeight: CGFloat = 187
     private static let completionCardMinHeight: CGFloat = 210
     private static let completionCardMaxHeight: CGFloat = 400
-    nonisolated private static let closedTabPeekHeight: CGFloat = 30
-    nonisolated private static let closedTabStripWidth: CGFloat = 88
     private static let openedTabStripHeight = ExpandedNotchLayoutMetrics.tabSwitcherHeight
 
     private var panel: NotchPanel?
@@ -39,6 +45,13 @@ final class OverlayPanelController {
 
     nonisolated static func shouldActivatePanel(for reason: NotchOpenReason?) -> Bool {
         reason == .click
+    }
+
+    nonisolated static func shouldResignPanelKey(
+        isPointerInsideExpandedArea: Bool,
+        isPanelKey: Bool
+    ) -> Bool {
+        isPanelKey && !isPointerInsideExpandedArea
     }
 
     func availableDisplayOptions() -> [OverlayDisplayOption] {
@@ -83,6 +96,8 @@ final class OverlayPanelController {
 
         if interactive {
             presentPanel(panel, activates: Self.shouldActivatePanel(for: model?.notchOpenReason))
+        } else if panel.isKeyWindow {
+            panel.resignKey()
         }
     }
 
@@ -155,20 +170,32 @@ final class OverlayPanelController {
 
         let windowFrame = panelFrame(for: model, on: screen)
 
-        // Always set the panel frame instantly — no AppKit animation.
-        // All visual transitions (shape, size, opacity, corner radius) are
-        // driven by SwiftUI's .animation() modifier on the content view.
-        // Mixing NSAnimationContext with SwiftUI spring animations caused
-        // visible jank because the two systems have different timing curves,
-        // durations, and start times (AppKit was deferred by one runloop).
         if panel.frame != windowFrame {
-            panel.setFrame(windowFrame, display: true)
+            let shouldAnimate = PanelResizeAnimationPolicy.shouldAnimate(
+                requested: animated && panel.isVisible,
+                reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+            )
+
+            if shouldAnimate {
+                NSAnimationContext.runAnimationGroup { context in
+                    context.duration = PanelResizeAnimationPolicy.duration
+                    context.timingFunction = CAMediaTimingFunction(
+                        controlPoints: 0.16,
+                        1,
+                        0.3,
+                        1
+                    )
+                    panel.animator().setFrame(windowFrame, display: true)
+                }
+            } else {
+                panel.setFrame(windowFrame, display: true)
+            }
         }
         computeNotchRect(screen: screen)
 
         return OverlayDisplayResolver.diagnostics(
             preferredScreenID: preferredScreenID,
-            panelSize: panel.frame.size
+            panelSize: windowFrame.size
         )
     }
 
@@ -236,15 +263,20 @@ final class OverlayPanelController {
         guard let model else { return }
 
         let inClosedSurfaceArea = isPointInClosedSurfaceArea(screenLocation)
+        let inExpandedArea = model.notchStatus == .opened
+            && isPointInExpandedArea(screenLocation)
 
         if model.notchStatus == .closed && inClosedSurfaceArea {
-            if let tab = Self.closedTab(at: screenLocation, notchRect: notchRect),
-               model.preferredIslandTab != tab {
-                model.selectIslandTab(tab)
-            }
             scheduleHoverOpen()
         } else if model.notchStatus == .closed && !inClosedSurfaceArea {
             cancelHoverOpen()
+        }
+
+        if Self.shouldResignPanelKey(
+            isPointerInsideExpandedArea: inExpandedArea,
+            isPanelKey: panel?.isKeyWindow == true
+        ) {
+            panel?.resignKey()
         }
 
         let shouldTrackNotificationPointer = model.notchStatus == .opened
@@ -252,7 +284,7 @@ final class OverlayPanelController {
             && model.showsNotificationCard
 
         if shouldTrackNotificationPointer || model.shouldAutoCollapseOnMouseLeave {
-            if isPointInExpandedArea(screenLocation) {
+            if inExpandedArea {
                 model.notePointerInsideIslandSurface()
             } else {
                 model.handlePointerExitedIslandSurface()
@@ -267,13 +299,6 @@ final class OverlayPanelController {
 
         if model.notchStatus == .closed && inClosedSurfaceArea {
             cancelHoverOpenImmediately()
-            if let tab = Self.closedTab(at: screenLocation, notchRect: notchRect) {
-                model.selectIslandTab(tab)
-                if tab == .spotify {
-                    model.openSpotifyIfNeeded()
-                }
-            }
-            model.notchOpen(reason: .click)
         } else if model.notchStatus == .opened {
             if !isPointInExpandedArea(screenLocation) {
                 model.notchClose()
@@ -425,30 +450,9 @@ final class OverlayPanelController {
     ) -> NSRect {
         let surfaceRect = closedSurfaceRect(
             notchRect: notchRect,
-            closedWidth: max(closedWidth, closedTabStripWidth)
+            closedWidth: closedWidth
         )
-        return NSRect(
-            x: surfaceRect.minX,
-            y: surfaceRect.minY - closedTabPeekHeight,
-            width: surfaceRect.width,
-            height: surfaceRect.height + closedTabPeekHeight
-        )
-    }
-
-    nonisolated static func closedTab(
-        at screenPoint: NSPoint,
-        notchRect: NSRect
-    ) -> IslandTab? {
-        let tabRect = NSRect(
-            x: notchRect.midX - closedTabStripWidth / 2,
-            y: notchRect.minY - closedTabPeekHeight,
-            width: closedTabStripWidth,
-            height: closedTabPeekHeight
-        )
-        guard rectContainsIncludingEdges(tabRect, point: screenPoint) else {
-            return nil
-        }
-        return screenPoint.x < notchRect.midX ? .agents : .spotify
+        return surfaceRect
     }
 
     nonisolated static func rectContainsIncludingEdges(_ rect: NSRect, point: NSPoint) -> Bool {
@@ -525,11 +529,9 @@ final class OverlayPanelController {
 
         let panelWidth = openedPanelWidth(for: model, on: screen)
         let contentHeight = openedContentHeight(for: model)
-        // Use at least the empty-state height so the window doesn't shrink
-        // when sessions come and go while opened.
         let height = screen.notchSize.height
             + Self.openedTabStripHeight
-            + max(contentHeight, ExpandedNotchLayoutMetrics.agentsEmptyStateHeight)
+            + contentHeight
             + Self.openedContentBottomPadding
             + insets.bottom
 
@@ -558,8 +560,15 @@ final class OverlayPanelController {
     }
 
     private func openedContentHeight(for model: AppModel) -> CGFloat {
-        if model.selectedIslandTab == .spotify {
+        switch model.selectedIslandTab {
+        case .spotify:
             return ExpandedNotchLayoutMetrics.spotifyContentHeight
+        case .tasks:
+            return ExpandedNotchLayoutMetrics.tasksContentHeight(
+                totalCount: model.taskStore.tasks.count
+            )
+        case .agents:
+            break
         }
 
         let now = Date.now
@@ -621,13 +630,20 @@ final class OverlayPanelController {
     }
 
     private func openedPanelWidth(for model: AppModel, on screen: NSScreen) -> CGFloat {
-        guard model.selectedIslandTab == .spotify else {
+        switch model.selectedIslandTab {
+        case .agents:
             return openedPanelWidth(for: screen)
+        case .spotify:
+            return ExpandedNotchLayoutMetrics.spotifySurfaceWidth(
+                availableScreenWidth: screen.visibleFrame.width,
+                notchWidth: screen.safeAreaInsets.top > 0 ? screen.notchSize.width : 0
+            )
+        case .tasks:
+            return ExpandedNotchLayoutMetrics.tasksSurfaceWidth(
+                availableScreenWidth: screen.visibleFrame.width,
+                notchWidth: screen.safeAreaInsets.top > 0 ? screen.notchSize.width : 0
+            )
         }
-
-        return ExpandedNotchLayoutMetrics.spotifySurfaceWidth(
-            availableScreenWidth: screen.visibleFrame.width
-        )
     }
 
     /// Additional height for the actionable session's inline action area.

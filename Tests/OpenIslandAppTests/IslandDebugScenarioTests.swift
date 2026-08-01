@@ -27,6 +27,22 @@ struct IslandDebugScenarioTests {
         )
     }
 
+    @Test @MainActor
+    func tasksScenarioCarriesAndLoadsDeterministicTaskState() {
+        let snapshot = IslandDebugScenario.tasksList.snapshot()
+        let storageURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathComponent("tasks.json")
+        let model = AppModel(taskStore: TaskStore(storageURL: storageURL))
+
+        model.loadDebugSnapshot(snapshot)
+
+        #expect(snapshot.selectedTab == .tasks)
+        #expect(snapshot.tasks.count == 7)
+        #expect(snapshot.tasks.filter(\.isCompleted).count == 2)
+        #expect(model.taskStore.tasks == snapshot.tasks)
+    }
+
     @Test
     func closedScenarioCarriesPlayingStateForTheAmbientIndicator() {
         let snapshot = IslandDebugScenario.closed.snapshot()

@@ -472,7 +472,7 @@ struct AgentSessionPresentationTests {
             session.spotlightElapsedTimers[2].elapsed(at: referenceDate),
             includingSecondsWhenHours: true
         ) == "1h 43m 37s")
-        #expect(session.estimatedIslandRowHeight(at: referenceDate) == 106)
+        #expect(session.estimatedIslandRowHeight(at: referenceDate) == 122)
     }
 
     @Test

@@ -47,6 +47,13 @@ final class OverlayPanelController {
         reason == .click
     }
 
+    nonisolated static func shouldResignPanelKey(
+        isPointerInsideExpandedArea: Bool,
+        isPanelKey: Bool
+    ) -> Bool {
+        isPanelKey && !isPointerInsideExpandedArea
+    }
+
     func availableDisplayOptions() -> [OverlayDisplayOption] {
         OverlayDisplayResolver.availableDisplayOptions()
     }
@@ -89,6 +96,8 @@ final class OverlayPanelController {
 
         if interactive {
             presentPanel(panel, activates: Self.shouldActivatePanel(for: model?.notchOpenReason))
+        } else if panel.isKeyWindow {
+            panel.resignKey()
         }
     }
 
@@ -254,6 +263,8 @@ final class OverlayPanelController {
         guard let model else { return }
 
         let inClosedSurfaceArea = isPointInClosedSurfaceArea(screenLocation)
+        let inExpandedArea = model.notchStatus == .opened
+            && isPointInExpandedArea(screenLocation)
 
         if model.notchStatus == .closed && inClosedSurfaceArea {
             scheduleHoverOpen()
@@ -261,12 +272,19 @@ final class OverlayPanelController {
             cancelHoverOpen()
         }
 
+        if Self.shouldResignPanelKey(
+            isPointerInsideExpandedArea: inExpandedArea,
+            isPanelKey: panel?.isKeyWindow == true
+        ) {
+            panel?.resignKey()
+        }
+
         let shouldTrackNotificationPointer = model.notchStatus == .opened
             && model.notchOpenReason == .notification
             && model.showsNotificationCard
 
         if shouldTrackNotificationPointer || model.shouldAutoCollapseOnMouseLeave {
-            if isPointInExpandedArea(screenLocation) {
+            if inExpandedArea {
                 model.notePointerInsideIslandSurface()
             } else {
                 model.handlePointerExitedIslandSurface()

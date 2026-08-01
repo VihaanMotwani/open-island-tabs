@@ -179,6 +179,22 @@ struct OverlayPanelControllerTests {
         #expect(!OverlayPanelController.shouldActivatePanel(for: nil))
     }
 
+    @Test
+    func pointerExitRelinquishesKeyboardFocusAfterIslandInteraction() {
+        #expect(OverlayPanelController.shouldResignPanelKey(
+            isPointerInsideExpandedArea: false,
+            isPanelKey: true
+        ))
+        #expect(!OverlayPanelController.shouldResignPanelKey(
+            isPointerInsideExpandedArea: true,
+            isPanelKey: true
+        ))
+        #expect(!OverlayPanelController.shouldResignPanelKey(
+            isPointerInsideExpandedArea: false,
+            isPanelKey: false
+        ))
+    }
+
     // MARK: - islandClosedHeight
 
     @Test

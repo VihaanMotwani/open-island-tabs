@@ -1036,7 +1036,8 @@ struct IslandPanelView: View {
     }
 
     private var openedUsageProviders: [UsageProviderPresentation] {
-        guard model.islandUsageDisplay == .compact else {
+        guard model.selectedIslandTab.showsAgentUsage,
+              model.islandUsageDisplay == .compact else {
             return []
         }
 

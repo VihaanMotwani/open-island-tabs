@@ -4,6 +4,10 @@ enum IslandTab: Equatable, Sendable {
     case agents
     case spotify
     case tasks
+
+    var showsAgentUsage: Bool {
+        self == .agents
+    }
 }
 
 enum AgentTabTakeover: Equatable, Sendable {

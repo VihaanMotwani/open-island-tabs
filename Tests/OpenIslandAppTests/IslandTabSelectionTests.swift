@@ -3,6 +3,13 @@ import Testing
 
 struct IslandTabSelectionTests {
     @Test
+    func onlyAgentsTabShowsAgentUsage() {
+        #expect(IslandTab.agents.showsAgentUsage)
+        #expect(!IslandTab.spotify.showsAgentUsage)
+        #expect(!IslandTab.tasks.showsAgentUsage)
+    }
+
+    @Test
     @MainActor
     func openingSpotifyTabSelectsItAndKeepsHoverCollapseBehavior() {
         let overlay = OverlayUICoordinator()

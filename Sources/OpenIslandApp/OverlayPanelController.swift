@@ -44,7 +44,7 @@ final class OverlayPanelController {
     }
 
     nonisolated static func shouldActivatePanel(for reason: NotchOpenReason?) -> Bool {
-        reason == .click
+        false
     }
 
     nonisolated static func shouldResignPanelKey(
@@ -128,7 +128,7 @@ final class OverlayPanelController {
         )
 
         panel.isFloatingPanel = true
-        panel.becomesKeyOnlyIfNeeded = false
+        panel.becomesKeyOnlyIfNeeded = true
         panel.level = .statusBar
         panel.sharingType = .readOnly
         panel.backgroundColor = .clear
@@ -999,15 +999,6 @@ final class NotchHostingView<Content: View>: NSHostingView<Content> {
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
         true
-    }
-
-    override func mouseDown(with event: NSEvent) {
-        // Ensure the panel is key before SwiftUI processes the click.
-        // With nonactivatingPanel, hover-opened panels aren't key, so
-        // SwiftUI Button may consume the first click for key acquisition
-        // instead of firing its action.
-        window?.makeKey()
-        super.mouseDown(with: event)
     }
 
     required init(rootView: Content) {

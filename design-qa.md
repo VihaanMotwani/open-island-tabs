@@ -137,6 +137,9 @@ final result: passed
 - Source measurements verified directly against `ExpandedIslandLayout.swift`,
   `ExpandedIslandView.swift`, `MusicTabView.swift`, `TasksView.swift`, and
   `TaskRowView.swift`
+- The closest source visual truth for the Agents body is macIsland's task row:
+  a 12-point continuous radius, 12-point horizontal content inset, 8-point row
+  gap, 0.08 white fill for active rows, and 0.05 fill for completed rows.
 - The source tab control is a native small segmented `Picker`, 144 points wide
   for two 72-point text segments, with a 0.30-second snappy transition.
 - Open Island adapts that exact native control to three 72-point text segments:
@@ -150,10 +153,15 @@ uses Open Island's bounded deterministic harness instead.
 
 - Spotify: `output/harness/header-insets/spotifyPlayer/overlay.png` — 443 x 214 points
 - To-do: `output/harness/header-insets/tasksList/overlay.png` — 446 x 360 points
-- Agents: `output/harness/header-insets/sessionList/overlay.png` — 486 x 296 points
-- Approval: `output/harness/macisland-motion/approvalCard/overlay.png` — 486 x 321 points
+- Agents: `output/harness/agents-card-final/sessionList/overlay.png` — 486 x 350 points
+- Claude demo: `output/harness/agents-card-final/claudeDemo/overlay.png` — 486 x 350 points
+- Approval: `output/harness/agents-card-final/approvalCard/overlay.png` — 486 x 329 points
+- Question: `output/harness/agents-card-final/questionCard/overlay.png` — 486 x 457 points
+- Completion: `output/harness/agents-card-final/completionCard/overlay.png` — 486 x 257 points
 - Before/after tab-chrome comparison:
   `output/harness/macisland-motion/spotify-tabs-before-after.png`
+- macIsland task-row / Open Island agent-card comparison:
+  `output/harness/agents-card-final/macisland-tasks-vs-agents.png`
 
 ## Visual and behavior checks
 
@@ -177,8 +185,11 @@ uses Open Island's bounded deterministic harness instead.
 - To-do uses the source-matched checklist field, 36-point input, 34-point rows,
   8-point row spacing, 12-point radii, context-menu edit/delete, completion
   ordering, and five fully visible rows before scrolling.
-- Agents keep compact expandable rows, dedicated jump controls, timers,
-  grouping, approvals, questions, replies, and auto-expanded actionable content.
+- Agents use the same card radius, fill, inner padding, and row spacing as
+  macIsland's task list. The section title and metadata hierarchy are quieter,
+  without the old full-width divider treatment.
+- Agents keep expandable rows, dedicated jump controls, timers, grouping,
+  approvals, questions, replies, and auto-expanded actionable content.
 - Agents, Spotify, and To-do use different bounded panel sizes.
 - Closed hit testing no longer extends into a hidden peeking-tab strip, and a
   closed click no longer pins the island open.
@@ -192,5 +203,22 @@ uses Open Island's bounded deterministic harness instead.
   completion controls, header controls, jump controls, and approval actions.
 - Reduced Motion disables both directional content movement and AppKit panel
   resizing while keeping a simple opacity change.
+
+## Agents comparison history
+
+- The source-matched Open Island task capture is 892 x 720 pixels (446 x 360
+  points at 2x); the Agents implementation capture is 972 x 700 pixels (486 x
+  350 points at 2x). The side-by-side comparison preserves both at original
+  resolution and pads only the Agents canvas by 10 points at the bottom for
+  alignment.
+- macIsland has no Agents surface, so the task row is the closest source state.
+  The comparison intentionally checks the shared card visual tokens; the
+  separate approval, question, completion, and Claude captures verify Open
+  Island's agent-specific behavior.
+- First pass replaced the flat rows with source-matched cards but exposed a
+  clipped second-row sliver. The final pass updated the row-height estimator to
+  include the two-line summary, card gaps, and list padding. Both representative
+  cards are now fully visible, and every deterministic expanded state fits its
+  bounded panel.
 
 final result: passed

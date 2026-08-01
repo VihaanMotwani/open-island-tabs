@@ -74,9 +74,9 @@ extension AgentSession {
     /// Estimated row height matching `IslandSessionRow` layout for viewport sizing.
     func estimatedIslandRowHeight(at date: Date, showsDetail: Bool? = nil) -> CGFloat {
         let presence = islandPresence(at: date)
-        // v8 list rows are full-width scan rows, not rounded cards.
-        // Base: vertical padding (22) + headline (~17) + divider rounding.
-        var height: CGFloat = 40
+        // macIsland-style rows reserve a two-line summary inside a rounded
+        // card. Base: vertical padding + headline + metadata row.
+        var height: CGFloat = 56
         let includesDetail = showsDetail ?? showsDetailByDefaultInIslandList(at: date)
         guard presence != .inactive, includesDetail else { return height }
         if spotlightPromptLineText != nil { height += 32 }
@@ -702,7 +702,7 @@ struct IslandPanelView: View {
                     isActionable: true,
                     isInteractive: model.notchStatus == .opened,
                     presentation: .notification,
-                    sideInset: sessionListSideInset,
+                    sideInset: ExpandedNotchLayoutMetrics.agentCardHorizontalPadding,
                     lang: model.lang,
                     onApprove: { model.approvePermission(for: session.id, action: $0) },
                     onAnswer: { model.answerQuestion(for: session.id, answer: $0) },
@@ -711,6 +711,8 @@ struct IslandPanelView: View {
                     onJump: { model.jumpToSession(session) }
                 )
                 .id(notificationCardIdentity(for: session))
+                .padding(.horizontal, sessionListSideInset)
+                .padding(.top, ExpandedNotchLayoutMetrics.agentListVerticalPadding)
 
                 if model.allSessions.count > 1 {
                     Button {
@@ -777,32 +779,36 @@ struct IslandPanelView: View {
 
     @ViewBuilder
     private func sessionRowsContent(referenceDate: Date) -> some View {
-        LazyVStack(alignment: .leading, spacing: 0) {
+        LazyVStack(alignment: .leading, spacing: ExpandedNotchLayoutMetrics.agentCardSpacing) {
             ForEach(model.islandSessionSections) { section in
-                if model.islandSessionGroup != .none {
-                    sessionSectionHeader(section)
-                }
+                VStack(alignment: .leading, spacing: ExpandedNotchLayoutMetrics.agentCardSpacing) {
+                    if model.islandSessionGroup != .none {
+                        sessionSectionHeader(section)
+                    }
 
-                ForEach(section.sessions) { session in
-                    IslandSessionRow(
-                        session: session,
-                        referenceDate: referenceDate,
-                        stateIndicator: model.islandSessionStateIndicator,
-                        completedStaleThreshold: model.completedStaleThreshold.seconds,
-                        isActionable: session.phase.requiresAttention || session.id == actionableSessionID,
-                        isInteractive: model.notchStatus == .opened,
-                        sideInset: sessionListSideInset,
-                        lang: model.lang,
-                        onApprove: { model.approvePermission(for: session.id, action: $0) },
-                        onAnswer: { model.answerQuestion(for: session.id, answer: $0) },
-                        onReply: TerminalTextSender.canReply(to: session, enabled: model.completionReplyEnabled)
-                            ? { model.replyToSession(session, text: $0) } : nil,
-                        onJump: { model.jumpToSession(session) },
-                        onDismiss: session.isRemote ? { model.dismissSession(session.id) } : nil
-                    )
+                    ForEach(section.sessions) { session in
+                        IslandSessionRow(
+                            session: session,
+                            referenceDate: referenceDate,
+                            stateIndicator: model.islandSessionStateIndicator,
+                            completedStaleThreshold: model.completedStaleThreshold.seconds,
+                            isActionable: session.phase.requiresAttention || session.id == actionableSessionID,
+                            isInteractive: model.notchStatus == .opened,
+                            sideInset: ExpandedNotchLayoutMetrics.agentCardHorizontalPadding,
+                            lang: model.lang,
+                            onApprove: { model.approvePermission(for: session.id, action: $0) },
+                            onAnswer: { model.answerQuestion(for: session.id, answer: $0) },
+                            onReply: TerminalTextSender.canReply(to: session, enabled: model.completionReplyEnabled)
+                                ? { model.replyToSession(session, text: $0) } : nil,
+                            onJump: { model.jumpToSession(session) },
+                            onDismiss: session.isRemote ? { model.dismissSession(session.id) } : nil
+                        )
+                    }
                 }
             }
         }
+        .padding(.horizontal, sessionListSideInset)
+        .padding(.vertical, ExpandedNotchLayoutMetrics.agentListVerticalPadding)
     }
 
     private func sessionPanelHeader(referenceDate: Date) -> some View {
@@ -810,7 +816,7 @@ struct IslandPanelView: View {
 
         return HStack(spacing: 8) {
             Text(lang.t("island.sessionList.title"))
-                .font(.caption2.weight(.semibold))
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(ExpandedNotchVisualStyle.textColor(.secondary))
 
             ViewThatFits(in: .horizontal) {
@@ -823,21 +829,11 @@ struct IslandPanelView: View {
         .padding(.leading, sessionListSideInset)
         .padding(.trailing, sessionListSideInset)
         .frame(height: ExpandedNotchLayoutMetrics.sessionHeaderHeight)
-        .overlay(alignment: .bottom) {
-            Rectangle()
-                .fill(.white.opacity(ExpandedNotchVisualStyle.dividerOpacity))
-                .frame(height: 1)
-        }
     }
 
     private var sessionPanelFooter: some View {
         Color.clear
             .frame(height: ExpandedNotchLayoutMetrics.sessionFooterHeight)
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(.white.opacity(ExpandedNotchVisualStyle.dividerOpacity))
-                .frame(height: 1)
-        }
     }
 
     private func sessionOverviewItems(referenceDate: Date) -> [SessionOverviewItem] {
@@ -923,16 +919,8 @@ struct IslandPanelView: View {
                 .foregroundStyle(ExpandedNotchVisualStyle.textColor(.subdued))
             Spacer(minLength: 0)
         }
-        .padding(.leading, sessionListSideInset)
-        .padding(.trailing, sessionListSideInset)
-        .padding(.top, 10)
-        .padding(.bottom, 7)
-        .background(Color.white.opacity(0.008))
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(.white.opacity(ExpandedNotchVisualStyle.dividerOpacity))
-                .frame(height: 1)
-        }
+        .padding(.horizontal, ExpandedNotchLayoutMetrics.agentCardHorizontalPadding)
+        .frame(height: 24)
     }
 
     private func sectionTint(for section: IslandSessionSection) -> Color {
@@ -1416,11 +1404,19 @@ private struct IslandSessionRow: View {
                 }
             }
         }
-        .background(rowFillColor(for: presence))
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(.white.opacity(ExpandedNotchVisualStyle.dividerOpacity))
-                .frame(height: 1)
+        .background {
+            RoundedRectangle(
+                cornerRadius: ExpandedNotchLayoutMetrics.agentCardCornerRadius,
+                style: .continuous
+            )
+            .fill(rowFillColor(for: presence))
+        }
+        .overlay {
+            RoundedRectangle(
+                cornerRadius: ExpandedNotchLayoutMetrics.agentCardCornerRadius,
+                style: .continuous
+            )
+            .strokeBorder(actionableBorderColor, lineWidth: 0.5)
         }
         .overlay(alignment: .leading) {
             if showsLeadingStatusBar {
@@ -1432,7 +1428,12 @@ private struct IslandSessionRow: View {
             }
         }
         .opacity(isStaleCompleted ? 0.7 : 1)
-        .contentShape(Rectangle())
+        .contentShape(
+            RoundedRectangle(
+                cornerRadius: ExpandedNotchLayoutMetrics.agentCardCornerRadius,
+                style: .continuous
+            )
+        )
         .animation(reduceMotion ? nil : .easeOut(duration: 0.1), value: isHighlighted)
         .onTapGesture {
             handlePrimaryTap(isOpen: showsDetail)
@@ -2130,12 +2131,16 @@ private struct IslandSessionRow: View {
     }
 
     private func rowFillColor(for presence: IslandSessionPresence) -> Color {
-        if presentation == .notification {
-            return Color.clear
+        let baseOpacity: Double
+        if session.phase == .completed {
+            baseOpacity = ExpandedNotchLayoutMetrics.agentCompletedCardFillOpacity
+        } else {
+            baseOpacity = ExpandedNotchLayoutMetrics.agentCardFillOpacity
         }
 
-        let base = isHighlighted ? Color.white.opacity(isActionable ? 0.06 : 0.04) : Color.clear
-        guard stateIndicator == .tint else { return base }
+        let highlightedOpacity = baseOpacity + (isActionable ? 0.04 : 0.025)
+        let base = Color.white.opacity(isHighlighted ? highlightedOpacity : baseOpacity)
+        guard presentation == .list, stateIndicator == .tint else { return base }
 
         let tintOpacity: Double
         if isHighlighted {

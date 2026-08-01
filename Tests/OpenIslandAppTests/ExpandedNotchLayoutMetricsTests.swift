@@ -38,6 +38,19 @@ struct ExpandedNotchLayoutMetricsTests {
     }
 
     @Test
+    func agentsReuseMacIslandCardRhythm() {
+        #expect(ExpandedNotchLayoutMetrics.agentCardCornerRadius == 12)
+        #expect(ExpandedNotchLayoutMetrics.agentCardHorizontalPadding == 12)
+        #expect(
+            ExpandedNotchLayoutMetrics.agentCardSpacing
+                == ExpandedNotchLayoutMetrics.taskRowSpacing
+        )
+        #expect(ExpandedNotchLayoutMetrics.agentCardFillOpacity == 0.08)
+        #expect(ExpandedNotchLayoutMetrics.agentCompletedCardFillOpacity == 0.05)
+        #expect(ExpandedNotchLayoutMetrics.agentListVerticalPadding == 8)
+    }
+
+    @Test
     func expandedSurfacesReserveTheConcaveSilhouetteOutsideVisibleContent() {
         let agentsWidth = ExpandedNotchLayoutMetrics.agentsSurfaceWidth(
             availableScreenWidth: 1_440
@@ -104,13 +117,13 @@ struct ExpandedNotchLayoutMetricsTests {
             ExpandedNotchLayoutMetrics.agentsContentHeight(
                 rowHeights: [106, 40],
                 showsInstallHooksHint: false
-            ) == 206
+            ) == 230
         )
         #expect(
             ExpandedNotchLayoutMetrics.agentsContentHeight(
                 rowHeights: [106, 40],
                 showsInstallHooksHint: true
-            ) == 254
+            ) == 278
         )
         #expect(
             ExpandedNotchLayoutMetrics.agentsContentHeight(

@@ -42,6 +42,12 @@ struct ExpandedNotchLayoutMetrics: Equatable, Sendable {
     static let runningTimerDetailHeight: CGFloat = 34
     static let maximumCompletionMessageHeight: CGFloat = 184
     static let maximumSessionListHeight: CGFloat = 200
+    static let agentCardCornerRadius: CGFloat = 12
+    static let agentCardHorizontalPadding: CGFloat = 12
+    static let agentCardSpacing: CGFloat = 8
+    static let agentCardFillOpacity = 0.08
+    static let agentCompletedCardFillOpacity = 0.05
+    static let agentListVerticalPadding: CGFloat = 8
     static let preferredSpotifyArtworkSize: CGFloat = 68
     static let minimumSpotifyArtworkSize: CGFloat = 64
     static let minimumSpotifyDetailWidth: CGFloat = 220
@@ -124,10 +130,12 @@ struct ExpandedNotchLayoutMetrics: Equatable, Sendable {
         if rowHeights.isEmpty {
             sessionContentHeight = agentsEmptyStateHeight
         } else {
-            sessionContentHeight = min(
-                rowHeights.reduce(CGFloat.zero, +),
-                maximumSessionListHeight
-            ) + agentsListChromeHeight
+            let rowSpacing = CGFloat(max(rowHeights.count - 1, 0)) * agentCardSpacing
+            let cardStackHeight = rowHeights.reduce(CGFloat.zero, +)
+                + rowSpacing
+                + (agentListVerticalPadding * 2)
+            sessionContentHeight = min(cardStackHeight, maximumSessionListHeight)
+                + agentsListChromeHeight
         }
 
         return sessionContentHeight

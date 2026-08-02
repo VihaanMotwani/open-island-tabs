@@ -491,7 +491,9 @@ final class SessionDiscoveryCoordinator {
             // the real task name, an older prompt-shaped database title must
             // never overwrite it on the next maintenance tick.
             guard shouldReplaceWithPersistedCodexTitle(session.title),
-                  let title = titles[session.id],
+                  let title = CodexThreadTitlePresentation.displayTitle(
+                      from: titles[session.id]
+                  ),
                   title != session.title else { continue }
             onAgentEvent?(.sessionTitleUpdated(
                 SessionTitleUpdated(
@@ -509,6 +511,7 @@ final class SessionDiscoveryCoordinator {
             || normalized == "Codex"
             || normalized.hasPrefix("Codex ·")
             || normalized.contains("<recommended_plugins>")
+            || normalized.hasPrefix("<codex_delegation>")
     }
 
     func refreshCodexRolloutTracking() {

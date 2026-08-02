@@ -70,6 +70,41 @@ struct CodexSessionTitleSyncTests {
 
     @MainActor
     @Test
+    func maintenanceUnwrapsPersistedDelegatedTaskTitle() {
+        let now = Date(timeIntervalSince1970: 2_000)
+        let persistedTitle = """
+        <codex_delegation>
+          <source_thread_id>source-thread</source_thread_id>
+          <input>Continue the Open Island approval fix.</input>
+        </codex_delegation>
+        """
+        var session = AgentSession(
+            id: "codex-thread-1",
+            title: persistedTitle,
+            tool: .codex,
+            origin: .live,
+            phase: .running,
+            summary: "Working",
+            updatedAt: now
+        )
+        session.isCodexAppSession = true
+        var state = SessionState(sessions: [session])
+
+        let coordinator = SessionDiscoveryCoordinator()
+        coordinator.stateAccessor = { state }
+        coordinator.stateUpdater = { state = $0 }
+        coordinator.onAgentEvent = { state.apply($0) }
+        coordinator.persistedCodexThreadTitles = { _ in
+            ["codex-thread-1": persistedTitle]
+        }
+
+        coordinator.refreshCodexThreadTitlesIfNeeded(now: now)
+
+        #expect(state.session(id: "codex-thread-1")?.title == "Continue the Open Island approval fix.")
+    }
+
+    @MainActor
+    @Test
     func maintenanceDoesNotOverwriteAppServerTaskNameWithPromptShapedDatabaseTitle() {
         let now = Date(timeIntervalSince1970: 2_000)
         var session = AgentSession(

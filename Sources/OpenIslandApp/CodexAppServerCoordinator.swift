@@ -406,8 +406,7 @@ final class CodexAppServerCoordinator {
     }
 
     private func emitTitleUpdated(sessionID: String, title: String?) {
-        guard let title = title?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !title.isEmpty else {
+        guard let title = CodexThreadTitlePresentation.displayTitle(from: title) else {
             return
         }
 
@@ -423,10 +422,11 @@ final class CodexAppServerCoordinator {
     private func preferredTitle(for thread: CodexThread) -> String? {
         if let name = thread.name?.trimmingCharacters(in: .whitespacesAndNewlines),
            !name.isEmpty {
-            return name
+            return CodexThreadTitlePresentation.displayTitle(from: name)
         }
 
-        return persistedThreadTitle(thread.id)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return CodexThreadTitlePresentation.displayTitle(
+            from: persistedThreadTitle(thread.id)
+        )
     }
 }

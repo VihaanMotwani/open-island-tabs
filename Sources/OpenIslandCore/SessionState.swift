@@ -450,6 +450,10 @@ public struct SessionState: Equatable, Sendable {
         upsert(session)
     }
 
+    public mutating func removeSession(id: String) {
+        sessionsByID.removeValue(forKey: id)
+    }
+
     public mutating func removeInvisibleSessions(
         preservingSessionIDs: Set<String> = []
     ) -> Bool {

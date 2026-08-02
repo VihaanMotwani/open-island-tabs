@@ -973,6 +973,21 @@ public struct CodexRolloutSnapshot: Equatable, Sendable {
 }
 
 public enum CodexRolloutReducer {
+    static func indicatesTurnLifecycle(line: String) -> Bool {
+        guard let object = jsonObject(for: line),
+              object["type"] as? String == "event_msg",
+              let payload = object["payload"] as? [String: Any],
+              let eventType = payload["type"] as? String else {
+            return false
+        }
+
+        return eventType == "task_started"
+            || eventType == "turn_started"
+            || eventType == "task_complete"
+            || eventType == "turn_complete"
+            || eventType == "turn_aborted"
+    }
+
     static func isActiveGoalContinuationPrompt(_ value: String?) -> Bool {
         guard let prompt = value?.trimmingCharacters(in: .whitespacesAndNewlines) else {
             return false
@@ -2515,14 +2530,18 @@ public final class CodexRolloutWatcher: @unchecked Sendable {
         }
         bootstrapSnapshot.runtimeSurface = target.runtimeSurface
 
+        let lifecycleReadLimit = lifecycleBackfillReadLimit(
+            fileHandle: fileHandle,
+            fileSize: fileSize
+        )
         let readLimit = (needsActiveTimerBackfill(for: target)
             || needsGoalContinuationBackfill(
                 for: target,
                 fileHandle: fileHandle,
                 fileSize: fileSize
             ))
-            ? max(initialReadLimit, activeTimerBackfillReadLimit)
-            : initialReadLimit
+            ? max(lifecycleReadLimit, activeTimerBackfillReadLimit)
+            : lifecycleReadLimit
         let startOffset = fileSize > readLimit ? fileSize - readLimit : 0
 
         return Observation(
@@ -2538,6 +2557,48 @@ public final class CodexRolloutWatcher: @unchecked Sendable {
         (target.cachedActiveGoalStartedAt != nil && target.cachedActiveGoalTimer == nil)
             || (target.cachedCurrentTurnStartedAt != nil && target.cachedCurrentTurnTimer == nil)
             || (target.cachedActivePlanStartedAt != nil && target.cachedActivePlanTimer == nil)
+    }
+
+    private func lifecycleBackfillReadLimit(
+        fileHandle: FileHandle,
+        fileSize: UInt64
+    ) -> UInt64 {
+        let maximumReadLimit = min(
+            fileSize,
+            max(initialReadLimit, activeTimerBackfillReadLimit)
+        )
+        var readLimit = min(fileSize, max(initialReadLimit, 1))
+
+        while readLimit > 0 {
+            let startOffset = fileSize - readLimit
+            do {
+                try fileHandle.seek(toOffset: startOffset)
+                var buffer = try fileHandle.read(upToCount: Int(readLimit)) ?? Data()
+                if startOffset > 0 {
+                    trimLeadingPartialLine(from: &buffer)
+                }
+                if buffer.last != UInt8(ascii: "\n") {
+                    buffer.append(UInt8(ascii: "\n"))
+                }
+
+                var scannedByteCount = 0
+                let foundLifecycle = codexExtractCompleteJSONLLines(
+                    from: &buffer,
+                    scannedByteCount: &scannedByteCount
+                ).contains(where: CodexRolloutReducer.indicatesTurnLifecycle)
+                if foundLifecycle || readLimit >= maximumReadLimit {
+                    return readLimit
+                }
+            } catch {
+                return readLimit
+            }
+
+            readLimit = readLimit > maximumReadLimit / 2
+                ? maximumReadLimit
+                : readLimit * 2
+        }
+
+        return min(fileSize, initialReadLimit)
     }
 
     private func needsGoalContinuationBackfill(

@@ -70,6 +70,7 @@ public final class BridgeServer: @unchecked Sendable {
     private var pendingClaudeInteractions: [String: PendingClaudeInteraction] = [:]
     private var pendingOpenCodeInteractions: [String: PendingOpenCodeInteraction] = [:]
     private var pendingCursorInteractions: [String: PendingCursorInteraction] = [:]
+    private var ignoredCodexSessionIDs: Set<String> = []
     /// Caches Agent tool description from preToolUse for use by the next subagentStart.
     private var pendingAgentDescriptions: [String: String] = [:]
     /// Maps toolUseID → temporary task ID for TaskCreate, so postToolUse can update with real ID.
@@ -186,6 +187,7 @@ public final class BridgeServer: @unchecked Sendable {
         pendingTaskCreations.removeAll()
         pendingOpenCodeInteractions.removeAll()
         pendingCursorInteractions.removeAll()
+        ignoredCodexSessionIDs.removeAll()
 
         let activeConnections = Array(clients.values)
         activeConnections.forEach { $0.readSource.cancel() }
@@ -472,6 +474,18 @@ public final class BridgeServer: @unchecked Sendable {
     }
 
     private func handleCodexHook(_ payload: CodexHookPayload, from clientID: UUID) {
+        if CodexInternalSessionClassifier.isTranscriptlessAmbientSession(
+            transcriptPath: payload.transcriptPath,
+            prompts: [payload.prompt]
+        ) {
+            ignoredCodexSessionIDs.insert(payload.sessionID)
+        }
+
+        if ignoredCodexSessionIDs.contains(payload.sessionID) {
+            send(.response(.acknowledged), to: clientID)
+            return
+        }
+
         // Filter out Codex.app internal invocations (e.g. conversation title
         // generation).  These fire hooks but have no transcript file — they're
         // ephemeral API calls, not user-facing sessions.

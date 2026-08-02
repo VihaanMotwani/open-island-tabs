@@ -560,6 +560,66 @@ struct SessionStateTests {
     }
 
     @Test
+    func codexAmbientHookSessionIsSuppressedAcrossLifecycleWithoutFilteringCLI() async throws {
+        let socketURL = BridgeSocketLocation.uniqueTestURL()
+        let server = BridgeServer(socketURL: socketURL)
+        try server.start()
+        defer { server.stop() }
+
+        let observer = LocalBridgeClient(socketURL: socketURL)
+        let stream = try observer.connect()
+        defer { observer.disconnect() }
+        try await observer.send(.registerClient(role: .observer))
+
+        let ambientPrompt = "You are an expert at upholding safety and compliance standards for Codex ambient suggestions. Review this candidate."
+        let ambientStart = CodexHookPayload(
+            cwd: "/tmp/worktree",
+            hookEventName: .sessionStart,
+            model: "gpt-5.6-sol",
+            permissionMode: .default,
+            sessionID: "codex-ambient-safety",
+            transcriptPath: nil,
+            prompt: ambientPrompt
+        )
+        #expect(
+            try BridgeCommandClient(socketURL: socketURL).send(.processCodexHook(ambientStart))
+                == .acknowledged
+        )
+
+        var ambientStop = ambientStart
+        ambientStop.hookEventName = .stop
+        ambientStop.prompt = nil
+        ambientStop.lastAssistantMessage = #"{"exclude":[]}"#
+        #expect(
+            try BridgeCommandClient(socketURL: socketURL).send(.processCodexHook(ambientStop))
+                == .acknowledged
+        )
+
+        let cliStart = CodexHookPayload(
+            cwd: "/tmp/worktree",
+            hookEventName: .sessionStart,
+            model: "gpt-5.6-sol",
+            permissionMode: .default,
+            sessionID: "codex-cli-session",
+            terminalApp: "Ghostty",
+            transcriptPath: nil,
+            prompt: "Run the repository tests."
+        )
+        #expect(
+            try BridgeCommandClient(socketURL: socketURL).send(.processCodexHook(cliStart))
+                == .acknowledged
+        )
+
+        var iterator = stream.makeAsyncIterator()
+        let firstEvent = try await nextEvent(from: &iterator)
+        guard case let .sessionStarted(started) = firstEvent else {
+            Issue.record("Expected the genuine CLI session to be the first visible event")
+            return
+        }
+        #expect(started.sessionID == "codex-cli-session")
+    }
+
+    @Test
     func openCodeQuestionAskedCarriesStructuredOptionsUntilAnswered() async throws {
         let socketURL = BridgeSocketLocation.uniqueTestURL()
         let server = BridgeServer(socketURL: socketURL)

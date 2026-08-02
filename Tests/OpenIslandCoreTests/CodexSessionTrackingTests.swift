@@ -1896,6 +1896,71 @@ struct CodexSessionTrackingTests {
     }
 
     @Test
+    func codexRolloutWatcherFindsCompletionBeforeOversizedTrailingSessionMetadata() async throws {
+        let rootURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("open-island-rollout-trailing-meta-\(UUID().uuidString)", isDirectory: true)
+        let rolloutURL = rootURL.appendingPathComponent("rollout.jsonl")
+        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: rootURL) }
+
+        let lines = [
+            rolloutLine(
+                timestamp: "2026-08-02T09:14:20.000Z",
+                type: "event_msg",
+                payload: ["type": "task_started"]
+            ),
+            rolloutLine(
+                timestamp: "2026-08-02T09:14:25.463Z",
+                type: "event_msg",
+                payload: [
+                    "type": "task_complete",
+                    "last_agent_message": "Finished rendering the Remotion video.",
+                ]
+            ),
+            rolloutLine(
+                timestamp: "2026-08-02T09:14:27.383Z",
+                type: "session_meta",
+                payload: [
+                    "id": "codex-session-trailing-meta",
+                    "cwd": "/tmp/remotion-video",
+                    "source": "vscode",
+                    "developer_instructions": String(repeating: "large trailing metadata ", count: 80),
+                ]
+            ),
+        ]
+        try lines.joined(separator: "\n")
+            .appending("\n")
+            .write(to: rolloutURL, atomically: true, encoding: .utf8)
+
+        let recorder = EventRecorder()
+        let watcher = CodexRolloutWatcher(
+            pollInterval: 0.05,
+            initialReadLimit: 160,
+            activeTimerBackfillReadLimit: 65_536
+        )
+        watcher.eventHandler = { event in
+            Task { await recorder.append(event) }
+        }
+        watcher.sync(targets: [
+            CodexRolloutWatchTarget(
+                sessionID: "codex-session-trailing-meta",
+                transcriptPath: rolloutURL.path
+            ),
+        ])
+
+        try await Task.sleep(for: .milliseconds(200))
+        watcher.stop()
+
+        let events = await recorder.snapshot()
+        #expect(events.contains(where: {
+            $0.trackedSessionCompletion?.summary == "Finished rendering the Remotion video."
+        }))
+        #expect(!events.contains(where: {
+            $0.trackedActivityUpdate?.summary == "Codex updated the current turn."
+        }))
+    }
+
+    @Test
     func codexRolloutWatcherBackfillsActiveTimersForLegacyCachedSession() async throws {
         let rootURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("open-island-rollout-timer-backfill-\(UUID().uuidString)", isDirectory: true)

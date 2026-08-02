@@ -273,6 +273,39 @@ public enum CodexPermissionRequestDecision: Equatable, Codable, Sendable {
     }
 }
 
+public enum CodexInternalSessionClassifier {
+    private static let ambientPromptPrefixes = [
+        "You are an expert at upholding safety and compliance standards for Codex ambient suggestions.",
+        "# Overview\n\nGenerate 0 to 3 hyperpersonalized suggestions for what this user can do with Codex in this local project:",
+    ]
+
+    public static func isTranscriptlessAmbientSession(
+        transcriptPath: String?,
+        prompts: [String?],
+        structuredOutputs: [String?] = []
+    ) -> Bool {
+        guard transcriptPath?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false else {
+            return false
+        }
+
+        let hasAmbientPrompt = prompts.compactMap { $0 }.contains { prompt in
+            let normalized = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+            return ambientPromptPrefixes.contains(where: normalized.hasPrefix)
+        }
+        return hasAmbientPrompt || structuredOutputs.compactMap { $0 }.contains(where: isAmbientOutput)
+    }
+
+    private static func isAmbientOutput(_ output: String) -> Bool {
+        guard let data = output.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              object.count == 1 else {
+            return false
+        }
+
+        return object["suggestions"] is [Any] || object["exclude"] is [Any]
+    }
+}
+
 public enum CodexHookDirective: Equatable, Codable, Sendable {
     case deny(reason: String)
     case permissionRequest(CodexPermissionRequestDecision)

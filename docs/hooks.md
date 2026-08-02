@@ -78,6 +78,19 @@ Codex CLI sessions launched from a terminal keep the hook-backed blocking flow:
 Open Island displays the request and returns the user's allow or deny directive
 to the waiting hook process.
 
+Codex Desktop also runs transcriptless ambient suggestion and safety-review
+invocations that can fire the same hooks without representing a user task. Open
+Island suppresses only the known internal prompt and structured-output schemas,
+tracks ignored session IDs across their remaining hook lifecycle, and prunes old
+cached records on launch. A missing transcript by itself is not filtered, so
+genuine terminal Codex CLI sessions and their hook-backed approvals remain
+actionable.
+
+For large Desktop rollouts, the watcher expands its bounded tail read until it
+finds the latest turn lifecycle event. This prevents oversized `session_meta`
+records appended after a completed turn from reviving that turn as a generic
+running session.
+
 ### Common payload fields
 
 | JSON key | Swift property | Description |

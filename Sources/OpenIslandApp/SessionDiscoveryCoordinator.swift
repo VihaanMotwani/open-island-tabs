@@ -171,8 +171,21 @@ final class SessionDiscoveryCoordinator {
         cutoff: Date
     ) -> [CodexTrackedSessionRecord] {
         records.filter { record in
-            record.updatedAt >= cutoff
+            let canUseAmbientOutputSignature = record.runtimeSurface == .unknown
+                && (record.jumpTarget?.terminalApp == nil
+                    || record.jumpTarget?.terminalApp == "Unknown")
+            return record.updatedAt >= cutoff
                 && record.shouldRestoreToLiveState
+                && !CodexInternalSessionClassifier.isTranscriptlessAmbientSession(
+                    transcriptPath: record.codexMetadata?.transcriptPath,
+                    prompts: [
+                        record.codexMetadata?.initialUserPrompt,
+                        record.codexMetadata?.lastUserPrompt,
+                    ],
+                    structuredOutputs: canUseAmbientOutputSignature
+                        ? [record.summary, record.codexMetadata?.lastAssistantMessage]
+                        : []
+                )
                 && !CodexRolloutDiscovery.isInternalSubagentTranscript(
                     atPath: record.codexMetadata?.transcriptPath
                 )

@@ -481,6 +481,20 @@ public final class BridgeServer: @unchecked Sendable {
             return
         }
 
+        // Codex Desktop owns its approval policy and UI. Its interactive
+        // hooks still fire when Desktop auto-approves a tool, and the hook
+        // subprocess does not always inherit a reliable terminal-app marker.
+        // Prefer the rollout-classified session snapshot when available so a
+        // second decision here never becomes an Open Island-only blocker.
+        // Terminal Codex sessions remain hook-backed and actionable below.
+        let isCodexDesktopSession = payload.terminalApp == "Codex.app"
+            || localState.session(id: payload.sessionID)?.isCodexAppSession == true
+        if isCodexDesktopSession,
+           payload.hookEventName == .preToolUse || payload.hookEventName == .permissionRequest {
+            send(.response(.acknowledged), to: clientID)
+            return
+        }
+
         switch payload.hookEventName {
         case .sessionStart:
             let event = AgentEvent.sessionStarted(

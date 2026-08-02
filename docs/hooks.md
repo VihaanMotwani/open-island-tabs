@@ -62,6 +62,20 @@ The `CodexHookPayload` model and `BridgeServer` can parse richer events (`PreToo
 
 > **Note on file-edit coverage**: Codex file edits may use internal apply-patch paths that do not emit `PreToolUse` events. File-edit approval should not be treated as guaranteed `PreToolUse` coverage; the current reliable coverage is command/shell-level events, depending on Codex hook configuration.
 
+### Codex Desktop approval ownership
+
+Codex Desktop can emit `PreToolUse` and `PermissionRequest` hooks even when its
+own approval policy resolves the tool automatically. When rollout discovery
+classifies the session as Desktop-owned—or `terminal_app` is `Codex.app`—Open
+Island acknowledges those interactive hooks without creating a local approval
+request. Codex Desktop remains responsible for deciding or presenting the
+approval. Open Island may still show a non-actionable needs-attention state
+from app-server status and deep-link back to the exact task.
+
+Codex CLI sessions launched from a terminal keep the hook-backed blocking flow:
+Open Island displays the request and returns the user's allow or deny directive
+to the waiting hook process.
+
 ### Common payload fields
 
 | JSON key | Swift property | Description |

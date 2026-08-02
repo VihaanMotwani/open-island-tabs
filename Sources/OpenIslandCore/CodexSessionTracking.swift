@@ -810,6 +810,7 @@ public final class CodexRolloutDiscovery: @unchecked Sendable {
 public struct CodexRolloutWatchTarget: Equatable, Sendable {
     public var sessionID: String
     public var transcriptPath: String
+    public var runtimeSurface: CodexRuntimeSurface
     /// Completed cached sessions only need a lightweight tail watch. If they
     /// become active again, app-server status updates replace the target and
     /// prompt bootstrapping is performed for that one resumed conversation.
@@ -828,6 +829,7 @@ public struct CodexRolloutWatchTarget: Equatable, Sendable {
     public init(
         sessionID: String,
         transcriptPath: String,
+        runtimeSurface: CodexRuntimeSurface = .unknown,
         bootstrapPrompts: Bool = true,
         cachedInitialUserPrompt: String? = nil,
         cachedLastUserPrompt: String? = nil,
@@ -842,6 +844,7 @@ public struct CodexRolloutWatchTarget: Equatable, Sendable {
     ) {
         self.sessionID = sessionID
         self.transcriptPath = transcriptPath
+        self.runtimeSurface = runtimeSurface
         self.bootstrapPrompts = bootstrapPrompts
         self.cachedInitialUserPrompt = cachedInitialUserPrompt
         self.cachedLastUserPrompt = cachedLastUserPrompt
@@ -858,6 +861,7 @@ public struct CodexRolloutWatchTarget: Equatable, Sendable {
     public static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.sessionID == rhs.sessionID
             && lhs.transcriptPath == rhs.transcriptPath
+            && lhs.runtimeSurface == rhs.runtimeSurface
             && lhs.bootstrapPrompts == rhs.bootstrapPrompts
             && lhs.cachedInitialUserPrompt == rhs.cachedInitialUserPrompt
             && lhs.cachedLastUserPrompt == rhs.cachedLastUserPrompt
@@ -873,6 +877,8 @@ public struct CodexRolloutWatchTarget: Equatable, Sendable {
 }
 
 public struct CodexRolloutSnapshot: Equatable, Sendable {
+    public var runtimeSurface: CodexRuntimeSurface
+    var pendingDesktopApprovalCallIDs: Set<String>
     public var summary: String?
     public var phase: SessionPhase
     public var updatedAt: Date?
@@ -896,6 +902,7 @@ public struct CodexRolloutSnapshot: Equatable, Sendable {
     public var isInterrupted: Bool
 
     public init(
+        runtimeSurface: CodexRuntimeSurface = .unknown,
         summary: String? = nil,
         phase: SessionPhase = .running,
         updatedAt: Date? = nil,
@@ -918,6 +925,8 @@ public struct CodexRolloutSnapshot: Equatable, Sendable {
         isCompleted: Bool = false,
         isInterrupted: Bool = false
     ) {
+        self.runtimeSurface = runtimeSurface
+        pendingDesktopApprovalCallIDs = []
         self.summary = summary
         self.phase = phase
         self.updatedAt = updatedAt
@@ -1013,6 +1022,8 @@ public enum CodexRolloutReducer {
         let payload = object["payload"] as? [String: Any] ?? [:]
 
         switch object["type"] as? String {
+        case "session_meta":
+            applySessionMeta(payload, to: &snapshot)
         case "event_msg":
             applyEventMessage(payload, timestamp: timestamp, to: &snapshot)
         case "response_item":
@@ -1022,6 +1033,18 @@ public enum CodexRolloutReducer {
         default:
             break
         }
+    }
+
+    private static func applySessionMeta(
+        _ payload: [String: Any],
+        to snapshot: inout CodexRolloutSnapshot
+    ) {
+        let source = (payload["source"] as? String)
+            .flatMap(CodexThreadSource.init(rawValue:))
+        snapshot.runtimeSurface = CodexRuntimeSurface.classify(
+            source: source,
+            originator: payload["originator"] as? String
+        )
     }
 
     public static func events(
@@ -1167,6 +1190,7 @@ public enum CodexRolloutReducer {
             return
         case "task_complete", "turn_complete":
             finishCurrentProcessingSegment(at: timestamp, in: &snapshot)
+            snapshot.pendingDesktopApprovalCallIDs.removeAll()
             snapshot.currentTool = nil
             snapshot.currentCommandPreview = nil
             snapshot.phase = .completed
@@ -1181,6 +1205,7 @@ public enum CodexRolloutReducer {
             }
         case "turn_aborted":
             finishCurrentProcessingSegment(at: timestamp, in: &snapshot)
+            snapshot.pendingDesktopApprovalCallIDs.removeAll()
             snapshot.currentTool = nil
             snapshot.currentCommandPreview = nil
             snapshot.phase = .completed
@@ -1530,6 +1555,15 @@ public enum CodexRolloutReducer {
                 return
             }
 
+            if payload["type"] as? String == "custom_tool_call",
+               isDesktopPermissionRequest(payload, runtimeSurface: snapshot.runtimeSurface) {
+                if let callID = clipped(payload["call_id"] as? String) {
+                    snapshot.pendingDesktopApprovalCallIDs.insert(callID)
+                }
+                applyDesktopApprovalAttention(to: &snapshot)
+                break
+            }
+
             applyGoalLifecycle(
                 toolName: toolName,
                 arguments: payload["arguments"],
@@ -1573,7 +1607,15 @@ public enum CodexRolloutReducer {
                 eventTimestamp: timestamp,
                 to: &snapshot
             )
-            applyThinking(to: &snapshot)
+            let callID = clipped(payload["call_id"] as? String)
+            if let callID {
+                snapshot.pendingDesktopApprovalCallIDs.remove(callID)
+            }
+            if snapshot.pendingDesktopApprovalCallIDs.isEmpty {
+                applyThinking(to: &snapshot)
+            } else {
+                applyDesktopApprovalAttention(to: &snapshot)
+            }
         default:
             return
         }
@@ -1581,6 +1623,90 @@ public enum CodexRolloutReducer {
         if let timestamp {
             snapshot.updatedAt = timestamp
         }
+    }
+
+    private static func isDesktopPermissionRequest(
+        _ payload: [String: Any],
+        runtimeSurface: CodexRuntimeSurface
+    ) -> Bool {
+        guard runtimeSurface == .desktopApp,
+              payload["name"] as? String == "exec",
+              let input = payload["input"] as? String else {
+            return false
+        }
+
+        let escalatedExecProperty = #"(?:["']?sandbox_permissions["']?)\s*:\s*["']require_escalated["']"#
+        if containsExecutableJavaScriptPattern(escalatedExecProperty, in: input) {
+            return true
+        }
+
+        let requestPermissionsCall = #"tools\s*\.\s*request_permissions\s*\("#
+        return containsExecutableJavaScriptPattern(requestPermissionsCall, in: input)
+    }
+
+    private static func containsExecutableJavaScriptPattern(
+        _ pattern: String,
+        in source: String
+    ) -> Bool {
+        guard let expression = try? NSRegularExpression(pattern: pattern) else {
+            return false
+        }
+
+        let searchRange = NSRange(source.startIndex..<source.endIndex, in: source)
+        return expression.matches(in: source, range: searchRange).contains { match in
+            guard let range = Range(match.range, in: source) else {
+                return false
+            }
+            return isExecutableJavaScriptPosition(range.lowerBound, in: source)
+        }
+    }
+
+    private static func isExecutableJavaScriptPosition(
+        _ position: String.Index,
+        in source: String
+    ) -> Bool {
+        var cursor = source.startIndex
+        var quote: Character?
+        var isEscaped = false
+        var isLineComment = false
+        var isBlockComment = false
+
+        while cursor < position {
+            let character = source[cursor]
+            let nextIndex = source.index(after: cursor)
+            let nextCharacter = nextIndex < source.endIndex ? source[nextIndex] : nil
+
+            if isLineComment {
+                if character == "\n" {
+                    isLineComment = false
+                }
+            } else if isBlockComment {
+                if character == "*", nextCharacter == "/" {
+                    isBlockComment = false
+                    cursor = nextIndex
+                }
+            } else if let activeQuote = quote {
+                if isEscaped {
+                    isEscaped = false
+                } else if character == "\\" {
+                    isEscaped = true
+                } else if character == activeQuote {
+                    quote = nil
+                }
+            } else if character == "\"" || character == "'" || character == "`" {
+                quote = character
+            } else if character == "/", nextCharacter == "/" {
+                isLineComment = true
+                cursor = nextIndex
+            } else if character == "/", nextCharacter == "*" {
+                isBlockComment = true
+                cursor = nextIndex
+            }
+
+            cursor = source.index(after: cursor)
+        }
+
+        return quote == nil && !isLineComment && !isBlockComment
     }
 
     private static func applyToolActivity(
@@ -1627,6 +1753,19 @@ public enum CodexRolloutReducer {
         snapshot.isCompleted = false
         snapshot.isInterrupted = false
         snapshot.summary = summary ?? "Approval needed."
+    }
+
+    private static func applyDesktopApprovalAttention(to snapshot: inout CodexRolloutSnapshot) {
+        guard !snapshot.isCompleted else {
+            return
+        }
+
+        snapshot.currentTool = nil
+        snapshot.currentCommandPreview = nil
+        snapshot.phase = .needsAttention
+        snapshot.isCompleted = false
+        snapshot.isInterrupted = false
+        snapshot.summary = "Needs attention in Codex."
     }
 
     private static func applyQuestionRequest(summary: String?, to snapshot: inout CodexRolloutSnapshot) {
@@ -2140,6 +2279,7 @@ public final class CodexRolloutWatcher: @unchecked Sendable {
 
         mutating func updateTarget(_ updatedTarget: CodexRolloutWatchTarget) {
             target = updatedTarget
+            snapshot.runtimeSurface = updatedTarget.runtimeSurface
 
             if let initialUserPrompt = updatedTarget.cachedInitialUserPrompt {
                 snapshot.initialUserPrompt = initialUserPrompt
@@ -2285,7 +2425,9 @@ public final class CodexRolloutWatcher: @unchecked Sendable {
             observation.offset = 0
             observation.pendingBuffer.removeAll(keepingCapacity: false)
             observation.pendingScannedByteCount = 0
-            observation.snapshot = CodexRolloutSnapshot()
+            observation.snapshot = CodexRolloutSnapshot(
+                runtimeSurface: observation.target.runtimeSurface
+            )
         }
 
         do {
@@ -2331,7 +2473,10 @@ public final class CodexRolloutWatcher: @unchecked Sendable {
         let fileURL = URL(fileURLWithPath: target.transcriptPath)
         guard FileManager.default.fileExists(atPath: fileURL.path),
               let fileHandle = try? FileHandle(forReadingFrom: fileURL) else {
-            return Observation(target: target)
+            return Observation(
+                target: target,
+                snapshot: CodexRolloutSnapshot(runtimeSurface: target.runtimeSurface)
+            )
         }
 
         defer {
@@ -2340,10 +2485,13 @@ public final class CodexRolloutWatcher: @unchecked Sendable {
 
         let fileSize = (try? fileHandle.seekToEnd()) ?? 0
         guard fileSize > initialReadLimit else {
-            return Observation(target: target)
+            return Observation(
+                target: target,
+                snapshot: CodexRolloutSnapshot(runtimeSurface: target.runtimeSurface)
+            )
         }
 
-        let bootstrapSnapshot: CodexRolloutSnapshot
+        var bootstrapSnapshot: CodexRolloutSnapshot
         if target.cachedInitialUserPrompt != nil || target.cachedLastUserPrompt != nil {
             bootstrapSnapshot = CodexRolloutSnapshot(
                 initialUserPrompt: target.cachedInitialUserPrompt,
@@ -2365,6 +2513,7 @@ public final class CodexRolloutWatcher: @unchecked Sendable {
         } else {
             bootstrapSnapshot = CodexRolloutSnapshot()
         }
+        bootstrapSnapshot.runtimeSurface = target.runtimeSurface
 
         let readLimit = (needsActiveTimerBackfill(for: target)
             || needsGoalContinuationBackfill(

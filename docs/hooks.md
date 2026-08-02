@@ -70,7 +70,9 @@ classifies the session as Desktop-owned—or `terminal_app` is `Codex.app`—Ope
 Island acknowledges those interactive hooks without creating a local approval
 request. Codex Desktop remains responsible for deciding or presenting the
 approval. Open Island may still show a non-actionable needs-attention state
-from app-server status and deep-link back to the exact task.
+from app-server status or an unresolved native permission call in the Desktop
+rollout. That state has no duplicate allow/deny controls and deep-links back to
+the exact Codex task, where the user resolves the request.
 
 Codex CLI sessions launched from a terminal keep the hook-backed blocking flow:
 Open Island displays the request and returns the user's allow or deny directive

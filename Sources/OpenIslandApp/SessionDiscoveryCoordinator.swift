@@ -512,6 +512,7 @@ final class SessionDiscoveryCoordinator {
             return CodexRolloutWatchTarget(
                 sessionID: session.id,
                 transcriptPath: transcriptPath,
+                runtimeSurface: session.codexRuntimeSurface,
                 bootstrapPrompts: session.phase != .completed,
                 cachedInitialUserPrompt: session.codexMetadata?.initialUserPrompt,
                 cachedLastUserPrompt: session.codexMetadata?.lastUserPrompt,

@@ -20,6 +20,9 @@ struct CodexSessionTrackingTests {
         var updatedInitialPrompt = original
         updatedInitialPrompt.cachedInitialUserPrompt = "Renamed conversation"
 
+        var updatedRuntimeSurface = original
+        updatedRuntimeSurface.runtimeSurface = .desktopApp
+
         var updatedLastPrompt = original
         updatedLastPrompt.cachedLastUserPrompt = "Latest follow-up"
 
@@ -57,6 +60,7 @@ struct CodexSessionTrackingTests {
         updatedPlanMode.cachedIsPlanMode = false
 
         #expect(original != updatedInitialPrompt)
+        #expect(original != updatedRuntimeSurface)
         #expect(original != updatedLastPrompt)
         #expect(original != updatedProcessedDuration)
         #expect(original != updatedTurnStart)
@@ -324,6 +328,179 @@ struct CodexSessionTrackingTests {
         #expect(finalEvents.contains(where: { $0.trackedSessionCompletion?.isInterrupt != true }))
         #expect(finalEvents.contains(where: { $0.trackedMetadataUpdate?.codexMetadata.currentTool == nil }))
         #expect(finalEvents.contains(where: { $0.trackedMetadataUpdate?.codexMetadata.currentCommandPreview == nil }))
+    }
+
+    @Test
+    func codexRolloutReducerMarksUnresolvedDesktopExecPermissionAsNeedsAttention() {
+        let snapshot = CodexRolloutReducer.snapshot(for: desktopApprovalRolloutLines(
+            input: #"""
+            const r = await tools.exec_command({
+              cmd: "open -R /tmp/open-island/README.md",
+              workdir: "/tmp/open-island",
+              sandbox_permissions: "require_escalated",
+              justification: "Allow revealing the README in Finder?"
+            }); text(r.output)
+            """#
+        ))
+
+        #expect(snapshot.phase == .needsAttention)
+        #expect(snapshot.summary == "Needs attention in Codex.")
+        #expect(snapshot.currentTool == nil)
+        #expect(snapshot.currentCommandPreview == nil)
+    }
+
+    @Test
+    func codexRolloutReducerClearsDesktopPermissionAttentionOnlyForMatchingOutput() {
+        var snapshot = CodexRolloutReducer.snapshot(for: desktopApprovalRolloutLines(
+            input: #"""
+            const r = await tools.exec_command({
+              cmd: "open -R /tmp/open-island/README.md",
+              sandbox_permissions: "require_escalated",
+              justification: "Allow revealing the README in Finder?"
+            }); text(r.output)
+            """#
+        ))
+
+        CodexRolloutReducer.apply(
+            line: rolloutLine(
+                timestamp: "2026-08-02T10:01:01.000Z",
+                type: "response_item",
+                payload: [
+                    "type": "custom_tool_call_output",
+                    "call_id": "call-unrelated",
+                    "output": "done",
+                ]
+            ),
+            to: &snapshot
+        )
+
+        #expect(snapshot.phase == .needsAttention)
+        #expect(snapshot.summary == "Needs attention in Codex.")
+
+        CodexRolloutReducer.apply(
+            line: rolloutLine(
+                timestamp: "2026-08-02T10:01:02.000Z",
+                type: "response_item",
+                payload: [
+                    "type": "custom_tool_call_output",
+                    "call_id": "call-desktop-approval",
+                    "output": "Script completed successfully",
+                ]
+            ),
+            to: &snapshot
+        )
+
+        #expect(snapshot.phase == .running)
+        #expect(snapshot.summary == "Thinking.")
+    }
+
+    @Test
+    func codexRolloutReducerMarksDirectDesktopNetworkPermissionAsNeedsAttention() {
+        let snapshot = CodexRolloutReducer.snapshot(for: desktopApprovalRolloutLines(
+            callID: "call-network-approval",
+            input: #"""
+            const r = await tools.request_permissions({
+              permissions: { network: { enabled: true } },
+              reason: "Allow ChatGPT to connect to the internet?"
+            }); text(r)
+            """#
+        ))
+
+        #expect(snapshot.phase == .needsAttention)
+        #expect(snapshot.summary == "Needs attention in Codex.")
+    }
+
+    @Test
+    func codexRolloutReducerKeepsExternalExecPermissionAsOrdinaryActivity() {
+        let snapshot = CodexRolloutReducer.snapshot(for: [
+            sessionMetaLine(
+                sessionID: "codex-cli-approval",
+                timestamp: "2026-08-02T10:00:59.000Z",
+                cwd: "/tmp/open-island"
+            ),
+            execCustomToolCallLine(
+                callID: "call-cli-approval",
+                input: #"""
+                const r = await tools.exec_command({
+                  cmd: "swift test",
+                  sandbox_permissions: "require_escalated",
+                  justification: "Allow the CLI test run?"
+                }); text(r.output)
+                """#
+            ),
+        ])
+
+        #expect(snapshot.runtimeSurface == .external)
+        #expect(snapshot.phase == .running)
+        #expect(snapshot.summary == "Running exec.")
+        #expect(snapshot.currentTool == "exec")
+    }
+
+    @Test
+    func codexRolloutReducerDoesNotTreatPermissionTextInsideDesktopCommandAsApproval() {
+        let snapshot = CodexRolloutReducer.snapshot(for: desktopApprovalRolloutLines(
+            input: #"""
+            const r = await tools.exec_command({
+              cmd: "rg 'sandbox_permissions: \"require_escalated\"|tools.request_permissions(' Sources"
+            }); text(r.output)
+            """#
+        ))
+
+        #expect(snapshot.phase == .running)
+        #expect(snapshot.summary == "Running exec.")
+        #expect(snapshot.currentTool == "exec")
+    }
+
+    @Test(arguments: ["turn_aborted", "turn_complete"])
+    func codexRolloutReducerDoesNotLeakResolvedDesktopPermissionIntoNextTurn(
+        terminalEvent: String
+    ) {
+        var lines = desktopApprovalRolloutLines(
+            callID: "call-interrupted-approval",
+            input: #"""
+            const r = await tools.exec_command({
+              cmd: "open -R /tmp/open-island/README.md",
+              sandbox_permissions: "require_escalated"
+            }); text(r.output)
+            """#
+        )
+        lines.append(
+            rolloutLine(
+                timestamp: "2026-08-02T10:01:01.000Z",
+                type: "event_msg",
+                payload: [
+                    "type": terminalEvent,
+                ]
+            )
+        )
+        var snapshot = CodexRolloutReducer.snapshot(for: lines)
+
+        CodexRolloutReducer.apply(
+            line: rolloutLine(
+                timestamp: "2026-08-02T10:02:00.000Z",
+                type: "event_msg",
+                payload: [
+                    "type": "user_message",
+                    "message": "Start a clean follow-up turn.",
+                ]
+            ),
+            to: &snapshot
+        )
+        CodexRolloutReducer.apply(
+            line: rolloutLine(
+                timestamp: "2026-08-02T10:02:01.000Z",
+                type: "response_item",
+                payload: [
+                    "type": "custom_tool_call_output",
+                    "call_id": "call-follow-up",
+                    "output": "done",
+                ]
+            ),
+            to: &snapshot
+        )
+
+        #expect(snapshot.phase == .running)
+        #expect(snapshot.summary == "Thinking.")
     }
 
     @Test
@@ -1438,6 +1615,52 @@ struct CodexSessionTrackingTests {
     }
 
     @Test
+    func codexRolloutWatcherUsesTargetDesktopOwnershipForPendingPermission() async throws {
+        let rootURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("open-island-rollout-desktop-approval-\(UUID().uuidString)", isDirectory: true)
+        let rolloutURL = rootURL.appendingPathComponent("rollout.jsonl")
+        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
+        try Data().write(to: rolloutURL)
+        defer { try? FileManager.default.removeItem(at: rootURL) }
+
+        let recorder = EventRecorder()
+        let watcher = CodexRolloutWatcher(pollInterval: 0.05)
+        watcher.eventHandler = { event in
+            Task { await recorder.append(event) }
+        }
+        watcher.sync(targets: [
+            CodexRolloutWatchTarget(
+                sessionID: "codex-desktop-approval",
+                transcriptPath: rolloutURL.path,
+                runtimeSurface: .desktopApp
+            ),
+        ])
+
+        try appendRolloutLine(
+            execCustomToolCallLine(
+                callID: "call-desktop-approval",
+                input: #"""
+                const r = await tools.exec_command({
+                  cmd: "open -R /tmp/open-island/README.md",
+                  sandbox_permissions: "require_escalated",
+                  justification: "Allow revealing the README in Finder?"
+                }); text(r.output)
+                """#
+            ),
+            to: rolloutURL
+        )
+
+        try await Task.sleep(for: .milliseconds(200))
+        watcher.stop()
+
+        let events = await recorder.snapshot()
+        #expect(events.contains(where: {
+            $0.trackedActivityUpdate?.phase == .needsAttention
+                && $0.trackedActivityUpdate?.summary == "Needs attention in Codex."
+        }))
+    }
+
+    @Test
     func codexRolloutWatcherDoesNotReplayContentWhenCachedTargetMetadataChanges() async throws {
         let rootURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("open-island-rollout-resync-\(UUID().uuidString)", isDirectory: true)
@@ -2376,6 +2599,39 @@ private func sessionMetaLine(
             "cwd": cwd,
             "originator": originator,
             "source": source,
+        ]
+    )
+}
+
+private func desktopApprovalRolloutLines(
+    callID: String = "call-desktop-approval",
+    input: String
+) -> [String] {
+    [
+        sessionMetaLine(
+            sessionID: "codex-desktop-approval",
+            timestamp: "2026-08-02T10:00:59.000Z",
+            cwd: "/tmp/open-island",
+            originator: "Codex Desktop",
+            source: "vscode"
+        ),
+        execCustomToolCallLine(callID: callID, input: input),
+    ]
+}
+
+private func execCustomToolCallLine(
+    callID: String,
+    input: String,
+    timestamp: String = "2026-08-02T10:01:00.801Z"
+) -> String {
+    rolloutLine(
+        timestamp: timestamp,
+        type: "response_item",
+        payload: [
+            "type": "custom_tool_call",
+            "call_id": callID,
+            "name": "exec",
+            "input": input,
         ]
     )
 }

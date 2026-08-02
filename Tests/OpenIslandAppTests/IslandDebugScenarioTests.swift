@@ -25,10 +25,6 @@ struct IslandDebugScenarioTests {
             snapshot.mediaSnapshot?.artworkURL?.absoluteString
                 == "https://image-cdn-ak.spotifycdn.com/image/ab67616d00001e024f0fd9dad63977146e685700"
         )
-        #expect(
-            snapshot.mediaSnapshot?.contentURL?.absoluteString
-                == "spotify:track:3GfOAdcoc3X5GPiiXmpBjK"
-        )
     }
 
     @Test @MainActor

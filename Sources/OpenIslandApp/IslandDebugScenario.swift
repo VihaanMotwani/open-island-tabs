@@ -262,7 +262,6 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
         artworkURL: URL(
             string: "https://image-cdn-ak.spotifycdn.com/image/ab67616d00001e024f0fd9dad63977146e685700"
         ),
-        contentURL: URL(string: "spotify:track:3GfOAdcoc3X5GPiiXmpBjK"),
         duration: 299,
         position: 102,
         volume: 0.62

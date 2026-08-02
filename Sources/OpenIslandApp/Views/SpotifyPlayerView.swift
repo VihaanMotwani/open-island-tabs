@@ -1,11 +1,7 @@
 import SwiftUI
 
 enum SpotifyArtworkDestination {
-    private static let applicationURL = URL(string: "spotify:")!
-
-    static func url(for snapshot: MediaPlaybackSnapshot) -> URL {
-        snapshot.contentURL ?? applicationURL
-    }
+    static let url = URL(string: "spotify:")!
 }
 
 struct SpotifyPlayerView: View {
@@ -47,12 +43,12 @@ struct SpotifyPlayerView: View {
 
             VStack(spacing: 7) {
                 HStack(spacing: layout.spacing) {
-                    Link(destination: SpotifyArtworkDestination.url(for: snapshot)) {
+                    Link(destination: SpotifyArtworkDestination.url) {
                         artwork
                             .frame(width: layout.artworkSize, height: layout.artworkSize)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel(artworkAccessibilityLabel)
+                    .accessibilityLabel("Open Spotify")
                     .accessibilityHint("Opens in Spotify")
                     .help("Open in Spotify")
 
@@ -155,11 +151,6 @@ struct SpotifyPlayerView: View {
         }
         .shadow(color: .black.opacity(0.18), radius: 4, y: 2)
         .accessibilityHidden(true)
-    }
-
-    private var artworkAccessibilityLabel: String {
-        guard !snapshot.title.isEmpty else { return "Open Spotify" }
-        return "Open \(snapshot.title) in Spotify"
     }
 
     private var unavailableState: some View {

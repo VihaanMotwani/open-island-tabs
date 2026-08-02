@@ -355,7 +355,7 @@ def main() -> None:
             fail("spotifyPlayer is missing its deterministic playing state")
         if not report.get("mediaTitle"):
             fail("spotifyPlayer is missing track metadata")
-        assert_contains_any(labels, ["Open Passionfruit in Spotify"], "spotifyPlayer labels")
+        assert_contains_any(labels, ["Open Spotify"], "spotifyPlayer labels")
 
     elif scenario == "tasksList":
         if notch_status != "opened":

@@ -1,5 +1,9 @@
 import SwiftUI
 
+enum SpotifyArtworkDestination {
+    static let url = URL(string: "spotify:")!
+}
+
 struct SpotifyPlayerView: View {
     let model: SpotifyPlaybackModel
 
@@ -39,8 +43,14 @@ struct SpotifyPlayerView: View {
 
             VStack(spacing: 7) {
                 HStack(spacing: layout.spacing) {
-                    artwork
-                        .frame(width: layout.artworkSize, height: layout.artworkSize)
+                    Link(destination: SpotifyArtworkDestination.url) {
+                        artwork
+                            .frame(width: layout.artworkSize, height: layout.artworkSize)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Open Spotify")
+                    .accessibilityHint("Opens in Spotify")
+                    .help("Open in Spotify")
 
                     VStack(spacing: 5) {
                         VStack(spacing: 1) {

@@ -108,6 +108,7 @@ public enum SessionAttachmentState: String, Codable, Sendable {
 
 public enum SessionPhase: String, Codable, Sendable, CaseIterable {
     case running
+    case needsAttention
     case waitingForApproval
     case waitingForAnswer
     case completed
@@ -116,6 +117,8 @@ public enum SessionPhase: String, Codable, Sendable, CaseIterable {
         switch self {
         case .running:
             "Running"
+        case .needsAttention:
+            "Needs attention"
         case .waitingForApproval:
             "Needs approval"
         case .waitingForAnswer:
@@ -127,9 +130,21 @@ public enum SessionPhase: String, Codable, Sendable, CaseIterable {
 
     public var requiresAttention: Bool {
         switch self {
-        case .waitingForApproval, .waitingForAnswer:
+        case .needsAttention, .waitingForApproval, .waitingForAnswer:
             true
         case .running, .completed:
+            false
+        }
+    }
+
+    /// Whether Open Island has a request payload and callback to resolve this
+    /// phase locally. Desktop attention is visible but must be handled in
+    /// Codex, so it is intentionally not actionable here.
+    public var isActionable: Bool {
+        switch self {
+        case .waitingForApproval, .waitingForAnswer:
+            true
+        case .running, .needsAttention, .completed:
             false
         }
     }

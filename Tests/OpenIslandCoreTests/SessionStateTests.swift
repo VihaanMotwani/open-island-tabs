@@ -100,6 +100,63 @@ struct SessionStateTests {
         #expect(state.activeActionableSession?.permissionRequest == nil)
     }
 
+    @Test
+    func nonActionableDesktopAttentionPreservesTheJumpTargetAndClearsOnActivity() {
+        let startedAt = Date(timeIntervalSince1970: 1_500)
+        let jumpTarget = JumpTarget(
+            terminalApp: "Codex.app",
+            workspaceName: "notch",
+            paneTitle: "Fix approvals",
+            workingDirectory: "/tmp/notch",
+            codexThreadID: "desktop-thread"
+        )
+        var state = SessionState()
+        state.apply(
+            .sessionStarted(
+                SessionStarted(
+                    sessionID: "desktop-thread",
+                    title: "Codex · notch",
+                    tool: .codex,
+                    summary: "Working",
+                    timestamp: startedAt,
+                    jumpTarget: jumpTarget
+                )
+            )
+        )
+
+        state.apply(
+            .activityUpdated(
+                SessionActivityUpdated(
+                    sessionID: "desktop-thread",
+                    summary: "Needs attention in Codex.",
+                    phase: .needsAttention,
+                    timestamp: startedAt.addingTimeInterval(5)
+                )
+            )
+        )
+
+        #expect(state.session(id: "desktop-thread")?.phase == .needsAttention)
+        #expect(state.session(id: "desktop-thread")?.permissionRequest == nil)
+        #expect(state.session(id: "desktop-thread")?.jumpTarget == jumpTarget)
+        #expect(state.attentionCount == 1)
+        #expect(state.activeActionableSession == nil)
+
+        state.apply(
+            .activityUpdated(
+                SessionActivityUpdated(
+                    sessionID: "desktop-thread",
+                    summary: "Codex is working…",
+                    phase: .running,
+                    timestamp: startedAt.addingTimeInterval(10)
+                )
+            )
+        )
+
+        #expect(state.session(id: "desktop-thread")?.phase == .running)
+        #expect(state.session(id: "desktop-thread")?.summary == "Codex is working…")
+        #expect(state.attentionCount == 0)
+    }
+
     /// Contract that the Claude Desktop fix (#510) relies on: a hook-managed
     /// Claude session stays visible for as long as its ID is reported in
     /// `aliveSessionIDs`, and is only evicted after two consecutive polls
@@ -765,6 +822,73 @@ struct SessionStateTests {
 
         #expect(activityEvent.activityUpdate?.summary == "Permission approved. Codex continued the command.")
         #expect(response == .acknowledged)
+    }
+
+    @Test(arguments: [CodexHookEventName.preToolUse, .permissionRequest])
+    func codexDesktopApprovalHooksDeferToCodexWithoutOpeningAnIslandRequest(
+        hookEventName: CodexHookEventName
+    ) async throws {
+        let socketURL = BridgeSocketLocation.uniqueTestURL()
+        let server = BridgeServer(socketURL: socketURL)
+        try server.start()
+        defer { server.stop() }
+
+        let observer = LocalBridgeClient(socketURL: socketURL)
+        let stream = try observer.connect()
+        defer { observer.disconnect() }
+        try await observer.send(.registerClient(role: .observer))
+
+        let sessionID = "codex-desktop-\(hookEventName.rawValue)"
+        server.updateStateSnapshot(SessionState(sessions: [
+            AgentSession(
+                id: sessionID,
+                title: "Codex Desktop · Open Island",
+                tool: .codex,
+                origin: .live,
+                attachmentState: .attached,
+                phase: .running,
+                summary: "Working",
+                updatedAt: .now,
+                codexRuntimeSurface: .desktopApp
+            )
+        ]))
+
+        let approvalPayload = CodexHookPayload(
+            cwd: "/tmp/worktree",
+            hookEventName: hookEventName,
+            model: "gpt-5.6-sol",
+            permissionMode: .default,
+            sessionID: sessionID,
+            transcriptPath: "/tmp/desktop-rollout.jsonl",
+            turnID: "turn-1",
+            toolName: "shell",
+            toolUseID: "tool-use-1",
+            toolInput: CodexHookToolInput(
+                command: "swift build",
+                description: "Build Open Island"
+            )
+        )
+
+        let result = await sendWithTimeout(
+            .processCodexHook(approvalPayload),
+            socketURL: socketURL,
+            onTimeout: { server.stop() }
+        )
+        guard case .response(.acknowledged) = result else {
+            Issue.record("Codex Desktop approval hooks must return immediately to Codex")
+            return
+        }
+
+        var startPayload = approvalPayload
+        startPayload.hookEventName = .sessionStart
+        let startResponse = try BridgeCommandClient(socketURL: socketURL).send(
+            .processCodexHook(startPayload)
+        )
+        #expect(startResponse == .acknowledged)
+
+        var iterator = stream.makeAsyncIterator()
+        let firstEvent = try await nextEvent(from: &iterator)
+        #expect(firstEvent.isSessionStarted)
     }
 
     @Test
@@ -1486,6 +1610,38 @@ struct SessionStateTests {
 
 private enum SessionStateTestError: Error {
     case streamEnded
+}
+
+private enum TimedBridgeSendResult: Equatable {
+    case response(BridgeResponse?)
+    case failed
+    case timedOut
+}
+
+private func sendWithTimeout(
+    _ command: BridgeCommand,
+    socketURL: URL,
+    onTimeout: @escaping @Sendable () -> Void
+) async -> TimedBridgeSendResult {
+    await withTaskGroup(of: TimedBridgeSendResult.self) { group in
+        group.addTask {
+            do {
+                return .response(try await sendOnGCDThread(command, socketURL: socketURL))
+            } catch {
+                return .failed
+            }
+        }
+        group.addTask {
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return .failed }
+            onTimeout()
+            return .timedOut
+        }
+
+        let result = await group.next() ?? .failed
+        group.cancelAll()
+        return result
+    }
 }
 
 private func nextEvent(

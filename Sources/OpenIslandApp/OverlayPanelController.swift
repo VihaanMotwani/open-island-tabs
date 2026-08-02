@@ -649,6 +649,8 @@ final class OverlayPanelController {
     /// Additional height for the actionable session's inline action area.
     private func actionableBodyHeight(for session: AgentSession, model: AppModel) -> CGFloat {
         switch session.phase {
+        case .needsAttention:
+            return 0
         case .waitingForApproval:
             return 118
         case .waitingForAnswer:

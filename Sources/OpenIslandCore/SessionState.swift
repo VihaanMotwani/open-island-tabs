@@ -18,7 +18,7 @@ public struct SessionState: Equatable, Sendable {
     }
 
     public var activeActionableSession: AgentSession? {
-        sessions.first(where: { $0.phase.requiresAttention })
+        sessions.first(where: { $0.phase.isActionable })
     }
 
     public var runningCount: Int {

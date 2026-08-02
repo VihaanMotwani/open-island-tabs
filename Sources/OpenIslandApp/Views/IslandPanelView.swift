@@ -742,7 +742,7 @@ struct IslandPanelView: View {
                                 referenceDate: referenceDate,
                                 stateIndicator: model.islandSessionStateIndicator,
                                 completedStaleThreshold: model.completedStaleThreshold.seconds,
-                                isActionable: session.phase.requiresAttention || session.id == actionableSessionID,
+                                isActionable: session.phase.isActionable || session.id == actionableSessionID,
                                 isInteractive: model.notchStatus == .opened,
                                 sideInset: sessionListSideInset,
                                 lang: model.lang,
@@ -766,6 +766,8 @@ struct IslandPanelView: View {
 
     private func notificationCardIdentity(for session: AgentSession) -> String {
         switch session.phase {
+        case .needsAttention:
+            return "\(session.id)|attention"
         case .waitingForApproval:
             return "\(session.id)|approval|\(session.permissionRequest?.id.uuidString ?? "none")"
         case .waitingForAnswer:
@@ -792,7 +794,7 @@ struct IslandPanelView: View {
                             referenceDate: referenceDate,
                             stateIndicator: model.islandSessionStateIndicator,
                             completedStaleThreshold: model.completedStaleThreshold.seconds,
-                            isActionable: session.phase.requiresAttention || session.id == actionableSessionID,
+                            isActionable: session.phase.isActionable || session.id == actionableSessionID,
                             isInteractive: model.notchStatus == .opened,
                             sideInset: ExpandedNotchLayoutMetrics.agentCardHorizontalPadding,
                             lang: model.lang,
@@ -1767,6 +1769,8 @@ private struct IslandSessionRow: View {
     @ViewBuilder
     private var actionableBody: some View {
         switch session.phase {
+        case .needsAttention:
+            EmptyView()
         case .waitingForApproval:
             approvalActionBody
         case .waitingForAnswer:
@@ -1779,7 +1783,7 @@ private struct IslandSessionRow: View {
     }
 
     private var shouldShowEmbeddedDetailBody: Bool {
-        if session.phase.requiresAttention {
+        if session.phase.isActionable {
             return true
         }
         if session.phase == .completed {
@@ -1801,6 +1805,8 @@ private struct IslandSessionRow: View {
             actionableBody
         case .running:
             runningDetailBody
+        case .needsAttention:
+            EmptyView()
         }
     }
 
@@ -2153,6 +2159,8 @@ private struct IslandSessionRow: View {
 
     private var statusGlyphName: String {
         switch session.phase {
+        case .needsAttention:
+            "exclamationmark.triangle.fill"
         case .waitingForApproval:
             "exclamationmark.triangle.fill"
         case .waitingForAnswer:

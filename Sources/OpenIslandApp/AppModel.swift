@@ -1557,6 +1557,18 @@ final class AppModel {
         ingress: TrackedEventIngress = .bridge
     ) {
         let event = preservingCodexConfiguration(in: event, ingress: ingress)
+        if let internalSessionID = internalCodexAmbientSessionID(for: event) {
+            state.removeSession(id: internalSessionID)
+            dismissNotificationSurfaceIfPresent(for: internalSessionID)
+            reconcileIslandSurfaceAfterStateChange()
+            synchronizeSelection()
+            refreshOverlayPlacementIfVisible()
+            if hasStarted {
+                discovery.scheduleCodexSessionPersistence()
+            }
+            return
+        }
+
         // Snapshot whether this session was already completed before applying
         // the event. Used to suppress duplicate/stale completion notifications
         // (e.g. rollout watcher re-discovering an old completion on startup,
@@ -1662,6 +1674,30 @@ final class AppModel {
                 timestamp: payload.timestamp
             )
         )
+    }
+
+    private func internalCodexAmbientSessionID(for event: AgentEvent) -> String? {
+        guard case let .sessionCompleted(completion) = event,
+              let session = state.session(id: completion.sessionID),
+              session.tool == .codex,
+              session.codexRuntimeSurface == .unknown,
+              session.jumpTarget?.terminalApp == nil
+                || session.jumpTarget?.terminalApp == "Unknown",
+              CodexInternalSessionClassifier.isTranscriptlessAmbientSession(
+                transcriptPath: session.codexMetadata?.transcriptPath,
+                prompts: [
+                    session.codexMetadata?.initialUserPrompt,
+                    session.codexMetadata?.lastUserPrompt,
+                ],
+                structuredOutputs: [
+                    completion.summary,
+                    session.codexMetadata?.lastAssistantMessage,
+                ]
+              ) else {
+            return nil
+        }
+
+        return completion.sessionID
     }
 
     private func scheduleNotificationSurfacePresentationIfNeeded(

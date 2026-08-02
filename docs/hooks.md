@@ -70,11 +70,26 @@ classifies the session as Desktop-owned—or `terminal_app` is `Codex.app`—Ope
 Island acknowledges those interactive hooks without creating a local approval
 request. Codex Desktop remains responsible for deciding or presenting the
 approval. Open Island may still show a non-actionable needs-attention state
-from app-server status and deep-link back to the exact task.
+from app-server status or an unresolved native permission call in the Desktop
+rollout. That state has no duplicate allow/deny controls and deep-links back to
+the exact Codex task, where the user resolves the request.
 
 Codex CLI sessions launched from a terminal keep the hook-backed blocking flow:
 Open Island displays the request and returns the user's allow or deny directive
 to the waiting hook process.
+
+Codex Desktop also runs transcriptless ambient suggestion and safety-review
+invocations that can fire the same hooks without representing a user task. Open
+Island suppresses only the known internal prompt and structured-output schemas,
+tracks ignored session IDs across their remaining hook lifecycle, and prunes old
+cached records on launch. A missing transcript by itself is not filtered, so
+genuine terminal Codex CLI sessions and their hook-backed approvals remain
+actionable.
+
+For large Desktop rollouts, the watcher expands its bounded tail read until it
+finds the latest turn lifecycle event. This prevents oversized `session_meta`
+records appended after a completed turn from reviving that turn as a generic
+running session.
 
 ### Common payload fields
 

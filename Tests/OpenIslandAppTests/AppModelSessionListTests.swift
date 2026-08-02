@@ -1837,6 +1837,105 @@ struct AppModelSessionListTests {
     }
 
     @Test
+    func startupRestoreDropsTranscriptlessCodexAmbientSessionsButKeepsCLI() {
+        let now = Date(timeIntervalSince1970: 1_774_536_000)
+
+        func record(
+            id: String,
+            prompt: String?,
+            summary: String = "Working",
+            lastAssistantMessage: String? = nil
+        ) -> CodexTrackedSessionRecord {
+            CodexTrackedSessionRecord(
+                sessionID: id,
+                title: "Codex · project",
+                origin: .live,
+                attachmentState: .attached,
+                summary: summary,
+                phase: .running,
+                updatedAt: now,
+                codexMetadata: CodexSessionMetadata(
+                    transcriptPath: nil,
+                    initialUserPrompt: prompt,
+                    lastUserPrompt: prompt,
+                    lastAssistantMessage: lastAssistantMessage
+                )
+            )
+        }
+
+        let ambientSuggestionsOutput = #"{"suggestions":[{"title":"Continue the project","description":"Resume the cached task.","prompt":"Continue from the handoff.","appId":"codex-document-control"}]}"#
+
+        let records = SessionDiscoveryCoordinator.restorableCodexRecords(
+            from: [
+                record(
+                    id: "codex-ambient-safety",
+                    prompt: "You are an expert at upholding safety and compliance standards for Codex ambient suggestions. Review this candidate."
+                ),
+                record(
+                    id: "codex-ambient-suggestions",
+                    prompt: "# Overview\n\nGenerate 0 to 3 hyperpersonalized suggestions for what this user can do with Codex in this local project: notch"
+                ),
+                record(
+                    id: "codex-ambient-suggestions-output-only",
+                    prompt: nil,
+                    summary: ambientSuggestionsOutput,
+                    lastAssistantMessage: ambientSuggestionsOutput
+                ),
+                record(
+                    id: "codex-cli",
+                    prompt: "Run the repository tests and summarize failures."
+                ),
+            ],
+            cutoff: now.addingTimeInterval(-60)
+        )
+
+        #expect(records.map(\.sessionID) == ["codex-cli"])
+    }
+
+    @Test
+    func outputOnlyCodexAmbientSessionIsHiddenWhenItsHookCompletes() {
+        let model = AppModel()
+        let sessionID = "codex-ambient-output-only"
+
+        model.applyTrackedEvent(
+            .sessionStarted(
+                SessionStarted(
+                    sessionID: sessionID,
+                    title: "Codex · codex-mux",
+                    tool: .codex,
+                    summary: "Started Codex session in codex-mux.",
+                    timestamp: .now,
+                    jumpTarget: JumpTarget(
+                        terminalApp: "Unknown",
+                        workspaceName: "codex-mux",
+                        paneTitle: "Codex ambient",
+                        workingDirectory: "/tmp/codex-mux"
+                    ),
+                    codexMetadata: CodexSessionMetadata()
+                )
+            ),
+            updateLastActionMessage: false,
+            ingress: .bridge
+        )
+
+        let ambientOutput = #"{"suggestions":[{"title":"Continue the project","description":"Resume the cached task.","prompt":"Continue from the handoff.","appId":"codex-document-control"}]}"#
+        model.applyTrackedEvent(
+            .sessionCompleted(
+                SessionCompleted(
+                    sessionID: sessionID,
+                    summary: ambientOutput,
+                    timestamp: .now
+                )
+            ),
+            updateLastActionMessage: false,
+            ingress: .bridge
+        )
+
+        #expect(model.state.session(id: sessionID) == nil)
+        #expect(!model.islandListSessions.contains(where: { $0.id == sessionID }))
+    }
+
+    @Test
     func mergedWithSyntheticClaudeSessionsAddsGhosttyClaudeProcessWhenNoTrackedSessionExists() {
         let now = Date(timeIntervalSince1970: 2_000)
         let model = AppModel()

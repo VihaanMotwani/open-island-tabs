@@ -1,6 +1,28 @@
 import Foundation
 import SQLite3
 
+public enum CodexThreadTitlePresentation {
+    public static func displayTitle(from rawTitle: String?) -> String? {
+        guard let normalized = rawTitle?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !normalized.isEmpty else {
+            return nil
+        }
+
+        guard normalized.hasPrefix("<codex_delegation>"),
+              let inputStart = normalized.range(of: "<input>"),
+              let inputEnd = normalized.range(
+                  of: "</input>",
+                  range: inputStart.upperBound..<normalized.endIndex
+              ) else {
+            return normalized
+        }
+
+        let input = normalized[inputStart.upperBound..<inputEnd.lowerBound]
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return input.isEmpty ? normalized : input
+    }
+}
+
 /// Read-only access to the task titles maintained by Codex Desktop.
 public struct CodexThreadTitleStore: Sendable {
     public let databasePath: String

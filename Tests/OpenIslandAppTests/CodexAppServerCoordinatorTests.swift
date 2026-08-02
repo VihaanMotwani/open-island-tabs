@@ -191,6 +191,32 @@ struct CodexAppServerCoordinatorTests {
 
     @MainActor
     @Test
+    func threadNameNotificationUnwrapsDelegatedTaskTitle() {
+        let coordinator = CodexAppServerCoordinator()
+        var events: [AgentEvent] = []
+        coordinator.onEvent = { events.append($0) }
+
+        coordinator.handleNotification(
+            .threadNameUpdated(
+                threadId: "codex-thread-1",
+                name: """
+                <codex_delegation>
+                  <source_thread_id>source-thread</source_thread_id>
+                  <input>Continue the Open Island approval fix.</input>
+                </codex_delegation>
+                """
+            )
+        )
+
+        guard case let .sessionTitleUpdated(payload) = events.first else {
+            Issue.record("Expected a session title update")
+            return
+        }
+        #expect(payload.title == "Continue the Open Island approval fix.")
+    }
+
+    @MainActor
+    @Test
     func blankThreadNameNotificationIsIgnored() {
         let coordinator = CodexAppServerCoordinator()
         var events: [AgentEvent] = []

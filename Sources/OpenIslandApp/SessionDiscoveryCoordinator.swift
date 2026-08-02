@@ -171,8 +171,21 @@ final class SessionDiscoveryCoordinator {
         cutoff: Date
     ) -> [CodexTrackedSessionRecord] {
         records.filter { record in
-            record.updatedAt >= cutoff
+            let canUseAmbientOutputSignature = record.runtimeSurface == .unknown
+                && (record.jumpTarget?.terminalApp == nil
+                    || record.jumpTarget?.terminalApp == "Unknown")
+            return record.updatedAt >= cutoff
                 && record.shouldRestoreToLiveState
+                && !CodexInternalSessionClassifier.isTranscriptlessAmbientSession(
+                    transcriptPath: record.codexMetadata?.transcriptPath,
+                    prompts: [
+                        record.codexMetadata?.initialUserPrompt,
+                        record.codexMetadata?.lastUserPrompt,
+                    ],
+                    structuredOutputs: canUseAmbientOutputSignature
+                        ? [record.summary, record.codexMetadata?.lastAssistantMessage]
+                        : []
+                )
                 && !CodexRolloutDiscovery.isInternalSubagentTranscript(
                     atPath: record.codexMetadata?.transcriptPath
                 )
@@ -478,7 +491,9 @@ final class SessionDiscoveryCoordinator {
             // the real task name, an older prompt-shaped database title must
             // never overwrite it on the next maintenance tick.
             guard shouldReplaceWithPersistedCodexTitle(session.title),
-                  let title = titles[session.id],
+                  let title = CodexThreadTitlePresentation.displayTitle(
+                      from: titles[session.id]
+                  ),
                   title != session.title else { continue }
             onAgentEvent?(.sessionTitleUpdated(
                 SessionTitleUpdated(
@@ -496,6 +511,7 @@ final class SessionDiscoveryCoordinator {
             || normalized == "Codex"
             || normalized.hasPrefix("Codex ·")
             || normalized.contains("<recommended_plugins>")
+            || normalized.hasPrefix("<codex_delegation>")
     }
 
     func refreshCodexRolloutTracking() {
@@ -512,6 +528,7 @@ final class SessionDiscoveryCoordinator {
             return CodexRolloutWatchTarget(
                 sessionID: session.id,
                 transcriptPath: transcriptPath,
+                runtimeSurface: session.codexRuntimeSurface,
                 bootstrapPrompts: session.phase != .completed,
                 cachedInitialUserPrompt: session.codexMetadata?.initialUserPrompt,
                 cachedLastUserPrompt: session.codexMetadata?.lastUserPrompt,

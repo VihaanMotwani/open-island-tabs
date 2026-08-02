@@ -13,6 +13,7 @@ struct SpotifyPlaybackProviderTests {
                 "M83",
                 "Hurry Up, We're Dreaming",
                 "https://example.com/artwork.jpg",
+                "spotify:track:3GfOAdcoc3X5GPiiXmpBjK",
                 "244000",
                 "61.5",
                 "37",
@@ -28,6 +29,7 @@ struct SpotifyPlaybackProviderTests {
         #expect(snapshot.artist == "M83")
         #expect(snapshot.album == "Hurry Up, We're Dreaming")
         #expect(snapshot.artworkURL == URL(string: "https://example.com/artwork.jpg"))
+        #expect(snapshot.contentURL == URL(string: "spotify:track:3GfOAdcoc3X5GPiiXmpBjK"))
         #expect(snapshot.duration == 244)
         #expect(snapshot.position == 61.5)
         #expect(snapshot.volume == 0.37)

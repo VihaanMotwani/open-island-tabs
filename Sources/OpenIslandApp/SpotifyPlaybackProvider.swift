@@ -19,6 +19,7 @@ struct MediaPlaybackSnapshot: Equatable, Sendable {
     var artist: String
     var album: String
     var artworkURL: URL?
+    var contentURL: URL?
     var duration: TimeInterval
     var position: TimeInterval
     var volume: Double
@@ -30,6 +31,7 @@ struct MediaPlaybackSnapshot: Equatable, Sendable {
         artist: "",
         album: "",
         artworkURL: nil,
+        contentURL: nil,
         duration: 0,
         position: 0,
         volume: 0
@@ -92,7 +94,7 @@ struct SpotifyPlaybackProvider: MediaPlaybackProviding {
     }
 
     private static func snapshot(from fields: [String]) -> MediaPlaybackSnapshot {
-        guard fields.first == "running", fields.count >= 9 else {
+        guard fields.first == "running", fields.count >= 10 else {
             return .notRunning
         }
 
@@ -101,9 +103,9 @@ struct SpotifyPlaybackProvider: MediaPlaybackProviding {
         case "paused": .paused
         default: .stopped
         }
-        let durationMilliseconds = Double(fields[6]) ?? 0
-        let position = Double(fields[7]) ?? 0
-        let volumePercent = Double(fields[8]) ?? 0
+        let durationMilliseconds = Double(fields[7]) ?? 0
+        let position = Double(fields[8]) ?? 0
+        let volumePercent = Double(fields[9]) ?? 0
 
         return MediaPlaybackSnapshot(
             availability: .running,
@@ -112,6 +114,7 @@ struct SpotifyPlaybackProvider: MediaPlaybackProviding {
             artist: fields[3],
             album: fields[4],
             artworkURL: URL(string: fields[5]),
+            contentURL: URL(string: fields[6]),
             duration: max(durationMilliseconds / 1_000, 0),
             position: max(position, 0),
             volume: min(max(volumePercent / 100, 0), 1)
@@ -134,12 +137,13 @@ struct SpotifyPlaybackProvider: MediaPlaybackProviding {
                 artist of trackInfo, ¬
                 album of trackInfo, ¬
                 artwork url of trackInfo, ¬
+                spotify url of trackInfo, ¬
                 duration of trackInfo as text, ¬
                 player position as text, ¬
                 sound volume as text ¬
             }
         on error
-            return {"running", "stopped", "", "", "", "", "0", "0", sound volume as text}
+            return {"running", "stopped", "", "", "", "", "", "0", "0", sound volume as text}
         end try
     end tell
     """

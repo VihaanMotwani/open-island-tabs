@@ -133,6 +133,8 @@ extension AgentSession {
                 return "Live · \(currentTool)"
             }
             return "Live"
+        case .needsAttention:
+            return "Needs attention in Codex"
         case .waitingForApproval:
             return "Approval"
         case .waitingForAnswer:
@@ -428,6 +430,8 @@ extension AgentSession {
                 return activity
             }
             return spotlightPromptLineText == nil ? "Running" : "Thinking"
+        case .needsAttention:
+            return summary
         case .waitingForApproval:
             return permissionRequest?.summary.trimmedForSurface ?? "Approval needed"
         case .waitingForAnswer:
@@ -514,6 +518,8 @@ extension AgentSession {
         switch phase {
         case .running:
             return .live
+        case .needsAttention:
+            return .attention
         case .completed:
             if lastAssistantMessageText?.trimmedForSurface.isEmpty == false {
                 return .idle
@@ -596,7 +602,7 @@ extension AgentSession {
         }
 
         switch phase {
-        case .running, .waitingForApproval, .waitingForAnswer:
+        case .running, .needsAttention, .waitingForApproval, .waitingForAnswer:
             return true
         case .completed:
             return false

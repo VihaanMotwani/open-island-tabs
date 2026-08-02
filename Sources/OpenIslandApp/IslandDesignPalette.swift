@@ -13,6 +13,8 @@ enum IslandDesignPalette {
 
         static func tint(for phase: SessionPhase) -> Color {
             switch phase {
+            case .needsAttention:
+                waitingForApproval
             case .waitingForApproval:
                 waitingForApproval
             case .waitingForAnswer:
@@ -25,7 +27,7 @@ enum IslandDesignPalette {
         }
 
         static func tint(for phase: SessionPhase, presence: IslandSessionPresence) -> Color {
-            if phase == .waitingForApproval || phase == .waitingForAnswer {
+            if phase == .needsAttention || phase == .waitingForApproval || phase == .waitingForAnswer {
                 return tint(for: phase)
             }
 

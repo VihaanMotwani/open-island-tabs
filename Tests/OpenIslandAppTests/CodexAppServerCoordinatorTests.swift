@@ -202,4 +202,66 @@ struct CodexAppServerCoordinatorTests {
 
         #expect(events.isEmpty)
     }
+
+    @MainActor
+    @Test
+    func repeatedDesktopApprovalStatusEmitsOneNonActionableAttentionUpdate() throws {
+        let coordinator = CodexAppServerCoordinator()
+        var events: [AgentEvent] = []
+        coordinator.onEvent = { events.append($0) }
+        coordinator.trackedRuntimeSurface = { threadID in
+            threadID == "desktop-thread" ? .desktopApp : nil
+        }
+
+        let status = try JSONDecoder().decode(CodexThreadStatus.self, from: Data("""
+        {"type":"active","activeFlags":["waitingOnApproval"]}
+        """.utf8))
+
+        coordinator.handleNotification(.threadStatusChanged(threadId: "desktop-thread", status: status))
+        coordinator.handleNotification(.threadStatusChanged(threadId: "desktop-thread", status: status))
+
+        #expect(events.count == 1)
+        guard case let .activityUpdated(payload) = events.first else {
+            Issue.record("Desktop attention must not create an actionable permission request")
+            return
+        }
+        #expect(payload.sessionID == "desktop-thread")
+        #expect(payload.summary == "Needs attention in Codex.")
+        #expect(payload.phase == .needsAttention)
+        #expect(!events.contains { if case .permissionRequested = $0 { true } else { false } })
+    }
+
+    @MainActor
+    @Test
+    func desktopAttentionStatusIsClearedBeforeItCanBeReportedAgain() throws {
+        let coordinator = CodexAppServerCoordinator()
+        var events: [AgentEvent] = []
+        coordinator.onEvent = { events.append($0) }
+        coordinator.trackedRuntimeSurface = { threadID in
+            threadID == "desktop-thread" ? .desktopApp : nil
+        }
+
+        let waitingStatus = try JSONDecoder().decode(CodexThreadStatus.self, from: Data("""
+        {"type":"active","activeFlags":["waitingOnApproval"]}
+        """.utf8))
+        let workingStatus = try JSONDecoder().decode(CodexThreadStatus.self, from: Data("""
+        {"type":"active","activeFlags":[]}
+        """.utf8))
+
+        coordinator.handleNotification(.threadStatusChanged(threadId: "desktop-thread", status: waitingStatus))
+        coordinator.handleNotification(.threadStatusChanged(threadId: "desktop-thread", status: workingStatus))
+        coordinator.handleNotification(.threadStatusChanged(threadId: "desktop-thread", status: waitingStatus))
+
+        #expect(events.count == 3)
+        guard case let .activityUpdated(first) = events[0],
+              case let .activityUpdated(second) = events[1],
+              case let .activityUpdated(third) = events[2] else {
+            Issue.record("Desktop status changes must remain non-actionable activity updates")
+            return
+        }
+        #expect(first.phase == .needsAttention)
+        #expect(second.phase == .running)
+        #expect(second.summary == "Codex is working…")
+        #expect(third.phase == .needsAttention)
+    }
 }

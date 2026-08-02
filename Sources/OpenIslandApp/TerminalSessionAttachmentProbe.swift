@@ -1066,6 +1066,8 @@ struct TerminalSessionAttachmentProbe {
             4
         case .waitingForAnswer:
             3
+        case .needsAttention:
+            3
         case .running:
             2
         case .completed:

@@ -43,6 +43,8 @@ enum IslandSurface: Equatable {
         }
 
         switch session.phase {
+        case .needsAttention:
+            return false
         case .waitingForApproval:
             return session.permissionRequest != nil
         case .waitingForAnswer:

@@ -100,6 +100,63 @@ struct SessionStateTests {
         #expect(state.activeActionableSession?.permissionRequest == nil)
     }
 
+    @Test
+    func nonActionableDesktopAttentionPreservesTheJumpTargetAndClearsOnActivity() {
+        let startedAt = Date(timeIntervalSince1970: 1_500)
+        let jumpTarget = JumpTarget(
+            terminalApp: "Codex.app",
+            workspaceName: "notch",
+            paneTitle: "Fix approvals",
+            workingDirectory: "/tmp/notch",
+            codexThreadID: "desktop-thread"
+        )
+        var state = SessionState()
+        state.apply(
+            .sessionStarted(
+                SessionStarted(
+                    sessionID: "desktop-thread",
+                    title: "Codex · notch",
+                    tool: .codex,
+                    summary: "Working",
+                    timestamp: startedAt,
+                    jumpTarget: jumpTarget
+                )
+            )
+        )
+
+        state.apply(
+            .activityUpdated(
+                SessionActivityUpdated(
+                    sessionID: "desktop-thread",
+                    summary: "Needs attention in Codex.",
+                    phase: .needsAttention,
+                    timestamp: startedAt.addingTimeInterval(5)
+                )
+            )
+        )
+
+        #expect(state.session(id: "desktop-thread")?.phase == .needsAttention)
+        #expect(state.session(id: "desktop-thread")?.permissionRequest == nil)
+        #expect(state.session(id: "desktop-thread")?.jumpTarget == jumpTarget)
+        #expect(state.attentionCount == 1)
+        #expect(state.activeActionableSession == nil)
+
+        state.apply(
+            .activityUpdated(
+                SessionActivityUpdated(
+                    sessionID: "desktop-thread",
+                    summary: "Codex is working…",
+                    phase: .running,
+                    timestamp: startedAt.addingTimeInterval(10)
+                )
+            )
+        )
+
+        #expect(state.session(id: "desktop-thread")?.phase == .running)
+        #expect(state.session(id: "desktop-thread")?.summary == "Codex is working…")
+        #expect(state.attentionCount == 0)
+    }
+
     /// Contract that the Claude Desktop fix (#510) relies on: a hook-managed
     /// Claude session stays visible for as long as its ID is reported in
     /// `aliveSessionIDs`, and is only evicted after two consecutive polls

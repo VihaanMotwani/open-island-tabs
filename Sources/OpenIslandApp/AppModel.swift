@@ -865,7 +865,7 @@ final class AppModel {
         let definitions: [(id: String, title: String, include: (AgentSession) -> Bool)] = [
             ("approval", "island.section.needsApproval", { $0.phase == .waitingForApproval }),
             ("answer", "island.section.needsAnswer", { $0.phase == .waitingForAnswer }),
-            ("running", "island.section.inProgress", { $0.phase == .running }),
+            ("running", "island.section.inProgress", { $0.phase == .running || $0.phase == .needsAttention }),
             ("done", "island.section.justDone", { [completedStaleThreshold] session in
                 session.phase == .completed
                     && !session.isStaleCompletedForIsland(at: .now, threshold: completedStaleThreshold.seconds)
@@ -1856,6 +1856,8 @@ final class AppModel {
         switch session.phase {
         case .running:
             score += 2_000
+        case .needsAttention:
+            score += 1_700
         case .waitingForApproval:
             score += 1_500
         case .waitingForAnswer:

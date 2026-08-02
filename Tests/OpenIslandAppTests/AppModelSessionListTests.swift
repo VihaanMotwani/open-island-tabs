@@ -129,6 +129,84 @@ struct AppModelSessionListTests {
     }
 
     @Test
+    func repeatedDesktopApprovalStatusDoesNotOpenAnApprovalNotification() throws {
+        let model = AppModel()
+        model.suppressFrontmostNotifications = false
+        let jumpTarget = JumpTarget(
+            terminalApp: "Codex.app",
+            workspaceName: "notch",
+            paneTitle: "Fix approvals",
+            workingDirectory: "/tmp/notch",
+            codexThreadID: "desktop-thread"
+        )
+        let desktopSession = AgentSession(
+            id: "desktop-thread",
+            title: "Codex · notch",
+            tool: .codex,
+            attachmentState: .attached,
+            phase: .running,
+            summary: "Working",
+            updatedAt: .now,
+            jumpTarget: jumpTarget,
+            codexRuntimeSurface: .desktopApp
+        )
+        model.state = SessionState(sessions: [desktopSession])
+
+        let waitingStatus = try JSONDecoder().decode(CodexThreadStatus.self, from: Data("""
+        {"type":"active","activeFlags":["waitingOnApproval"]}
+        """.utf8))
+
+        model.codexAppServer.handleNotification(
+            .threadStatusChanged(threadId: "desktop-thread", status: waitingStatus)
+        )
+        model.codexAppServer.handleNotification(
+            .threadStatusChanged(threadId: "desktop-thread", status: waitingStatus)
+        )
+
+        #expect(model.state.session(id: "desktop-thread")?.phase == .needsAttention)
+        #expect(model.state.session(id: "desktop-thread")?.permissionRequest == nil)
+        #expect(model.state.session(id: "desktop-thread")?.jumpTarget == jumpTarget)
+        #expect(model.notchStatus == .closed)
+        #expect(model.islandSurface == .sessionList())
+    }
+
+    @Test
+    func desktopStatusDoesNotOverwriteHookBackedCLIApproval() throws {
+        let model = AppModel()
+        let request = PermissionRequest(
+            title: "Run command",
+            summary: "Allow Codex CLI to run swift test?",
+            affectedPath: "/tmp/notch",
+            toolName: "Shell",
+            toolUseID: "call-123"
+        )
+        model.state = SessionState(sessions: [
+            AgentSession(
+                id: "cli-thread",
+                title: "Codex CLI · notch",
+                tool: .codex,
+                attachmentState: .attached,
+                phase: .waitingForApproval,
+                summary: "Approval required",
+                updatedAt: .now,
+                permissionRequest: request,
+                codexRuntimeSurface: .external
+            )
+        ])
+
+        let waitingStatus = try JSONDecoder().decode(CodexThreadStatus.self, from: Data("""
+        {"type":"active","activeFlags":["waitingOnApproval"]}
+        """.utf8))
+
+        model.codexAppServer.handleNotification(
+            .threadStatusChanged(threadId: "cli-thread", status: waitingStatus)
+        )
+
+        #expect(model.state.session(id: "cli-thread")?.phase == .waitingForApproval)
+        #expect(model.state.session(id: "cli-thread")?.permissionRequest == request)
+    }
+
+    @Test
     func completionInterruptUsesSpotifyRestorationTakeover() {
         let model = AppModel()
         model.isSoundMuted = true

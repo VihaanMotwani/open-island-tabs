@@ -99,8 +99,6 @@ extension AgentSession {
 
 // MARK: - Animations
 
-private let openAnimation = Animation.snappy(duration: 0.30, extraBounce: 0.04)
-private let closeAnimation = Animation.snappy(duration: 0.24)
 private let popAnimation = Animation.spring(response: 0.3, dampingFraction: 0.5)
 private let openedSurfaceUnmountDelay: TimeInterval = 0.36
 
@@ -138,15 +136,11 @@ struct IslandPanelView: View {
         model.notchStatus == .popping
     }
 
-    /// Single animation selection based on the current notch status.
     private var notchTransitionAnimation: Animation? {
-        guard !reduceMotion else { return nil }
-
-        switch model.notchStatus {
-        case .opened:  return openAnimation
-        case .closed:  return closeAnimation
-        case .popping: return popAnimation
-        }
+        IslandTransitionMotionPolicy.animation(
+            for: model.notchStatus,
+            reduceMotion: reduceMotion
+        )
     }
 
     private var targetOverlayScreen: NSScreen? {
@@ -228,20 +222,71 @@ struct IslandPanelView: View {
         let outerBottomPadding: CGFloat = 0
         let openedWidth = max(0, layoutWidth - outerHorizontalPadding)
         let openedHeight = max(closedNotchHeight, layoutHeight - outerBottomPadding)
+        let closedLayout: V6ClosedLayout = isExternalDisplayPlacement ? .external : .macbook
+        let physicalNotchWidth: CGFloat = targetOverlayScreen?.notchSize.width ?? 180
+        let closedLabel = closedLayout == .external ? model.islandClosedLabel() : nil
+        let closedRightSlot = model.islandClosedRightSlotContent()
+        let mediaActivity = MediaActivityState(snapshot: model.spotifyPlayback.snapshot)
+        let closedGeometry = V6ClosedPillGeometry.resolve(
+            label: closedLabel,
+            rightSlot: closedRightSlot,
+            mediaActivity: mediaActivity,
+            layout: closedLayout,
+            height: closedNotchHeight,
+            physicalNotchWidth: closedLayout == .macbook ? physicalNotchWidth : 0,
+            minWidth: 70
+        )
+        let transitionState = IslandTransitionMotionPolicy.visualState(
+            for: model.notchStatus,
+            openedSize: CGSize(width: openedWidth, height: openedHeight),
+            closedSize: CGSize(width: closedGeometry.width, height: closedGeometry.height),
+            closedHorizontalOffset: closedGeometry.horizontalOffset,
+            openedTopCornerRadius: usesNotchAwareOpenedHeader ? NotchShape.openedTopRadius : 0
+        )
+        let silhouette = NotchShape(
+            topCornerRadius: transitionState.topCornerRadius,
+            bottomCornerRadius: transitionState.bottomCornerRadius
+        )
 
         VStack(spacing: 0) {
             ZStack(alignment: .top) {
+                Rectangle()
+                    .fill(V6Palette.ink)
+
                 if shouldRenderOpenedSurface {
                     openedSurface(width: openedWidth, height: openedHeight)
-                        .opacity(usesOpenedVisualState ? 1 : 0)
+                        .opacity(transitionState.openedContentOpacity)
+                        .blur(radius: transitionState.openedContentBlurRadius)
+                        .scaleEffect(transitionState.openedContentScale, anchor: .top)
+                        .offset(y: transitionState.openedContentVerticalOffset)
                         .allowsHitTesting(usesOpenedVisualState)
                 }
 
-                v6ClosedSurface()
-                    .opacity(usesOpenedVisualState ? 0 : 1)
+                v6ClosedSurface(
+                    layout: closedLayout,
+                    label: closedLabel,
+                    rightSlot: closedRightSlot,
+                    mediaActivity: mediaActivity,
+                    physicalNotchWidth: physicalNotchWidth
+                )
+                    .opacity(1 - transitionState.openedContentOpacity)
                     .allowsHitTesting(!usesOpenedVisualState)
             }
-            .frame(maxWidth: .infinity, alignment: .top)
+            .frame(width: openedWidth, height: openedHeight, alignment: .top)
+            .mask(alignment: .top) {
+                silhouette
+                    .frame(
+                        width: transitionState.size.width,
+                        height: transitionState.size.height
+                    )
+                    .offset(x: transitionState.horizontalOffset)
+                    .frame(width: openedWidth, height: openedHeight, alignment: .top)
+            }
+            .shadow(
+                color: .black.opacity(transitionState.shadowRadius > 0 ? 0.62 : 0),
+                radius: transitionState.shadowRadius,
+                y: transitionState.shadowRadius > 0 ? 5 : 0
+            )
         }
         .scaleEffect(usesOpenedVisualState ? 1 : (isHovering ? IslandChromeMetrics.closedHoverScale : 1), anchor: .top)
         .padding(.horizontal, panelShadowHorizontalInset)
@@ -285,15 +330,18 @@ struct IslandPanelView: View {
     /// preferences. AppModel is @Observable so any change to sessions /
     /// preferences re-renders this automatically; UnifiedBars runs its own
     /// TimelineView internally for bar animation.
-    @ViewBuilder
-    private func v6ClosedSurface() -> some View {
-        let layout: V6ClosedLayout = isExternalDisplayPlacement ? .external : .macbook
-        let physicalNotchWidth: CGFloat = targetOverlayScreen?.notchSize.width ?? 180
+    private func v6ClosedSurface(
+        layout: V6ClosedLayout,
+        label: String?,
+        rightSlot: IslandRightSlotContent?,
+        mediaActivity: MediaActivityState,
+        physicalNotchWidth: CGFloat
+    ) -> some View {
         V6ClosedPill(
             mode: model.islandClosedMode,
-            label: layout == .external ? model.islandClosedLabel() : nil,
-            rightSlot: model.islandClosedRightSlotContent(),
-            mediaActivity: MediaActivityState(snapshot: model.spotifyPlayback.snapshot),
+            label: label,
+            rightSlot: rightSlot,
+            mediaActivity: mediaActivity,
             onMediaActivitySelected: openSpotifyTabFromActivityIndicator,
             layout: layout,
             height: closedNotchHeight,
@@ -312,45 +360,26 @@ struct IslandPanelView: View {
 
     @ViewBuilder
     private func openedSurface(width openedWidth: CGFloat, height openedHeight: CGFloat) -> some View {
-        let horizontalInset = 0.0
-        let bottomInset = 0.0
-        let surfaceWidth = openedWidth + (horizontalInset * 2)
-        let surfaceHeight = openedHeight + bottomInset
-        let surfaceShape = OpenedIslandSurfaceShape(
-            topProfile: usesNotchAwareOpenedHeader ? .notch : .topBar
-        )
+        VStack(spacing: 0) {
+            openedHeaderContent
+                .frame(height: closedNotchHeight)
 
-        ZStack(alignment: .top) {
-            surfaceShape
-                .fill(V6Palette.ink)
-                .frame(width: surfaceWidth, height: surfaceHeight)
-                .shadow(color: .black.opacity(0.62), radius: 10, y: 5)
+            openedTabSwitcher
+                .frame(height: Self.openedTabSwitcherHeight)
+                .offset(y: -2)
 
-            VStack(spacing: 0) {
-                openedHeaderContent
-                    .frame(height: closedNotchHeight)
-
-                openedTabSwitcher
-                    .frame(height: Self.openedTabSwitcherHeight)
-                    .offset(y: -2)
-
-                openedContent
-                    .frame(width: openedWidth)
-                    .frame(
-                        maxHeight: max(
-                            0,
-                            openedHeight - closedNotchHeight - Self.openedTabSwitcherHeight
-                        ),
-                        alignment: .top
-                    )
-                    .clipped()
-            }
-            .frame(width: openedWidth, height: openedHeight, alignment: .top)
-            .padding(.horizontal, horizontalInset)
-            .padding(.bottom, bottomInset)
-            .clipShape(surfaceShape)
+            openedContent
+                .frame(width: openedWidth)
+                .frame(
+                    maxHeight: max(
+                        0,
+                        openedHeight - closedNotchHeight - Self.openedTabSwitcherHeight
+                    ),
+                    alignment: .top
+                )
+                .clipped()
         }
-        .frame(width: surfaceWidth, height: surfaceHeight, alignment: .top)
+        .frame(width: openedWidth, height: openedHeight, alignment: .top)
     }
 
     // MARK: - Closed state

@@ -205,6 +205,68 @@ struct V6CenterLabelView: View {
 
 // MARK: - Closed-pill layouts
 
+struct V6ClosedPillGeometry: Equatable {
+    static let innerGap: CGFloat = 6
+
+    let width: CGFloat
+    let height: CGFloat
+    let horizontalOffset: CGFloat
+    let leadingReserve: CGFloat
+    let trailingReserve: CGFloat
+
+    @MainActor
+    static func resolve(
+        label: String?,
+        rightSlot: IslandRightSlotContent?,
+        mediaActivity: MediaActivityState,
+        layout: V6ClosedLayout,
+        height: CGFloat,
+        physicalNotchWidth: CGFloat,
+        minWidth: CGFloat
+    ) -> V6ClosedPillGeometry {
+        let mediaActivityWidth: CGFloat = mediaActivity == .hidden ? 0 : 21
+        let leadingWidth = V6MacBookSlotMetrics.leadingActivityContentWidth(
+            mediaActivityWidth: mediaActivityWidth
+        )
+
+        switch layout {
+        case .external:
+            let labelWidth = label.map { V6CenterLabelView.intrinsicWidth(of: $0) } ?? 0
+            let rightWidth = rightSlot.map { V6RightSlotView.intrinsicWidth(of: $0) } ?? 0
+            let labelBlock = label == nil ? 0 : Self.innerGap + labelWidth
+            let rightBlock = rightSlot == nil ? 0 : Self.innerGap + rightWidth
+            let intrinsicWidth = height + leadingWidth + labelBlock + rightBlock
+
+            return V6ClosedPillGeometry(
+                width: max(minWidth, intrinsicWidth),
+                height: height,
+                horizontalOffset: 0,
+                leadingReserve: 0,
+                trailingReserve: 0
+            )
+        case .macbook:
+            let trailingWidth = rightSlot.map { V6RightSlotView.intrinsicWidth(of: $0) } ?? 0
+            let leadingReserve = V6MacBookSlotMetrics.leadingReserve(
+                contentWidth: leadingWidth
+            )
+            let trailingReserve = V6MacBookSlotMetrics.trailingReserve(
+                contentWidth: trailingWidth
+            )
+
+            return V6ClosedPillGeometry(
+                width: leadingReserve + physicalNotchWidth + trailingReserve,
+                height: height,
+                horizontalOffset: V6MacBookSlotMetrics.hardwareAlignmentOffset(
+                    leadingReserve: leadingReserve,
+                    trailingReserve: trailingReserve
+                ),
+                leadingReserve: leadingReserve,
+                trailingReserve: trailingReserve
+            )
+        }
+    }
+}
+
 /// The canonical v6 closed-island pill rendered inside a fixed-height frame.
 /// Pure view — takes all parameters explicitly so it can be reused for the
 /// live settings preview and the real island.
@@ -233,17 +295,16 @@ struct V6ClosedPill: View {
         }
     }
 
-    // Horizontal edge padding is identical left/right — canonical v6 pill
-    // has r = h/2 semicircular bottoms, so edge inset = r keeps content
-    // clear of the curve.
-    private var pad: CGFloat { height / 2 }
-
-    // Minimum breathing room between the center label (or glyph, when no
-    // label) and the right-slot content so they never touch at small widths.
-    private static let innerGap: CGFloat = 6
-
-    private var mediaActivityWidth: CGFloat {
-        mediaActivity == .hidden ? 0 : 21
+    private var geometry: V6ClosedPillGeometry {
+        V6ClosedPillGeometry.resolve(
+            label: label,
+            rightSlot: rightSlot,
+            mediaActivity: mediaActivity,
+            layout: layout,
+            height: height,
+            physicalNotchWidth: physicalNotchWidth,
+            minWidth: minWidth
+        )
     }
 
     @ViewBuilder
@@ -265,17 +326,6 @@ struct V6ClosedPill: View {
     // MARK: External (fluid)
 
     private var externalBody: some View {
-        let labelW = label.map { V6CenterLabelView.intrinsicWidth(of: $0) } ?? 0
-        let rightW = rightSlot.map { V6RightSlotView.intrinsicWidth(of: $0) } ?? 0
-
-        let labelBlock = (label == nil ? 0 : 6 + labelW)
-        let rightBlock = (rightSlot == nil ? 0 : Self.innerGap + rightW)
-        let leadingWidth = V6MacBookSlotMetrics.leadingActivityContentWidth(
-            mediaActivityWidth: mediaActivityWidth
-        )
-        let intrinsic = pad * 2 + leadingWidth + labelBlock + rightBlock
-        let width = max(minWidth, intrinsic)
-
         return ZStack {
             V6ClosedPillShape()
                 .fill(V6Palette.ink)
@@ -285,20 +335,20 @@ struct V6ClosedPill: View {
 
                 if let label {
                     V6CenterLabelView(text: label)
-                        .padding(.leading, 6)
+                        .padding(.leading, V6ClosedPillGeometry.innerGap)
                         .transition(.opacity.combined(with: .move(edge: .leading)))
                 }
 
-                Spacer(minLength: Self.innerGap)
+                Spacer(minLength: V6ClosedPillGeometry.innerGap)
 
                 if let rightSlot {
                     V6RightSlotView(content: rightSlot)
                         .transition(.opacity.combined(with: .move(edge: .trailing)))
                 }
             }
-            .padding(.horizontal, pad)
+            .padding(.horizontal, height / 2)
         }
-        .frame(width: width, height: height)
+        .frame(width: geometry.width, height: geometry.height)
         .animation(
             .timingCurve(0.4, 0, 0.2, 1, duration: 0.45),
             value: AnyHashable([
@@ -313,18 +363,6 @@ struct V6ClosedPill: View {
     // MARK: MacBook (content-balanced around the physical notch)
 
     private var macbookBody: some View {
-        let leadingWidth = V6MacBookSlotMetrics.leadingActivityContentWidth(
-            mediaActivityWidth: mediaActivityWidth
-        )
-        let trailingWidth = rightSlot.map { V6RightSlotView.intrinsicWidth(of: $0) } ?? 0
-        let leadingReserve = V6MacBookSlotMetrics.leadingReserve(
-            contentWidth: leadingWidth
-        )
-        let trailingReserve = V6MacBookSlotMetrics.trailingReserve(
-            contentWidth: trailingWidth
-        )
-        let outer = leadingReserve + physicalNotchWidth + trailingReserve
-
         return ZStack {
             V6ClosedPillShape()
                 .fill(V6Palette.ink)
@@ -333,7 +371,7 @@ struct V6ClosedPill: View {
                 leadingActivityCluster
                     .padding(.leading, V6MacBookSlotMetrics.outerEdgeInset)
                     .padding(.trailing, V6MacBookSlotMetrics.leadingNotchGap)
-                    .frame(width: leadingReserve, alignment: .trailing)
+                    .frame(width: geometry.leadingReserve, alignment: .trailing)
 
                 Color.clear
                     .frame(width: physicalNotchWidth)
@@ -343,16 +381,11 @@ struct V6ClosedPill: View {
                         V6RightSlotView(content: rightSlot)
                     }
                 }
-                .frame(width: trailingReserve, height: height, alignment: .center)
+                .frame(width: geometry.trailingReserve, height: height, alignment: .center)
             }
         }
-        .frame(width: outer, height: height)
-        .offset(
-            x: V6MacBookSlotMetrics.hardwareAlignmentOffset(
-                leadingReserve: leadingReserve,
-                trailingReserve: trailingReserve
-            )
-        )
+        .frame(width: geometry.width, height: geometry.height)
+        .offset(x: geometry.horizontalOffset)
         .animation(reduceMotion ? nil : .smooth(duration: 0.28), value: mediaActivity)
     }
 }

@@ -1,6 +1,22 @@
 import Foundation
 import Observation
 
+enum SpotifyLaunchTrigger: Equatable, Sendable {
+    case tabSelection
+    case unavailableCard
+}
+
+enum SpotifyLaunchPolicy {
+    static func command(for trigger: SpotifyLaunchTrigger) -> MediaPlaybackCommand? {
+        switch trigger {
+        case .tabSelection:
+            nil
+        case .unavailableCard:
+            .open
+        }
+    }
+}
+
 @MainActor
 @Observable
 final class SpotifyPlaybackModel {
@@ -63,6 +79,11 @@ final class SpotifyPlaybackModel {
             await provider.perform(command)
             await refresh()
         }
+    }
+
+    func handleLaunchTrigger(_ trigger: SpotifyLaunchTrigger) {
+        guard let command = SpotifyLaunchPolicy.command(for: trigger) else { return }
+        perform(command)
     }
 
     private func applyOptimisticUpdate(for command: MediaPlaybackCommand) {

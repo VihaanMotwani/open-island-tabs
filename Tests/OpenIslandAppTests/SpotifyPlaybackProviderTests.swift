@@ -44,6 +44,17 @@ struct SpotifyPlaybackProviderTests {
     }
 
     @Test
+    func opensSpotifyOnlyWhenGivenTheExplicitOpenCommand() async {
+        let executor = SpotifyScriptExecutorStub(responses: [[]])
+        let provider = SpotifyPlaybackProvider(executor: executor)
+
+        await provider.perform(.open)
+
+        let scripts = await executor.executedScripts
+        #expect(scripts == [#"tell application "Spotify" to activate"#])
+    }
+
+    @Test
     func clampsSeekAndVolumeBeforeSendingCommandsToSpotify() async {
         let executor = SpotifyScriptExecutorStub(responses: [[], []])
         let provider = SpotifyPlaybackProvider(executor: executor)

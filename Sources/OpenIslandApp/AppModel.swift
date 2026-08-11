@@ -1282,10 +1282,6 @@ final class AppModel {
     func openIslandTab(_ tab: IslandTab) {
         overlay.openIslandTab(tab)
     }
-    func openSpotifyIfNeeded() {
-        guard spotifyPlayback.snapshot.availability == .notRunning else { return }
-        spotifyPlayback.perform(.open)
-    }
     func notchOpen(reason: NotchOpenReason, surface: IslandSurface = .sessionList()) { overlay.notchOpen(reason: reason, surface: surface) }
     func notchClose() { overlay.notchClose() }
     func notchPop() { overlay.notchPop() }

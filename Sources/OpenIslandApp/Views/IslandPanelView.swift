@@ -509,7 +509,7 @@ struct IslandPanelView: View {
         }
 
         if tab == .spotify {
-            model.openSpotifyIfNeeded()
+            model.spotifyPlayback.handleLaunchTrigger(.tabSelection)
         }
     }
 

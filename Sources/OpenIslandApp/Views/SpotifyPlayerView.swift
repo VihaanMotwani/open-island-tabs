@@ -155,7 +155,7 @@ struct SpotifyPlayerView: View {
 
     private var unavailableState: some View {
         Button {
-            model.perform(.open)
+            model.handleLaunchTrigger(.unavailableCard)
         } label: {
             HStack(spacing: 12) {
                 SpotifyGlyph()

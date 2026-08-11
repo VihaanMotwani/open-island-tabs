@@ -362,7 +362,7 @@ struct IslandPanelView: View {
         if model.isSpotifyTabVisible {
             model.openIslandTab(.spotify)
         } else {
-            model.spotifyPlayback.perform(.open)
+            model.spotifyPlayback.handleLaunchTrigger(.activityIndicator)
         }
     }
 

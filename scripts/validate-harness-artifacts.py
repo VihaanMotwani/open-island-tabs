@@ -365,13 +365,15 @@ def main() -> None:
         require_frame_between(
             overlay_frame,
             width=(420, 480),
-            height=(250, 370),
+            height=(250, 400),
             context="tasksList overlay frame",
         )
         if report.get("selectedTab") != "tasks":
             fail("tasksList did not select the To-do tab")
         if "Mark complete" not in button_labels or "Mark incomplete" not in button_labels:
             fail("tasksList is missing completion controls")
+        if "Clear completed" not in button_labels:
+            fail("tasksList is missing the clear-completed control")
         assert_contains_any(
             text_values,
             ["Review agent approvals", "Run the Swift test suite"],

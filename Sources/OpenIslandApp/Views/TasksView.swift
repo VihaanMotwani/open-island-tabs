@@ -2,12 +2,14 @@ import SwiftUI
 
 struct TasksView: View {
     let store: TaskStore
+    let lang: LanguageManager
     let onContentHeightChange: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var draft = ""
     @State private var editingTaskID: UUID?
     @State private var editingDraft = ""
+    @State private var showingClearCompletedConfirmation = false
     @FocusState private var focusedField: Field?
 
     fileprivate enum Field: Hashable {
@@ -30,11 +32,34 @@ struct TasksView: View {
                 .scrollBounceBehavior(.basedOnSize)
                 .scrollIndicators(.hidden)
             }
+
+            if store.hasCompletedTasks {
+                Button {
+                    showingClearCompletedConfirmation = true
+                } label: {
+                    Label(lang.t("tasks.clearCompleted"), systemImage: "trash")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.white.opacity(0.48))
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+                .buttonStyle(.plain)
+            }
         }
         .padding(.horizontal, ExpandedNotchLayoutMetrics.safeContentHorizontalInset)
         .padding(.top, 8)
         .padding(.bottom, 6)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .alert(
+            lang.t("tasks.clearCompleted.confirmTitle"),
+            isPresented: $showingClearCompletedConfirmation
+        ) {
+            Button(lang.t("tasks.clearCompleted.confirmAction"), role: .destructive) {
+                clearCompletedTasks()
+            }
+            Button(lang.t("tasks.cancel"), role: .cancel) {}
+        } message: {
+            Text(lang.t("tasks.clearCompleted.confirmMessage"))
+        }
     }
 
     private var addTaskField: some View {
@@ -43,7 +68,7 @@ struct TasksView: View {
                 .foregroundStyle(.white.opacity(0.65))
                 .accessibilityHidden(true)
 
-            TextField("Add a task for today", text: $draft)
+            TextField(lang.t("tasks.add"), text: $draft)
                 .textFieldStyle(.plain)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.white.opacity(0.88))
@@ -61,6 +86,7 @@ struct TasksView: View {
     private func taskRow(_ task: TaskItem) -> some View {
         TaskRow(
             task: task,
+            lang: lang,
             isEditing: editingTaskID == task.id,
             editingDraft: $editingDraft,
             editingFocus: $focusedField,
@@ -89,6 +115,13 @@ struct TasksView: View {
             store.addTask(title: title)
         }
         draft = ""
+        refreshHeight()
+    }
+
+    private func clearCompletedTasks() {
+        withAnimation(reduceMotion ? nil : .snappy(duration: 0.24)) {
+            store.clearCompletedTasks()
+        }
         refreshHeight()
     }
 
@@ -121,6 +154,7 @@ struct TasksView: View {
 
 private struct TaskRow: View {
     let task: TaskItem
+    let lang: LanguageManager
     let isEditing: Bool
     @Binding var editingDraft: String
     var editingFocus: FocusState<TasksView.Field?>.Binding
@@ -142,10 +176,12 @@ private struct TaskRow: View {
                     )
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(task.isCompleted ? "Mark incomplete" : "Mark complete")
+            .accessibilityLabel(
+                lang.t(task.isCompleted ? "tasks.markIncomplete" : "tasks.markComplete")
+            )
 
             if isEditing {
-                TextField("Task", text: $editingDraft)
+                TextField(lang.t("tasks.task"), text: $editingDraft)
                     .textFieldStyle(.plain)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.white.opacity(0.9))
@@ -156,12 +192,12 @@ private struct TaskRow: View {
                 Button(action: onCommitEditing) {
                     Image(systemName: "checkmark.circle.fill")
                 }
-                .accessibilityLabel("Save task")
+                .accessibilityLabel(lang.t("tasks.save"))
 
                 Button(action: onCancelEditing) {
                     Image(systemName: "xmark.circle.fill")
                 }
-                .accessibilityLabel("Cancel editing")
+                .accessibilityLabel(lang.t("tasks.cancelEditing"))
             } else {
                 Text(task.title)
                     .font(.system(size: 12, weight: .medium))
@@ -183,9 +219,12 @@ private struct TaskRow: View {
         )
         .contentShape(Rectangle())
         .contextMenu {
-            Button(task.isCompleted ? "Mark Incomplete" : "Complete", action: onToggle)
-            Button("Edit", action: onBeginEditing)
-            Button("Delete", role: .destructive, action: onDelete)
+            Button(
+                lang.t(task.isCompleted ? "tasks.markIncomplete" : "tasks.complete"),
+                action: onToggle
+            )
+            Button(lang.t("tasks.edit"), action: onBeginEditing)
+            Button(lang.t("tasks.delete"), role: .destructive, action: onDelete)
         }
         .accessibilityElement(children: .contain)
     }

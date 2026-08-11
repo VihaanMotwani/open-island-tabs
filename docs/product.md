@@ -48,10 +48,13 @@ CLI coding agents are powerful, but they pull attention away from the editor and
 ## Features
 
 - **Notch overlay** — sits in the notch area on notch Macs, falls back to a compact top-center bar on external displays or non-notch Macs
-- **Settings** — hook install/uninstall, usage dashboard, General, Display, Sound, Shortcuts, Lab, About
+- **Expanded tabs** — Agents, Spotify playback, and a lightweight local To-do list; Spotify and To-do can be hidden independently while Agents remains available
+- **Personalization** — per-display closed-island and session-list styles, optional-tab visibility, and animated/static/hidden music activity with Reduce Motion support
+- **Local tasks** — add, edit, complete, delete, and clear completed tasks; task titles persist in `~/Library/Application Support/OpenIsland/tasks.json`
+- **Settings** — hook install/uninstall, usage dashboard, General, Personalization, Display, Sound, Shortcuts, Lab, About
 - **Notification mode** — auto-height panel for permission requests and session events
 - **Notification sounds** — configurable system sounds with mute toggle
-- **i18n** — English and Simplified Chinese
+- **i18n** — English, Simplified Chinese, and Traditional Chinese
 - **Session discovery** — auto-discover from local transcripts, persist across launches
 - **Process discovery** — match active agents via `ps`/`lsof`
 - **DMG packaging** — signing, notarization, GitHub Actions release workflow

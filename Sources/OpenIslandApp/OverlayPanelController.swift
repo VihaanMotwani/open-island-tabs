@@ -565,7 +565,8 @@ final class OverlayPanelController {
             return ExpandedNotchLayoutMetrics.spotifyContentHeight
         case .tasks:
             return ExpandedNotchLayoutMetrics.tasksContentHeight(
-                totalCount: model.taskStore.tasks.count
+                totalCount: model.taskStore.tasks.count,
+                showsClearCompleted: model.taskStore.hasCompletedTasks
             )
         case .agents:
             break

@@ -56,12 +56,29 @@ enum IslandAppearanceDisplayProfile: String, CaseIterable, Identifiable, Sendabl
 struct IslandAppearancePreferences: Equatable, Sendable {
     var rightSlot: IslandRightSlot = .count
     var centerLabel: IslandCenterLabel = .agentAction
+    var musicActivityStyle: IslandMusicActivityStyle = .animated
     var usageDisplay: IslandUsageDisplay = .compact
     var sessionStateIndicator: IslandSessionStateIndicator = .animatedDot
     var sessionGroup: IslandSessionGroup = .none
     var sessionSort: IslandSessionSort = .attention
     var completedStaleThreshold: IslandCompletedStaleThreshold = .fiveMinutes
     var showIdleSessions: Bool = false
+}
+
+enum IslandMusicActivityStyle: String, CaseIterable, Identifiable, Sendable {
+    case animated
+    case `static`
+    case hidden
+
+    var id: String { rawValue }
+
+    var allowsAnimation: Bool {
+        self == .animated
+    }
+
+    func displayState(for state: MediaActivityState) -> MediaActivityState {
+        self == .hidden ? .hidden : state
+    }
 }
 
 enum IslandUsageDisplay: String, CaseIterable, Identifiable, Sendable {

@@ -28,6 +28,8 @@ final class AppModel {
     private static let legacyIslandSessionSortDefaultsKey = "appearance.island.v8.sessionSort"
     private static let legacyCompletedStaleThresholdDefaultsKey = "appearance.island.v8.completedStaleThreshold"
     private static let appearanceProfileSettingsDefaultsKey = "appearance.island.v8.settingsProfile"
+    private static let spotifyTabVisibleDefaultsKey = "appearance.island.tabs.spotify.visible"
+    private static let tasksTabVisibleDefaultsKey = "appearance.island.tabs.tasks.visible"
 
     private static let syntheticClaudeSessionPrefix = "claude-process:"
     private static let liveSessionStalenessWindow: TimeInterval = 15 * 60
@@ -85,6 +87,7 @@ final class AppModel {
     }
     var selectedIslandTab: IslandTab { overlay.selectedIslandTab }
     var preferredIslandTab: IslandTab { overlay.preferredIslandTab }
+    var visibleIslandTabs: [IslandTab] { islandTabVisibility.visibleTabs }
     var isOverlayVisible: Bool { overlay.isOverlayVisible }
     var isOverlayCloseTransitionPending: Bool { overlay.isCloseTransitionPending }
     var isCodexSetupBusy: Bool { hooks.isCodexSetupBusy }
@@ -314,6 +317,31 @@ final class AppModel {
             NotificationSoundService.selectedSoundName = selectedSoundName
         }
     }
+
+    private var islandTabVisibility = IslandTabVisibility() {
+        didSet {
+            guard hasFinishedInit, islandTabVisibility != oldValue else { return }
+            UserDefaults.standard.set(
+                islandTabVisibility.showsSpotify,
+                forKey: Self.spotifyTabVisibleDefaultsKey
+            )
+            UserDefaults.standard.set(
+                islandTabVisibility.showsTasks,
+                forKey: Self.tasksTabVisibleDefaultsKey
+            )
+            overlay.updateVisibleIslandTabs(Set(islandTabVisibility.visibleTabs))
+        }
+    }
+
+    var isSpotifyTabVisible: Bool {
+        get { islandTabVisibility.showsSpotify }
+        set { islandTabVisibility.showsSpotify = newValue }
+    }
+
+    var isTasksTabVisible: Bool {
+        get { islandTabVisibility.showsTasks }
+        set { islandTabVisibility.showsTasks = newValue }
+    }
     var overlayDisplaySelectionID: String {
         get { overlay.overlayDisplaySelectionID }
         set { overlay.overlayDisplaySelectionID = newValue }
@@ -359,6 +387,11 @@ final class AppModel {
     var islandCenterLabel: IslandCenterLabel {
         get { appearancePreferences(for: activeAppearanceProfile).centerLabel }
         set { updateAppearancePreferences(for: activeAppearanceProfile) { $0.centerLabel = newValue } }
+    }
+
+    var islandMusicActivityStyle: IslandMusicActivityStyle {
+        get { appearancePreferences(for: activeAppearanceProfile).musicActivityStyle }
+        set { updateAppearancePreferences(for: activeAppearanceProfile) { $0.musicActivityStyle = newValue } }
     }
 
     var islandUsageDisplay: IslandUsageDisplay {
@@ -436,6 +469,7 @@ final class AppModel {
         let defaults = UserDefaults.standard
         defaults.set(preferences.rightSlot.rawValue, forKey: Self.appearanceDefaultsKey(profile, "rightSlot"))
         defaults.set(preferences.centerLabel.rawValue, forKey: Self.appearanceDefaultsKey(profile, "centerLabel"))
+        defaults.set(preferences.musicActivityStyle.rawValue, forKey: Self.appearanceDefaultsKey(profile, "musicActivity"))
         defaults.set(preferences.usageDisplay.rawValue, forKey: Self.appearanceDefaultsKey(profile, "usageDisplay"))
         defaults.set(preferences.sessionStateIndicator.rawValue, forKey: Self.appearanceDefaultsKey(profile, "stateIndicator"))
         defaults.set(preferences.sessionGroup.rawValue, forKey: Self.appearanceDefaultsKey(profile, "sessionGroup"))
@@ -569,6 +603,10 @@ final class AppModel {
                     ?? defaults.string(forKey: islandCenterLabelDefaultsKey)
                     ?? ""
             ) ?? .agentAction,
+            musicActivityStyle: IslandMusicActivityStyle(
+                rawValue: defaults.string(forKey: appearanceDefaultsKey(profile, "musicActivity"))
+                    ?? ""
+            ) ?? .animated,
             usageDisplay: IslandUsageDisplay(
                 rawValue: defaults.string(forKey: appearanceDefaultsKey(profile, "usageDisplay"))
                     ?? ""
@@ -616,6 +654,8 @@ final class AppModel {
             Self.hapticFeedbackEnabledDefaultsKey: false,
             Self.completionReplyEnabledDefaultsKey: false,
             Self.suppressFrontmostNotificationsDefaultsKey: true,
+            Self.spotifyTabVisibleDefaultsKey: true,
+            Self.tasksTabVisibleDefaultsKey: true,
         ])
         isSoundMuted = UserDefaults.standard.bool(forKey: Self.soundMutedDefaultsKey)
         selectedSoundName = NotificationSoundService.selectedSoundName
@@ -636,12 +676,17 @@ final class AppModel {
         ) ?? .topBar
         notchAppearancePreferences = Self.loadAppearancePreferences(for: .notch)
         topBarAppearancePreferences = Self.loadAppearancePreferences(for: .topBar)
+        islandTabVisibility = IslandTabVisibility(
+            showsSpotify: UserDefaults.standard.bool(forKey: Self.spotifyTabVisibleDefaultsKey),
+            showsTasks: UserDefaults.standard.bool(forKey: Self.tasksTabVisibleDefaultsKey)
+        )
         watchNotificationEnabled = UserDefaults.standard.bool(forKey: Self.watchNotificationEnabledKey)
         if watchNotificationEnabled {
             startWatchRelay()
         }
 
         overlay.appModel = self
+        overlay.updateVisibleIslandTabs(Set(islandTabVisibility.visibleTabs))
         overlay.restoreDisplayPreference()
         overlay.startObservingDisplayChanges()
         overlay.onStatusMessage = { [weak self] message in

@@ -44,8 +44,14 @@
 "settings.general.languageChinese" = "简体中文";
 "settings.general.languageTraditionalChinese" = "繁體中文";
 
-/* Settings - Personalization (v6) */
+/* Settings - Personalization */
 "settings.tab.appearance" = "個人化";
+"settings.appearance.tabsPart.title" = "展開的 Island";
+"settings.appearance.tabs.title" = "分頁";
+"settings.appearance.tabs.note" = "選擇 Island 展開時顯示哪些可選空間。";
+"settings.appearance.tabs.agents.note" = "始終用於顯示活躍代理會話。";
+"settings.appearance.tabs.spotify.note" = "播放控制和目前曲目詳情。";
+"settings.appearance.tabs.tasks.note" = "輕量的本機待辦列表。";
 "settings.appearance.preview" = "預覽";
 "settings.appearance.preview.external" = "外接螢幕";
 "settings.appearance.preview.macbook" = "MacBook";
@@ -64,6 +70,11 @@
 "settings.appearance.centerLabel.agentAction" = "代理 · 動作";
 "settings.appearance.centerLabel.sessionName" = "會話名";
 "settings.appearance.centerLabel.off" = "關閉";
+"settings.appearance.musicActivity.title" = "03 · 音樂活動";
+"settings.appearance.musicActivity.note" = "「動畫」跟隨播放，「靜態」固定等化器，「隱藏」會讓收起的 Island 自然縮短。";
+"settings.appearance.musicActivity.animated" = "動畫";
+"settings.appearance.musicActivity.static" = "靜態";
+"settings.appearance.musicActivity.hidden" = "隱藏";
 "settings.appearance.notchPart.title" = "凹槽";
 "settings.appearance.sessionListPart.title" = "會話列表";
 "settings.appearance.sessionPreview" = "預覽";
@@ -116,6 +127,7 @@
 "settings.appearance.preview.completedEarlier" = "稍早已完成";
 "settings.appearance.preview.permissionBody" = "$ npm run build";
 "settings.appearance.preview.pickOrTypeAnswer" = "選擇或輸入回答";
+"settings.appearance.preview.usageSample" = "Codex 38% · 2小時14分";
 
 /* Settings - Display */
 "settings.display.monitor" = "顯示器";
@@ -217,6 +229,24 @@
 "subagents.title" = "子代理 (%lld)";
 "subagents.completed" = "完成";
 "tasks.summary" = "任務 (%lld 已完成, %lld 進行中, %lld 待處理)";
+"island.tab.agents" = "代理";
+"island.tab.spotify" = "Spotify";
+"island.tab.tasks" = "待辦";
+"island.tab.accessibility" = "Island 分頁";
+"tasks.add" = "新增今天的任務";
+"tasks.task" = "任務";
+"tasks.markIncomplete" = "標記為未完成";
+"tasks.markComplete" = "標記為完成";
+"tasks.save" = "儲存任務";
+"tasks.cancelEditing" = "取消編輯";
+"tasks.cancel" = "取消";
+"tasks.complete" = "完成";
+"tasks.edit" = "編輯";
+"tasks.delete" = "刪除";
+"tasks.clearCompleted" = "清除已完成";
+"tasks.clearCompleted.confirmTitle" = "清除已完成任務？";
+"tasks.clearCompleted.confirmMessage" = "這會從此 Mac 移除所有已完成任務。";
+"tasks.clearCompleted.confirmAction" = "清除已完成";
 
 /* Island Panel - Question */
 "question.submit" = "提交答案";

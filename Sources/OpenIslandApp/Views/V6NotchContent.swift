@@ -275,6 +275,7 @@ struct V6ClosedPill: View {
     var label: String?          // suppressed automatically in MacBook layout
     var rightSlot: IslandRightSlotContent?
     var mediaActivity: MediaActivityState = .hidden
+    var mediaActivityAnimationEnabled: Bool = true
     var onMediaActivitySelected: (() -> Void)?
     var layout: V6ClosedLayout
     var height: CGFloat = 32
@@ -313,6 +314,7 @@ struct V6ClosedPill: View {
             if mediaActivity != .hidden {
                 MediaActivityIndicator(
                     state: mediaActivity,
+                    animationEnabled: mediaActivityAnimationEnabled,
                     action: onMediaActivitySelected ?? {}
                 )
                 .transition(.opacity.combined(with: .scale(scale: 0.82)))
@@ -489,6 +491,8 @@ struct IslandPreviewPill: View {
     let mode: UnifiedBars.Mode
     let label: String?
     let rightSlot: IslandRightSlotContent?
+    var mediaActivity: MediaActivityState = .hidden
+    var mediaActivityAnimationEnabled: Bool = true
     let layout: V6ClosedLayout
     let physicalNotchWidth: CGFloat
     let now: Date
@@ -498,6 +502,8 @@ struct IslandPreviewPill: View {
             mode: mode,
             label: label,
             rightSlot: rightSlot,
+            mediaActivity: mediaActivity,
+            mediaActivityAnimationEnabled: mediaActivityAnimationEnabled,
             layout: layout,
             physicalNotchWidth: physicalNotchWidth
         )

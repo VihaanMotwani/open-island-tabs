@@ -6,10 +6,12 @@ enum IslandTabTransitionDirection: Equatable, Sendable {
     case forward
 }
 
-enum IslandTab: Hashable, Sendable {
+enum IslandTab: CaseIterable, Hashable, Identifiable, Sendable {
     case agents
     case spotify
     case tasks
+
+    var id: IslandTab { self }
 
     var showsAgentUsage: Bool {
         self == .agents
@@ -31,6 +33,18 @@ enum IslandTab: Hashable, Sendable {
     }
 }
 
+struct IslandTabVisibility: Equatable, Sendable {
+    var showsSpotify = true
+    var showsTasks = true
+
+    var visibleTabs: [IslandTab] {
+        var tabs: [IslandTab] = [.agents]
+        if showsSpotify { tabs.append(.spotify) }
+        if showsTasks { tabs.append(.tasks) }
+        return tabs
+    }
+}
+
 enum AgentTabTakeover: Equatable, Sendable {
     case actionRequired
     case completion
@@ -41,9 +55,25 @@ struct IslandTabSelectionState: Equatable, Sendable {
     private(set) var preferredTab: IslandTab = .agents
     private(set) var activeTakeover: AgentTabTakeover?
 
-    mutating func select(_ tab: IslandTab) {
-        selectedTab = tab
-        preferredTab = tab
+    mutating func select(
+        _ tab: IslandTab,
+        visibleTabs: Set<IslandTab> = Set(IslandTab.allCases)
+    ) {
+        let resolvedTab = visibleTabs.contains(tab) ? tab : .agents
+        selectedTab = resolvedTab
+        preferredTab = resolvedTab
+    }
+
+    mutating func reconcile(visibleTabs: Set<IslandTab>) {
+        var allowedTabs = visibleTabs
+        allowedTabs.insert(.agents)
+
+        if !allowedTabs.contains(selectedTab) {
+            selectedTab = .agents
+        }
+        if !allowedTabs.contains(preferredTab) {
+            preferredTab = .agents
+        }
     }
 
     @discardableResult

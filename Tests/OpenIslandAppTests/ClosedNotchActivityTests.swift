@@ -26,12 +26,80 @@ struct ClosedNotchActivityTests {
 
     @Test
     func reducedMotionFreezesPlayingMusicAtAReadableFrame() {
-        let pattern = MediaEqualizerPattern.make(for: .playing, reduceMotion: true)
+        let pattern = MediaEqualizerPattern.make(
+            for: .playing,
+            animationEnabled: true,
+            reduceMotion: true
+        )
 
         #expect(pattern.motion == .still)
         #expect(pattern.duration == 0)
         #expect(pattern.bars.map(\.restingScale) == [0.36, 0.82, 0.56, 0.72])
         #expect(pattern.bars.allSatisfy { $0.delay == nil })
+    }
+
+    @Test
+    func staticMusicPreferenceFreezesPlayingMusicWithoutHidingIt() {
+        let style = IslandMusicActivityStyle.static
+        let state = style.displayState(for: .playing)
+        let pattern = MediaEqualizerPattern.make(
+            for: state,
+            animationEnabled: style.allowsAnimation,
+            reduceMotion: false
+        )
+
+        #expect(state == .playing)
+        #expect(pattern.motion == .still)
+        #expect(pattern.duration == 0)
+        #expect(pattern.bars.map(\.restingScale) == [0.36, 0.82, 0.56, 0.72])
+    }
+
+    @Test
+    @MainActor
+    func hiddenMusicPreferenceRemovesTheIndicatorAndCompactsBothLayouts() {
+        let hiddenState = IslandMusicActivityStyle.hidden.displayState(for: .playing)
+        #expect(hiddenState == .hidden)
+
+        let externalVisible = V6ClosedPillGeometry.resolve(
+            label: "Codex · editing",
+            rightSlot: .count(3),
+            mediaActivity: .playing,
+            layout: .external,
+            height: 32,
+            physicalNotchWidth: 0,
+            minWidth: 70
+        )
+        let externalHidden = V6ClosedPillGeometry.resolve(
+            label: "Codex · editing",
+            rightSlot: .count(3),
+            mediaActivity: hiddenState,
+            layout: .external,
+            height: 32,
+            physicalNotchWidth: 0,
+            minWidth: 70
+        )
+        let macBookVisible = V6ClosedPillGeometry.resolve(
+            label: nil,
+            rightSlot: .count(3),
+            mediaActivity: .playing,
+            layout: .macbook,
+            height: 32,
+            physicalNotchWidth: 180,
+            minWidth: 70
+        )
+        let macBookHidden = V6ClosedPillGeometry.resolve(
+            label: nil,
+            rightSlot: .count(3),
+            mediaActivity: hiddenState,
+            layout: .macbook,
+            height: 32,
+            physicalNotchWidth: 180,
+            minWidth: 70
+        )
+
+        #expect(externalHidden.width < externalVisible.width)
+        #expect(macBookHidden.width < macBookVisible.width)
+        #expect(macBookHidden.leadingReserve < macBookVisible.leadingReserve)
     }
 
     @Test

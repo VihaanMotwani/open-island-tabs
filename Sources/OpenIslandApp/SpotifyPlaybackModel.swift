@@ -23,6 +23,9 @@ final class SpotifyPlaybackModel {
     private(set) var snapshot: MediaPlaybackSnapshot = .notRunning
 
     @ObservationIgnored
+    var onTrackChange: ((MediaPlaybackSnapshot) -> Void)?
+
+    @ObservationIgnored
     private let provider: any MediaPlaybackProviding
 
     @ObservationIgnored
@@ -30,6 +33,9 @@ final class SpotifyPlaybackModel {
 
     @ObservationIgnored
     private var usesDebugSnapshot = false
+
+    @ObservationIgnored
+    private var currentTrackIdentity: MediaTrackIdentity?
 
     init(provider: any MediaPlaybackProviding = SpotifyPlaybackProvider()) {
         self.provider = provider
@@ -62,7 +68,9 @@ final class SpotifyPlaybackModel {
 
     func refresh() async {
         guard !usesDebugSnapshot else { return }
-        snapshot = await provider.fetchSnapshot()
+        let refreshedSnapshot = await provider.fetchSnapshot()
+        snapshot = refreshedSnapshot
+        publishTrackChangeIfNeeded(for: refreshedSnapshot)
     }
 
     func applyDebugSnapshot(_ snapshot: MediaPlaybackSnapshot) {
@@ -102,5 +110,40 @@ final class SpotifyPlaybackModel {
         case .open, .previous, .next:
             break
         }
+    }
+
+    private func publishTrackChangeIfNeeded(for snapshot: MediaPlaybackSnapshot) {
+        guard let identity = MediaTrackIdentity(snapshot: snapshot) else {
+            return
+        }
+
+        guard let previousIdentity = currentTrackIdentity else {
+            currentTrackIdentity = identity
+            return
+        }
+
+        guard identity != previousIdentity else {
+            return
+        }
+
+        currentTrackIdentity = identity
+        onTrackChange?(snapshot)
+    }
+}
+
+private struct MediaTrackIdentity: Equatable {
+    let title: String
+    let artist: String
+    let album: String
+
+    init?(snapshot: MediaPlaybackSnapshot) {
+        let title = snapshot.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard snapshot.availability == .running, !title.isEmpty else {
+            return nil
+        }
+
+        self.title = title
+        artist = snapshot.artist.trimmingCharacters(in: .whitespacesAndNewlines)
+        album = snapshot.album.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

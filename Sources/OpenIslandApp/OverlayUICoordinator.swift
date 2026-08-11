@@ -64,6 +64,9 @@ final class OverlayUICoordinator {
     private var notificationAutoCollapseTask: Task<Void, Never>?
 
     @ObservationIgnored
+    private var mediaTrackPreviewAutoCollapseTask: Task<Void, Never>?
+
+    @ObservationIgnored
     private var shouldResumeOpenedSpotifyAfterTakeover = false
 
     @ObservationIgnored
@@ -74,6 +77,10 @@ final class OverlayUICoordinator {
 
     var hasPendingNotificationAutoCollapse: Bool {
         notificationAutoCollapseTask != nil
+    }
+
+    var hasPendingMediaTrackPreviewAutoCollapse: Bool {
+        mediaTrackPreviewAutoCollapseTask != nil
     }
 
     @ObservationIgnored
@@ -176,6 +183,10 @@ final class OverlayUICoordinator {
     }
 
     func notchOpen(reason: NotchOpenReason, surface: IslandSurface = .sessionList()) {
+        if reason != .mediaTrackChange {
+            cancelMediaTrackPreviewAutoCollapse()
+        }
+
         transitionOverlay(
             to: .opened,
             reason: reason,
@@ -209,6 +220,7 @@ final class OverlayUICoordinator {
             beforeTransition: { [weak self] in
                 self?.notificationAutoCollapseTask?.cancel()
                 self?.notificationAutoCollapseTask = nil
+                self?.cancelMediaTrackPreviewAutoCollapse()
             },
             afterStateChange: { [weak self] in
                 self?.autoCollapseSurfaceHasBeenEntered = false
@@ -394,6 +406,51 @@ final class OverlayUICoordinator {
 
     // MARK: - Notification surfaces
 
+    func presentMediaTrackPreview(_ snapshot: MediaPlaybackSnapshot) {
+        let isRefreshingPreview = notchStatus == .opened
+            && notchOpenReason == .mediaTrackChange
+            && islandSurface.mediaTrackPreviewSnapshot != nil
+
+        guard notchStatus == .closed || isRefreshingPreview else {
+            return
+        }
+
+        cancelMediaTrackPreviewAutoCollapse()
+        notchOpen(
+            reason: .mediaTrackChange,
+            surface: .mediaTrackPreview(snapshot)
+        )
+
+        mediaTrackPreviewAutoCollapseTask = Task { @MainActor [weak self] in
+            do {
+                try await Task.sleep(
+                    for: .seconds(MediaTrackPreviewPolicy.displayDuration)
+                )
+            } catch {
+                return
+            }
+
+            self?.handleMediaTrackPreviewAutoCollapseDeadline()
+        }
+    }
+
+    func handleMediaTrackPreviewAutoCollapseDeadline() {
+        cancelMediaTrackPreviewAutoCollapse()
+
+        guard notchStatus == .opened,
+              notchOpenReason == .mediaTrackChange,
+              islandSurface.mediaTrackPreviewSnapshot != nil else {
+            return
+        }
+
+        notchClose()
+    }
+
+    private func cancelMediaTrackPreviewAutoCollapse() {
+        mediaTrackPreviewAutoCollapseTask?.cancel()
+        mediaTrackPreviewAutoCollapseTask = nil
+    }
+
     func presentNotificationSurface(_ surface: IslandSurface) {
         guard surface.isNotificationCard else {
             return
@@ -578,6 +635,7 @@ final class OverlayUICoordinator {
     func applyOverlayState(from snapshot: IslandDebugSnapshot, presentOverlay: Bool, autoCollapseNotificationCards: Bool) {
         notificationAutoCollapseTask?.cancel()
         notificationAutoCollapseTask = nil
+        cancelMediaTrackPreviewAutoCollapse()
         autoCollapseSurfaceHasBeenEntered = false
         isPointerInsideIslandSurface = false
 

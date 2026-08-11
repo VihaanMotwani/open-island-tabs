@@ -287,6 +287,8 @@ enum HarnessArtifactRecorder {
             "sessionList"
         case let .sessionList(actionableSessionID: sessionID?):
             "sessionList:actionable(\(sessionID))"
+        case let .mediaTrackPreview(snapshot):
+            "mediaTrackPreview(\(snapshot.title))"
         }
     }
 

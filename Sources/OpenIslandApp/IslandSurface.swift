@@ -3,12 +3,22 @@ import OpenIslandCore
 
 enum IslandSurface: Equatable {
     case sessionList(actionableSessionID: String? = nil)
+    case mediaTrackPreview(MediaPlaybackSnapshot)
 
     var sessionID: String? {
         switch self {
         case let .sessionList(actionableSessionID):
             actionableSessionID
+        case .mediaTrackPreview:
+            nil
         }
+    }
+
+    var mediaTrackPreviewSnapshot: MediaPlaybackSnapshot? {
+        guard case let .mediaTrackPreview(snapshot) = self else {
+            return nil
+        }
+        return snapshot
     }
 
     var isNotificationCard: Bool {

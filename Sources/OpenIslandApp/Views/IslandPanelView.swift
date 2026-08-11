@@ -360,26 +360,34 @@ struct IslandPanelView: View {
 
     @ViewBuilder
     private func openedSurface(width openedWidth: CGFloat, height openedHeight: CGFloat) -> some View {
-        VStack(spacing: 0) {
-            openedHeaderContent
-                .frame(height: closedNotchHeight)
+        if let snapshot = model.islandSurface.mediaTrackPreviewSnapshot {
+            MediaTrackPreviewView(snapshot: snapshot)
+                .id("\(snapshot.title)\u{0}\(snapshot.artist)\u{0}\(snapshot.album)")
+                .padding(.horizontal, ExpandedNotchLayoutMetrics.safeContentHorizontalInset)
+                .padding(.top, closedNotchHeight + 6)
+                .frame(width: openedWidth, height: openedHeight, alignment: .top)
+        } else {
+            VStack(spacing: 0) {
+                openedHeaderContent
+                    .frame(height: closedNotchHeight)
 
-            openedTabSwitcher
-                .frame(height: Self.openedTabSwitcherHeight)
-                .offset(y: -2)
+                openedTabSwitcher
+                    .frame(height: Self.openedTabSwitcherHeight)
+                    .offset(y: -2)
 
-            openedContent
-                .frame(width: openedWidth)
-                .frame(
-                    maxHeight: max(
-                        0,
-                        openedHeight - closedNotchHeight - Self.openedTabSwitcherHeight
-                    ),
-                    alignment: .top
-                )
-                .clipped()
+                openedContent
+                    .frame(width: openedWidth)
+                    .frame(
+                        maxHeight: max(
+                            0,
+                            openedHeight - closedNotchHeight - Self.openedTabSwitcherHeight
+                        ),
+                        alignment: .top
+                    )
+                    .clipped()
+            }
+            .frame(width: openedWidth, height: openedHeight, alignment: .top)
         }
-        .frame(width: openedWidth, height: openedHeight, alignment: .top)
     }
 
     // MARK: - Closed state

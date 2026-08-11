@@ -63,10 +63,10 @@ struct NotchShape: Shape {
 }
 
 extension NotchShape {
-    /// The opened island uses a concave-top-corner notch shape so it blends
-    /// with the physical MacBook notch on built-in displays. The closed
-    /// state no longer uses this shape — it renders via `V6ClosedPillShape`
-    /// instead.
+    /// The opened island uses concave top corners so it blends with the
+    /// physical MacBook notch. During open and close this same shape morphs
+    /// to the closed pill geometry while `V6ClosedPillShape` remains the
+    /// closed surface's canonical rendered content.
     static let openedTopRadius: CGFloat = 15
     static let openedBottomRadius: CGFloat = 20
 

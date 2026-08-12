@@ -364,7 +364,7 @@ def main() -> None:
             fail(f"expected compact mediaTrackPreview surface, got {island_surface!r}")
         require_frame_between(
             overlay_frame,
-            width=(330, 430),
+            width=(220, 335),
             height=(90, 150),
             context="spotifyTrackPreview overlay frame",
         )

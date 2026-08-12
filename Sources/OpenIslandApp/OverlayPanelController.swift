@@ -507,15 +507,16 @@ final class OverlayPanelController {
 
     /// Returns the stable panel size for the active surface. Regular tab
     /// transitions use the maximum opened size; the transient media preview
-    /// uses a smaller window that still contains the closed island.
+    /// follows the compact, metadata-driven dimensions of its reference UI.
     private func panelSize(for model: AppModel?, on screen: NSScreen) -> CGSize {
         let insets = panelShadowInsets
 
-        if model?.islandSurface.mediaTrackPreviewSnapshot != nil {
+        if let snapshot = model?.islandSurface.mediaTrackPreviewSnapshot {
             let previewSize = MediaTrackPreviewPolicy.surfaceSize(
                 availableScreenWidth: screen.visibleFrame.width,
                 notchWidth: screen.safeAreaInsets.top > 0 ? screen.notchSize.width : 0,
-                notchHeight: screen.notchSize.height
+                notchHeight: screen.notchSize.height,
+                snapshot: snapshot
             )
             return CGSize(
                 width: previewSize.width + (insets.horizontal * 2),
@@ -637,11 +638,12 @@ final class OverlayPanelController {
     }
 
     private func openedPanelWidth(for model: AppModel, on screen: NSScreen) -> CGFloat {
-        if model.islandSurface.mediaTrackPreviewSnapshot != nil {
+        if let snapshot = model.islandSurface.mediaTrackPreviewSnapshot {
             return MediaTrackPreviewPolicy.surfaceSize(
                 availableScreenWidth: screen.visibleFrame.width,
                 notchWidth: screen.safeAreaInsets.top > 0 ? screen.notchSize.width : 0,
-                notchHeight: screen.notchSize.height
+                notchHeight: screen.notchSize.height,
+                snapshot: snapshot
             ).width
         }
 

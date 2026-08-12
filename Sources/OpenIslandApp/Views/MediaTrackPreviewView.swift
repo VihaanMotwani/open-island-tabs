@@ -3,33 +3,34 @@ import SwiftUI
 struct MediaTrackPreviewView: View {
     let snapshot: MediaPlaybackSnapshot
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var isHighlighted = false
-
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: MediaTrackPreviewPolicy.contentSpacing) {
             artwork
-                .frame(width: 46, height: 46)
+                .frame(
+                    width: MediaTrackPreviewPolicy.artworkSize,
+                    height: MediaTrackPreviewPolicy.artworkSize
+                )
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: MediaTrackPreviewPolicy.textSpacing) {
                 Text(snapshot.title)
                     .font(.headline)
-                    .foregroundStyle(ExpandedNotchVisualStyle.textColor(.primary))
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
                     .truncationMode(.tail)
 
-                Text(snapshot.artist.isEmpty ? "Spotify" : snapshot.artist)
-                    .font(.subheadline)
-                    .foregroundStyle(ExpandedNotchVisualStyle.textColor(.secondary))
+                Text(snapshot.artist)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.tail)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .scaleEffect(isHighlighted ? 1 : 0.96)
-        .opacity(isHighlighted ? 1 : 0.72)
-        .onAppear(perform: highlight)
+        .frame(height: MediaTrackPreviewPolicy.contentHeight)
+        .frame(
+            maxWidth: MediaTrackPreviewPolicy.maximumContentWidth,
+            alignment: .leading
+        )
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
     }
@@ -43,20 +44,23 @@ struct MediaTrackPreviewView: View {
                     .scaledToFill()
             default:
                 ZStack {
-                    Color.white.opacity(0.045)
-                    SpotifyGlyph()
-                        .frame(width: 24, height: 24)
-                        .opacity(0.7)
+                    LinearGradient(
+                        colors: [.gray.opacity(0.62), .black],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    Image(systemName: "music.note")
+                        .font(.title2)
+                        .foregroundStyle(.white)
                 }
             }
         }
-        .compositingGroup()
-        .clipShape(.rect(cornerRadius: 10))
-        .overlay {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(.white.opacity(0.10), lineWidth: 0.75)
-        }
-        .shadow(color: .black.opacity(0.24), radius: 4, y: 2)
+        .clipShape(
+            .rect(
+                cornerRadius: MediaTrackPreviewPolicy.artworkCornerRadius,
+                style: .continuous
+            )
+        )
         .accessibilityHidden(true)
     }
 
@@ -65,16 +69,5 @@ struct MediaTrackPreviewView: View {
             return "Now playing \(snapshot.title)"
         }
         return "Now playing \(snapshot.title) by \(snapshot.artist)"
-    }
-
-    private func highlight() {
-        guard !reduceMotion else {
-            isHighlighted = true
-            return
-        }
-
-        withAnimation(.spring(.bouncy(duration: 0.42))) {
-            isHighlighted = true
-        }
     }
 }

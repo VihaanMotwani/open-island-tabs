@@ -222,6 +222,8 @@ struct IslandPanelView: View {
         let outerBottomPadding: CGFloat = 0
         let openedWidth = max(0, layoutWidth - outerHorizontalPadding)
         let openedHeight = max(closedNotchHeight, layoutHeight - outerBottomPadding)
+        let presentsMediaTrackPreview =
+            model.islandSurface.mediaTrackPreviewSnapshot != nil
         let closedLayout: V6ClosedLayout = isExternalDisplayPlacement ? .external : .macbook
         let physicalNotchWidth: CGFloat = targetOverlayScreen?.notchSize.width ?? 180
         let closedLabel = closedLayout == .external ? model.islandClosedLabel() : nil
@@ -255,7 +257,11 @@ struct IslandPanelView: View {
 
                 if shouldRenderOpenedSurface {
                     openedSurface(width: openedWidth, height: openedHeight)
-                        .opacity(transitionState.openedContentOpacity)
+                        .opacity(
+                            presentsMediaTrackPreview
+                                ? 1
+                                : transitionState.openedContentOpacity
+                        )
                         .blur(radius: transitionState.openedContentBlurRadius)
                         .scaleEffect(transitionState.openedContentScale, anchor: .top)
                         .offset(y: transitionState.openedContentVerticalOffset)
@@ -283,9 +289,13 @@ struct IslandPanelView: View {
                     .frame(width: openedWidth, height: openedHeight, alignment: .top)
             }
             .shadow(
-                color: .black.opacity(transitionState.shadowRadius > 0 ? 0.62 : 0),
+                color: .black.opacity(
+                    transitionState.shadowRadius > 0
+                        ? (presentsMediaTrackPreview ? 0.5 : 0.62)
+                        : 0
+                ),
                 radius: transitionState.shadowRadius,
-                y: transitionState.shadowRadius > 0 ? 5 : 0
+                y: transitionState.shadowRadius > 0 && !presentsMediaTrackPreview ? 5 : 0
             )
         }
         .scaleEffect(usesOpenedVisualState ? 1 : (isHovering ? IslandChromeMetrics.closedHoverScale : 1), anchor: .top)
@@ -363,8 +373,8 @@ struct IslandPanelView: View {
         if let snapshot = model.islandSurface.mediaTrackPreviewSnapshot {
             MediaTrackPreviewView(snapshot: snapshot)
                 .id("\(snapshot.title)\u{0}\(snapshot.artist)\u{0}\(snapshot.album)")
-                .padding(.horizontal, ExpandedNotchLayoutMetrics.safeContentHorizontalInset)
-                .padding(.top, closedNotchHeight + 6)
+                .padding(.horizontal, MediaTrackPreviewPolicy.contentSafeAreaInset)
+                .padding(.top, closedNotchHeight)
                 .frame(width: openedWidth, height: openedHeight, alignment: .top)
         } else {
             VStack(spacing: 0) {

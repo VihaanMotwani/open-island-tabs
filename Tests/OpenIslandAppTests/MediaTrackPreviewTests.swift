@@ -10,14 +10,26 @@ struct MediaTrackPreviewTests {
     }
 
     @Test
-    func previewUsesACompactNotchAwareSurfaceInsteadOfTheFullPlayer() {
+    func previewUsesTheOriginalMacIslandLayoutMetrics() {
+        #expect(MediaTrackPreviewPolicy.artworkSize == 50)
+        #expect(MediaTrackPreviewPolicy.artworkCornerRadius == 12)
+        #expect(MediaTrackPreviewPolicy.contentSpacing == 10)
+        #expect(MediaTrackPreviewPolicy.textSpacing == 1)
+        #expect(MediaTrackPreviewPolicy.maximumContentWidth == 250)
+        #expect(MediaTrackPreviewPolicy.contentHeight == 50)
+        #expect(MediaTrackPreviewPolicy.contentSafeAreaInset == 20)
+        #expect(MediaTrackPreviewPolicy.bottomSafeAreaInset == 20)
+    }
+
+    @Test
+    func previewUsesTheOriginalMacIslandNotchAwareSurface() {
         let size = MediaTrackPreviewPolicy.surfaceSize(
             availableScreenWidth: 1_440,
             notchWidth: 224,
             notchHeight: 38
         )
 
-        #expect(size == CGSize(width: 372, height: 102))
+        #expect(size == CGSize(width: 290, height: 108))
         #expect(
             size.height
                 < 38
@@ -27,36 +39,38 @@ struct MediaTrackPreviewTests {
     }
 
     @Test
-    func previewSurfaceCanStillContainTheClosedIslandAfterCollapsing() {
-        let notchWidth: CGFloat = 224
-        let size = MediaTrackPreviewPolicy.surfaceSize(
-            availableScreenWidth: 1_440,
-            notchWidth: notchWidth,
-            notchHeight: 38
-        )
-        let closedWidth = OverlayPanelController.closedPanelWidth(
-            notchWidth: notchWidth,
-            isNotchedDisplay: true,
-            notchStatus: .closed
-        )
-
-        #expect(size.width >= closedWidth)
-    }
-
-    @Test
-    func externalDisplayPreviewCanStillContainTheClosedIslandAfterCollapsing() {
+    func externalDisplayPreviewUsesTheSameCompactContentChrome() {
         let size = MediaTrackPreviewPolicy.surfaceSize(
             availableScreenWidth: 1_440,
             notchWidth: 0,
             notchHeight: 32
         )
-        let closedWidth = OverlayPanelController.closedPanelWidth(
+
+        #expect(size == CGSize(width: 290, height: 102))
+    }
+
+    @Test
+    func previewWidthFollowsMetadataWhileRespectingTheNotchClearance() {
+        let shortTrack = previewSnapshot(title: "A", artist: "B")
+        let shortTrackSize = MediaTrackPreviewPolicy.surfaceSize(
+            availableScreenWidth: 1_440,
+            notchWidth: 224,
+            notchHeight: 38,
+            snapshot: shortTrack
+        )
+        let longTrack = previewSnapshot(
+            title: String(repeating: "Long title ", count: 20),
+            artist: "Artist"
+        )
+        let longTrackSize = MediaTrackPreviewPolicy.surfaceSize(
+            availableScreenWidth: 1_440,
             notchWidth: 0,
-            isNotchedDisplay: false,
-            notchStatus: .closed
+            notchHeight: 32,
+            snapshot: longTrack
         )
 
-        #expect(size.width >= closedWidth)
+        #expect(shortTrackSize == CGSize(width: 244, height: 108))
+        #expect(longTrackSize == CGSize(width: 290, height: 102))
     }
 
     @Test

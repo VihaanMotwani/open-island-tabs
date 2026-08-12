@@ -14,18 +14,24 @@ struct AppModelSessionListTests {
             "appearance.island.v8.completedStaleThreshold",
             "appearance.island.v8.notch.rightSlot",
             "appearance.island.v8.notch.centerLabel",
+            "appearance.island.v8.notch.agentActivity",
             "appearance.island.v8.notch.stateIndicator",
+            "appearance.island.v8.notch.musicActivity",
             "appearance.island.v8.notch.sessionGroup",
             "appearance.island.v8.notch.sessionSort",
             "appearance.island.v8.notch.completedStaleThreshold",
             "appearance.island.v8.topBar.rightSlot",
             "appearance.island.v8.topBar.centerLabel",
+            "appearance.island.v8.topBar.agentActivity",
             "appearance.island.v8.topBar.stateIndicator",
+            "appearance.island.v8.topBar.musicActivity",
             "appearance.island.v8.topBar.sessionGroup",
             "appearance.island.v8.topBar.sessionSort",
             "appearance.island.v8.topBar.completedStaleThreshold",
             "appearance.island.v8.notch.showIdleSessions",
             "appearance.island.v8.topBar.showIdleSessions",
+            "appearance.island.tabs.spotify.visible",
+            "appearance.island.tabs.tasks.visible",
             "app.suppressFrontmostNotifications",
             "feature.completionReply.enabled",
             "overlay.sound.muted",
@@ -678,6 +684,69 @@ struct AppModelSessionListTests {
         #expect(reloaded.islandSessionGroup == .project)
         #expect(reloaded.islandSessionStateIndicator == .tint)
         #expect(reloaded.completedStaleThreshold == .never)
+    }
+
+    @Test
+    func musicActivityStylePersistsPerDisplayProfile() {
+        let model = AppModel()
+        model.updateAppearancePreferences(for: .notch) {
+            $0.musicActivityStyle = .hidden
+        }
+        model.updateAppearancePreferences(for: .topBar) {
+            $0.musicActivityStyle = .static
+        }
+
+        model.overlayPlacementDiagnostics = placementDiagnostics(mode: .notch)
+        #expect(model.islandMusicActivityStyle == .hidden)
+
+        model.overlayPlacementDiagnostics = placementDiagnostics(mode: .topBar)
+        #expect(model.islandMusicActivityStyle == .static)
+
+        let reloaded = AppModel()
+        reloaded.overlayPlacementDiagnostics = placementDiagnostics(mode: .notch)
+        #expect(reloaded.islandMusicActivityStyle == .hidden)
+        reloaded.overlayPlacementDiagnostics = placementDiagnostics(mode: .topBar)
+        #expect(reloaded.islandMusicActivityStyle == .static)
+    }
+
+    @Test
+    func agentActivityStylePersistsPerDisplayProfile() {
+        let model = AppModel()
+        model.updateAppearancePreferences(for: .notch) {
+            $0.agentActivityStyle = .hidden
+        }
+        model.updateAppearancePreferences(for: .topBar) {
+            $0.agentActivityStyle = .static
+        }
+
+        model.overlayPlacementDiagnostics = placementDiagnostics(mode: .notch)
+        #expect(model.islandAgentActivityStyle == .hidden)
+
+        model.overlayPlacementDiagnostics = placementDiagnostics(mode: .topBar)
+        #expect(model.islandAgentActivityStyle == .static)
+
+        let reloaded = AppModel()
+        reloaded.overlayPlacementDiagnostics = placementDiagnostics(mode: .notch)
+        #expect(reloaded.islandAgentActivityStyle == .hidden)
+        reloaded.overlayPlacementDiagnostics = placementDiagnostics(mode: .topBar)
+        #expect(reloaded.islandAgentActivityStyle == .static)
+    }
+
+    @Test
+    func tabVisibilityPersistsAndHidingTheSelectedTabFallsBackToAgents() {
+        let model = AppModel()
+        model.selectIslandTab(.tasks)
+        #expect(model.selectedIslandTab == .tasks)
+
+        model.isTasksTabVisible = false
+        model.isSpotifyTabVisible = false
+
+        #expect(model.visibleIslandTabs == [.agents])
+        #expect(model.selectedIslandTab == .agents)
+        #expect(model.preferredIslandTab == .agents)
+
+        let reloaded = AppModel()
+        #expect(reloaded.visibleIslandTabs == [.agents])
     }
 
     @Test

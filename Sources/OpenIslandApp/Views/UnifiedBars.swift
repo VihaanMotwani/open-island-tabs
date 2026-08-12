@@ -29,6 +29,7 @@ struct UnifiedBars: View {
     var mode: Mode
     var size: CGFloat = 24
     var tint: Color = Color(red: 0xf1 / 255.0, green: 0xea / 255.0, blue: 0xd9 / 255.0)
+    var animationEnabled: Bool = true
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -37,7 +38,11 @@ struct UnifiedBars: View {
     private static let cellGap: CGFloat = 1.5
 
     var body: some View {
-        LayerRepresentable(mode: mode, tint: tint, reduceMotion: reduceMotion)
+        LayerRepresentable(
+            mode: mode,
+            tint: tint,
+            reduceMotion: reduceMotion || !animationEnabled
+        )
             .frame(width: size, height: size)
             .accessibilityHidden(true)
     }
@@ -180,8 +185,12 @@ struct UnifiedGridPattern: Equatable {
     let duration: TimeInterval
     let cells: [Cell]
 
-    static func make(for mode: UnifiedBars.Mode, reduceMotion: Bool) -> UnifiedGridPattern {
-        if reduceMotion {
+    static func make(
+        for mode: UnifiedBars.Mode,
+        animationEnabled: Bool = true,
+        reduceMotion: Bool
+    ) -> UnifiedGridPattern {
+        if reduceMotion || !animationEnabled {
             return reducedMotionPattern(for: mode)
         }
 

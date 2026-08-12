@@ -44,8 +44,14 @@
 "settings.general.languageChinese" = "Chinese (Simplified)";
 "settings.general.languageTraditionalChinese" = "Chinese (Traditional)";
 
-/* Settings - Personalization (v6) */
+/* Settings - Personalization */
 "settings.tab.appearance" = "Personalization";
+"settings.appearance.tabsPart.title" = "Expanded island";
+"settings.appearance.tabs.title" = "Tabs";
+"settings.appearance.tabs.note" = "Choose which optional spaces appear when the island opens.";
+"settings.appearance.tabs.agents.note" = "Always available for active agent sessions.";
+"settings.appearance.tabs.spotify.note" = "Playback controls and current-track details.";
+"settings.appearance.tabs.tasks.note" = "A lightweight local to-do list.";
 "settings.appearance.preview" = "Preview";
 "settings.appearance.preview.external" = "External";
 "settings.appearance.preview.macbook" = "MacBook";
@@ -64,6 +70,16 @@
 "settings.appearance.centerLabel.agentAction" = "Agent · action";
 "settings.appearance.centerLabel.sessionName" = "Session name";
 "settings.appearance.centerLabel.off" = "Off";
+"settings.appearance.agentActivity.title" = "03 · Agent activity";
+"settings.appearance.agentActivity.note" = "Animated follows agent state, Static holds the glyph still, and Hidden compacts the closed island.";
+"settings.appearance.agentActivity.animated" = "Animated";
+"settings.appearance.agentActivity.static" = "Static";
+"settings.appearance.agentActivity.hidden" = "Hidden";
+"settings.appearance.musicActivity.title" = "04 · Music activity";
+"settings.appearance.musicActivity.note" = "Animated follows playback, Static holds the equalizer still, and Hidden compacts the closed island. Hiding the Spotify tab also hides this indicator while preserving your choice.";
+"settings.appearance.musicActivity.animated" = "Animated";
+"settings.appearance.musicActivity.static" = "Static";
+"settings.appearance.musicActivity.hidden" = "Hidden";
 "settings.appearance.notchPart.title" = "Notch";
 "settings.appearance.sessionListPart.title" = "Session list";
 "settings.appearance.sessionPreview" = "Preview";
@@ -116,6 +132,7 @@
 "settings.appearance.preview.completedEarlier" = "Completed earlier";
 "settings.appearance.preview.permissionBody" = "$ npm run build";
 "settings.appearance.preview.pickOrTypeAnswer" = "Pick or type an answer";
+"settings.appearance.preview.usageSample" = "Codex 38% · 2h 14m";
 
 /* Settings - Display */
 "settings.display.monitor" = "Monitor";
@@ -218,6 +235,24 @@
 "subagents.title" = "Subagents (%lld)";
 "subagents.completed" = "Completed";
 "tasks.summary" = "Tasks (%lld completed, %lld in progress, %lld pending)";
+"island.tab.agents" = "Agents";
+"island.tab.spotify" = "Spotify";
+"island.tab.tasks" = "To-do";
+"island.tab.accessibility" = "Island tabs";
+"tasks.add" = "Add a task for today";
+"tasks.task" = "Task";
+"tasks.markIncomplete" = "Mark incomplete";
+"tasks.markComplete" = "Mark complete";
+"tasks.save" = "Save task";
+"tasks.cancelEditing" = "Cancel editing";
+"tasks.cancel" = "Cancel";
+"tasks.complete" = "Complete";
+"tasks.edit" = "Edit";
+"tasks.delete" = "Delete";
+"tasks.clearCompleted" = "Clear completed";
+"tasks.clearCompleted.confirmTitle" = "Clear completed tasks?";
+"tasks.clearCompleted.confirmMessage" = "This removes every completed task from this Mac.";
+"tasks.clearCompleted.confirmAction" = "Clear completed";
 
 /* Island Panel - Question */
 "question.submit" = "Submit Answers";

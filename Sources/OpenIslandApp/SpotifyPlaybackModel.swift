@@ -4,6 +4,7 @@ import Observation
 enum SpotifyLaunchTrigger: Equatable, Sendable {
     case tabSelection
     case unavailableCard
+    case activityIndicator
 }
 
 enum SpotifyLaunchPolicy {
@@ -11,7 +12,7 @@ enum SpotifyLaunchPolicy {
         switch trigger {
         case .tabSelection:
             nil
-        case .unavailableCard:
+        case .unavailableCard, .activityIndicator:
             .open
         }
     }

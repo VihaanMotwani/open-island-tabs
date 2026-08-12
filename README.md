@@ -35,12 +35,14 @@
 
 - **Agents first** — Monitor Codex, Claude Code, and other supported coding-agent sessions without leaving the task you are already doing
 - **Music second** — See Spotify artwork and metadata, scrub progress, and use playback controls inside the expanded notch
-- **One compact surface** — Switch between Agents and Spotify without bouncing between app windows
+- **To-do alongside them** — Capture, complete, edit, and clear lightweight tasks that stay on your Mac
+- **One compact surface** — Switch between Agents, Spotify, and To-do without bouncing between app windows
 - **Refined expanded UI** — Tighter hierarchy, native-feeling controls, improved contrast, calmer color, and layout fixes for the expanded island
+- **Personalized island** — Hide optional tabs, choose animated/static/hidden agent and music activity, and tune the session list per display profile
 
 ## What is Open Island?
 
-Open Island sits in your Mac's **notch** (or top bar) and gives you a real-time control surface for your AI coding agents — session status, permission approvals, and instant jump-back to the right terminal. This fork also puts Spotify playback and track progress in the same expanded surface, so your agents and music stay one glance away.
+Open Island sits in your Mac's **notch** (or top bar) and gives you a real-time control surface for your AI coding agents — session status, permission approvals, and instant jump-back to the right terminal. This fork also puts Spotify playback and a local to-do list in the same expanded surface, so your agents, music, and next actions stay one glance away.
 
 Think of it as an open-source [Vibe Island](https://vibeisland.app/) — **free, local-first, and you own every bit of it**.
 
@@ -105,7 +107,9 @@ Think of it as an open-source [Vibe Island](https://vibeisland.app/) — **free,
 | Feature | Description |
 |---|---|
 | Notch / top-bar overlay | Notch area on notch Macs, top-center bar on others |
-| Settings | Hook install/uninstall, usage dashboard |
+| Expanded tabs | Agents, Spotify controls, and a local To-do list; Spotify and To-do can be hidden independently |
+| Personalization | Per-display closed-island and session-list styles, plus animated/static/hidden agent and music activity |
+| Settings | Hook install/uninstall, usage dashboard, General, Personalization, Display, Sound, Shortcuts, Lab, About |
 | Notification mode | Auto-height panel for permission requests and session events |
 | Notification sounds | Configurable system sounds, mute toggle |
 | i18n | English, Simplified Chinese |
@@ -285,7 +289,7 @@ Developers who already live in the terminal and want a better way to work with c
 ### UI & Display
 
 - **Notch overlay** — On Macs with a built-in notch, the island sits in the notch area; on external displays or non-notch Macs, it falls back to a compact top-center bar
-- **Settings** — Hook install/uninstall, Codex/Claude usage dashboard, General, Display, Sound, Shortcuts, Lab (advanced), About
+- **Settings** — Hook install/uninstall, Codex/Claude usage dashboard, General, Personalization, Display, Sound, Shortcuts, Lab (advanced), About
 - **Notification mode** — Auto-height notification panel for permission requests and session events
 - **Notification sounds** — Configurable system sounds (default: Bottle) with mute toggle
 - **i18n** — English and Simplified Chinese

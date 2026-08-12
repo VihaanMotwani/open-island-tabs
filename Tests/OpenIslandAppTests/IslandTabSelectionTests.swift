@@ -52,6 +52,27 @@ struct IslandTabSelectionTests {
     }
 
     @Test
+    func hidingTheSelectedTabFallsBackToAgents() {
+        var state = IslandTabSelectionState()
+        state.select(.tasks)
+
+        state.reconcile(visibleTabs: [.agents, .spotify])
+
+        #expect(state.selectedTab == .agents)
+        #expect(state.preferredTab == .agents)
+    }
+
+    @Test
+    func selectingAHiddenTabKeepsAgentsVisibleAndPreferred() {
+        var state = IslandTabSelectionState()
+
+        state.select(.spotify, visibleTabs: [.agents, .tasks])
+
+        #expect(state.selectedTab == .agents)
+        #expect(state.preferredTab == .agents)
+    }
+
+    @Test
     func actionableAgentTakeoverRestoresTasksAfterResolution() {
         var state = IslandTabSelectionState()
         state.select(.tasks)

@@ -219,14 +219,17 @@ struct V6ClosedPillGeometry: Equatable {
         label: String?,
         rightSlot: IslandRightSlotContent?,
         mediaActivity: MediaActivityState,
+        agentActivityStyle: IslandAgentActivityStyle = .animated,
         layout: V6ClosedLayout,
         height: CGFloat,
         physicalNotchWidth: CGFloat,
         minWidth: CGFloat
     ) -> V6ClosedPillGeometry {
         let mediaActivityWidth: CGFloat = mediaActivity == .hidden ? 0 : 21
+        let agentActivityWidth: CGFloat = agentActivityStyle.isVisible ? 24 : 0
         let leadingWidth = V6MacBookSlotMetrics.leadingActivityContentWidth(
-            mediaActivityWidth: mediaActivityWidth
+            mediaActivityWidth: mediaActivityWidth,
+            agentActivityWidth: agentActivityWidth
         )
 
         switch layout {
@@ -276,6 +279,7 @@ struct V6ClosedPill: View {
     var rightSlot: IslandRightSlotContent?
     var mediaActivity: MediaActivityState = .hidden
     var mediaActivityAnimationEnabled: Bool = true
+    var agentActivityStyle: IslandAgentActivityStyle = .animated
     var onMediaActivitySelected: (() -> Void)?
     var layout: V6ClosedLayout
     var height: CGFloat = 32
@@ -301,6 +305,7 @@ struct V6ClosedPill: View {
             label: label,
             rightSlot: rightSlot,
             mediaActivity: mediaActivity,
+            agentActivityStyle: agentActivityStyle,
             layout: layout,
             height: height,
             physicalNotchWidth: physicalNotchWidth,
@@ -320,8 +325,15 @@ struct V6ClosedPill: View {
                 .transition(.opacity.combined(with: .scale(scale: 0.82)))
             }
 
-            UnifiedBars(mode: mode, size: 24)
+            if agentActivityStyle.isVisible {
+                UnifiedBars(
+                    mode: mode,
+                    size: 24,
+                    animationEnabled: agentActivityStyle.allowsAnimation
+                )
                 .frame(width: 24, height: 24)
+                .transition(.opacity.combined(with: .scale(scale: 0.82)))
+            }
         }
     }
 
@@ -357,6 +369,7 @@ struct V6ClosedPill: View {
                 AnyHashable(label ?? ""),
                 AnyHashable(rightSlot.map(RightSlotKey.init) ?? .none),
                 AnyHashable(mode),
+                AnyHashable(agentActivityStyle.rawValue),
             ])
         )
         .animation(reduceMotion ? nil : .smooth(duration: 0.28), value: mediaActivity)
@@ -389,6 +402,7 @@ struct V6ClosedPill: View {
         .frame(width: geometry.width, height: geometry.height)
         .offset(x: geometry.horizontalOffset)
         .animation(reduceMotion ? nil : .smooth(duration: 0.28), value: mediaActivity)
+        .animation(reduceMotion ? nil : .smooth(duration: 0.28), value: agentActivityStyle)
     }
 }
 
@@ -404,10 +418,13 @@ struct V6MacBookSlotMetrics {
     static let trailingNotchGap: CGFloat = 12
 
     static func leadingActivityContentWidth(
-        mediaActivityWidth: CGFloat
+        mediaActivityWidth: CGFloat,
+        agentActivityWidth: CGFloat = 24
     ) -> CGFloat {
-        let spacing = mediaActivityWidth > 0 ? leadingActivitySpacing : 0
-        return mediaActivityWidth + spacing + 24
+        let spacing = mediaActivityWidth > 0 && agentActivityWidth > 0
+            ? leadingActivitySpacing
+            : 0
+        return mediaActivityWidth + spacing + agentActivityWidth
     }
 
     static func leadingReserve(contentWidth: CGFloat) -> CGFloat {
@@ -493,6 +510,7 @@ struct IslandPreviewPill: View {
     let rightSlot: IslandRightSlotContent?
     var mediaActivity: MediaActivityState = .hidden
     var mediaActivityAnimationEnabled: Bool = true
+    var agentActivityStyle: IslandAgentActivityStyle = .animated
     let layout: V6ClosedLayout
     let physicalNotchWidth: CGFloat
     let now: Date
@@ -504,6 +522,7 @@ struct IslandPreviewPill: View {
             rightSlot: rightSlot,
             mediaActivity: mediaActivity,
             mediaActivityAnimationEnabled: mediaActivityAnimationEnabled,
+            agentActivityStyle: agentActivityStyle,
             layout: layout,
             physicalNotchWidth: physicalNotchWidth
         )

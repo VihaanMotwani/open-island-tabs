@@ -14,6 +14,7 @@ struct AppModelSessionListTests {
             "appearance.island.v8.completedStaleThreshold",
             "appearance.island.v8.notch.rightSlot",
             "appearance.island.v8.notch.centerLabel",
+            "appearance.island.v8.notch.agentActivity",
             "appearance.island.v8.notch.stateIndicator",
             "appearance.island.v8.notch.musicActivity",
             "appearance.island.v8.notch.sessionGroup",
@@ -21,6 +22,7 @@ struct AppModelSessionListTests {
             "appearance.island.v8.notch.completedStaleThreshold",
             "appearance.island.v8.topBar.rightSlot",
             "appearance.island.v8.topBar.centerLabel",
+            "appearance.island.v8.topBar.agentActivity",
             "appearance.island.v8.topBar.stateIndicator",
             "appearance.island.v8.topBar.musicActivity",
             "appearance.island.v8.topBar.sessionGroup",
@@ -705,6 +707,29 @@ struct AppModelSessionListTests {
         #expect(reloaded.islandMusicActivityStyle == .hidden)
         reloaded.overlayPlacementDiagnostics = placementDiagnostics(mode: .topBar)
         #expect(reloaded.islandMusicActivityStyle == .static)
+    }
+
+    @Test
+    func agentActivityStylePersistsPerDisplayProfile() {
+        let model = AppModel()
+        model.updateAppearancePreferences(for: .notch) {
+            $0.agentActivityStyle = .hidden
+        }
+        model.updateAppearancePreferences(for: .topBar) {
+            $0.agentActivityStyle = .static
+        }
+
+        model.overlayPlacementDiagnostics = placementDiagnostics(mode: .notch)
+        #expect(model.islandAgentActivityStyle == .hidden)
+
+        model.overlayPlacementDiagnostics = placementDiagnostics(mode: .topBar)
+        #expect(model.islandAgentActivityStyle == .static)
+
+        let reloaded = AppModel()
+        reloaded.overlayPlacementDiagnostics = placementDiagnostics(mode: .notch)
+        #expect(reloaded.islandAgentActivityStyle == .hidden)
+        reloaded.overlayPlacementDiagnostics = placementDiagnostics(mode: .topBar)
+        #expect(reloaded.islandAgentActivityStyle == .static)
     }
 
     @Test

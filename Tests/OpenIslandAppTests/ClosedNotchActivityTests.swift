@@ -55,6 +55,38 @@ struct ClosedNotchActivityTests {
     }
 
     @Test
+    func hidingSpotifyTabSuppressesMusicActivityWithoutForgettingItsStyle() {
+        let style = IslandMusicActivityStyle.animated
+
+        #expect(
+            style.displayState(for: .playing, isSpotifyTabVisible: false) == .hidden
+        )
+        #expect(
+            style.displayState(for: .playing, isSpotifyTabVisible: true) == .playing
+        )
+        #expect(style == .animated)
+    }
+
+    @Test
+    func staticAgentPreferenceFreezesAnActiveGlyphWithoutHidingIt() {
+        let style = IslandAgentActivityStyle.static
+        let pattern = UnifiedGridPattern.make(
+            for: .running,
+            animationEnabled: style.allowsAnimation,
+            reduceMotion: false
+        )
+
+        #expect(style.isVisible)
+        #expect(pattern.motion == .still)
+        #expect(pattern.duration == 0)
+        #expect(pattern.cells.map(\.restingOpacity) == [
+            0.55, 0.28, 0.14,
+            1.00, 0.55, 0.28,
+            0.55, 0.28, 0.14,
+        ])
+    }
+
+    @Test
     @MainActor
     func hiddenMusicPreferenceRemovesTheIndicatorAndCompactsBothLayouts() {
         let hiddenState = IslandMusicActivityStyle.hidden.displayState(for: .playing)
@@ -100,6 +132,59 @@ struct ClosedNotchActivityTests {
         #expect(externalHidden.width < externalVisible.width)
         #expect(macBookHidden.width < macBookVisible.width)
         #expect(macBookHidden.leadingReserve < macBookVisible.leadingReserve)
+    }
+
+    @Test
+    @MainActor
+    func hiddenAgentPreferenceRemovesTheGlyphAndReclaimsItsSpacing() {
+        let visibleStyle = IslandAgentActivityStyle.animated
+        let hiddenStyle = IslandAgentActivityStyle.hidden
+        #expect(!hiddenStyle.isVisible)
+
+        let externalVisible = V6ClosedPillGeometry.resolve(
+            label: "Codex · editing",
+            rightSlot: .count(3),
+            mediaActivity: .playing,
+            agentActivityStyle: visibleStyle,
+            layout: .external,
+            height: 32,
+            physicalNotchWidth: 0,
+            minWidth: 70
+        )
+        let externalHidden = V6ClosedPillGeometry.resolve(
+            label: "Codex · editing",
+            rightSlot: .count(3),
+            mediaActivity: .playing,
+            agentActivityStyle: hiddenStyle,
+            layout: .external,
+            height: 32,
+            physicalNotchWidth: 0,
+            minWidth: 70
+        )
+        let macBookVisible = V6ClosedPillGeometry.resolve(
+            label: nil,
+            rightSlot: .count(3),
+            mediaActivity: .playing,
+            agentActivityStyle: visibleStyle,
+            layout: .macbook,
+            height: 32,
+            physicalNotchWidth: 180,
+            minWidth: 70
+        )
+        let macBookHidden = V6ClosedPillGeometry.resolve(
+            label: nil,
+            rightSlot: .count(3),
+            mediaActivity: .playing,
+            agentActivityStyle: hiddenStyle,
+            layout: .macbook,
+            height: 32,
+            physicalNotchWidth: 180,
+            minWidth: 70
+        )
+
+        #expect(externalVisible.width - externalHidden.width == 33)
+        #expect(macBookVisible.width - macBookHidden.width == 33)
+        #expect(macBookVisible.leadingReserve - macBookHidden.leadingReserve == 33)
     }
 
     @Test

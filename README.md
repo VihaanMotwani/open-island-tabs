@@ -38,7 +38,7 @@
 - **To-do alongside them** — Capture, complete, edit, and clear lightweight tasks that stay on your Mac
 - **One compact surface** — Switch between Agents, Spotify, and To-do without bouncing between app windows
 - **Refined expanded UI** — Tighter hierarchy, native-feeling controls, improved contrast, calmer color, and layout fixes for the expanded island
-- **Personalized island** — Hide optional tabs, choose animated/static/hidden music activity, and tune the session list per display profile
+- **Personalized island** — Hide optional tabs, choose animated/static/hidden agent and music activity, and tune the session list per display profile
 
 ## What is Open Island?
 
@@ -108,7 +108,7 @@ Think of it as an open-source [Vibe Island](https://vibeisland.app/) — **free,
 |---|---|
 | Notch / top-bar overlay | Notch area on notch Macs, top-center bar on others |
 | Expanded tabs | Agents, Spotify controls, and a local To-do list; Spotify and To-do can be hidden independently |
-| Personalization | Per-display closed-island and session-list styles, plus animated/static/hidden music activity |
+| Personalization | Per-display closed-island and session-list styles, plus animated/static/hidden agent and music activity |
 | Settings | Hook install/uninstall, usage dashboard, General, Personalization, Display, Sound, Shortcuts, Lab, About |
 | Notification mode | Auto-height panel for permission requests and session events |
 | Notification sounds | Configurable system sounds, mute toggle |

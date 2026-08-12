@@ -226,14 +226,17 @@ struct IslandPanelView: View {
         let physicalNotchWidth: CGFloat = targetOverlayScreen?.notchSize.width ?? 180
         let closedLabel = closedLayout == .external ? model.islandClosedLabel() : nil
         let closedRightSlot = model.islandClosedRightSlotContent()
+        let agentActivityStyle = model.islandAgentActivityStyle
         let musicActivityStyle = model.islandMusicActivityStyle
         let mediaActivity = musicActivityStyle.displayState(
-            for: MediaActivityState(snapshot: model.spotifyPlayback.snapshot)
+            for: MediaActivityState(snapshot: model.spotifyPlayback.snapshot),
+            isSpotifyTabVisible: model.isSpotifyTabVisible
         )
         let closedGeometry = V6ClosedPillGeometry.resolve(
             label: closedLabel,
             rightSlot: closedRightSlot,
             mediaActivity: mediaActivity,
+            agentActivityStyle: agentActivityStyle,
             layout: closedLayout,
             height: closedNotchHeight,
             physicalNotchWidth: closedLayout == .macbook ? physicalNotchWidth : 0,
@@ -271,6 +274,7 @@ struct IslandPanelView: View {
                     rightSlot: closedRightSlot,
                     mediaActivity: mediaActivity,
                     mediaActivityAnimationEnabled: musicActivityStyle.allowsAnimation,
+                    agentActivityStyle: agentActivityStyle,
                     physicalNotchWidth: physicalNotchWidth
                 )
                     .opacity(1 - transitionState.openedContentOpacity)
@@ -340,6 +344,7 @@ struct IslandPanelView: View {
         rightSlot: IslandRightSlotContent?,
         mediaActivity: MediaActivityState,
         mediaActivityAnimationEnabled: Bool,
+        agentActivityStyle: IslandAgentActivityStyle,
         physicalNotchWidth: CGFloat
     ) -> some View {
         V6ClosedPill(
@@ -348,6 +353,7 @@ struct IslandPanelView: View {
             rightSlot: rightSlot,
             mediaActivity: mediaActivity,
             mediaActivityAnimationEnabled: mediaActivityAnimationEnabled,
+            agentActivityStyle: agentActivityStyle,
             onMediaActivitySelected: openSpotifyTabFromActivityIndicator,
             layout: layout,
             height: closedNotchHeight,

@@ -70,8 +70,13 @@
 "settings.appearance.centerLabel.agentAction" = "Agent · action";
 "settings.appearance.centerLabel.sessionName" = "Session name";
 "settings.appearance.centerLabel.off" = "Off";
-"settings.appearance.musicActivity.title" = "03 · Music activity";
-"settings.appearance.musicActivity.note" = "Animated follows playback, Static holds the equalizer still, and Hidden compacts the closed island.";
+"settings.appearance.agentActivity.title" = "03 · Agent activity";
+"settings.appearance.agentActivity.note" = "Animated follows agent state, Static holds the glyph still, and Hidden compacts the closed island.";
+"settings.appearance.agentActivity.animated" = "Animated";
+"settings.appearance.agentActivity.static" = "Static";
+"settings.appearance.agentActivity.hidden" = "Hidden";
+"settings.appearance.musicActivity.title" = "04 · Music activity";
+"settings.appearance.musicActivity.note" = "Animated follows playback, Static holds the equalizer still, and Hidden compacts the closed island. Hiding the Spotify tab also hides this indicator while preserving your choice.";
 "settings.appearance.musicActivity.animated" = "Animated";
 "settings.appearance.musicActivity.static" = "Static";
 "settings.appearance.musicActivity.hidden" = "Hidden";

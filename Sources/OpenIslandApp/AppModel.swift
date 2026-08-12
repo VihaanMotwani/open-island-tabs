@@ -389,6 +389,11 @@ final class AppModel {
         set { updateAppearancePreferences(for: activeAppearanceProfile) { $0.centerLabel = newValue } }
     }
 
+    var islandAgentActivityStyle: IslandAgentActivityStyle {
+        get { appearancePreferences(for: activeAppearanceProfile).agentActivityStyle }
+        set { updateAppearancePreferences(for: activeAppearanceProfile) { $0.agentActivityStyle = newValue } }
+    }
+
     var islandMusicActivityStyle: IslandMusicActivityStyle {
         get { appearancePreferences(for: activeAppearanceProfile).musicActivityStyle }
         set { updateAppearancePreferences(for: activeAppearanceProfile) { $0.musicActivityStyle = newValue } }
@@ -469,6 +474,7 @@ final class AppModel {
         let defaults = UserDefaults.standard
         defaults.set(preferences.rightSlot.rawValue, forKey: Self.appearanceDefaultsKey(profile, "rightSlot"))
         defaults.set(preferences.centerLabel.rawValue, forKey: Self.appearanceDefaultsKey(profile, "centerLabel"))
+        defaults.set(preferences.agentActivityStyle.rawValue, forKey: Self.appearanceDefaultsKey(profile, "agentActivity"))
         defaults.set(preferences.musicActivityStyle.rawValue, forKey: Self.appearanceDefaultsKey(profile, "musicActivity"))
         defaults.set(preferences.usageDisplay.rawValue, forKey: Self.appearanceDefaultsKey(profile, "usageDisplay"))
         defaults.set(preferences.sessionStateIndicator.rawValue, forKey: Self.appearanceDefaultsKey(profile, "stateIndicator"))
@@ -603,6 +609,10 @@ final class AppModel {
                     ?? defaults.string(forKey: islandCenterLabelDefaultsKey)
                     ?? ""
             ) ?? .agentAction,
+            agentActivityStyle: IslandAgentActivityStyle(
+                rawValue: defaults.string(forKey: appearanceDefaultsKey(profile, "agentActivity"))
+                    ?? ""
+            ) ?? .animated,
             musicActivityStyle: IslandMusicActivityStyle(
                 rawValue: defaults.string(forKey: appearanceDefaultsKey(profile, "musicActivity"))
                     ?? ""

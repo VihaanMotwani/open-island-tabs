@@ -203,6 +203,7 @@ struct AppearanceSettingsPane: View {
             previewSection
             rightSlotSection
             centerLabelSection
+            agentActivitySection
             musicActivitySection
         }
     }
@@ -258,6 +259,7 @@ struct AppearanceSettingsPane: View {
                     rightSlot: previewRightContent,
                     mediaActivity: previewMediaActivity,
                     mediaActivityAnimationEnabled: editingPreferences.musicActivityStyle.allowsAnimation,
+                    agentActivityStyle: editingPreferences.agentActivityStyle,
                     layout: previewLayout,
                     physicalNotchWidth: physicalNotchW,
                     now: context.date
@@ -268,7 +270,47 @@ struct AppearanceSettingsPane: View {
         .frame(maxWidth: .infinity, alignment: .center)
     }
 
-    // MARK: - 03 · Music activity
+    // MARK: - 03 · Agent activity
+
+    @ViewBuilder
+    private var agentActivitySection: some View {
+        sectionHeader(
+            title: lang.t("settings.appearance.agentActivity.title"),
+            note: lang.t("settings.appearance.agentActivity.note")
+        )
+
+        HStack(spacing: 12) {
+            ForEach(IslandAgentActivityStyle.allCases) { option in
+                optionCard(
+                    selected: editingPreferences.agentActivityStyle == option,
+                    title: title(for: option)
+                ) {
+                    model.updateAppearancePreferences(for: editingProfile) {
+                        $0.agentActivityStyle = option
+                    }
+                } icon: {
+                    agentActivityStylePreview(option)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func agentActivityStylePreview(_ option: IslandAgentActivityStyle) -> some View {
+        if option == .hidden {
+            Image(systemName: "eye.slash")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(V6Palette.paper.opacity(0.42))
+        } else {
+            UnifiedBars(
+                mode: .running,
+                size: 20,
+                animationEnabled: option.allowsAnimation
+            )
+        }
+    }
+
+    // MARK: - 04 · Music activity
 
     @ViewBuilder
     private var musicActivitySection: some View {
@@ -764,6 +806,14 @@ struct AppearanceSettingsPane: View {
         }
     }
 
+    private func title(for option: IslandAgentActivityStyle) -> String {
+        switch option {
+        case .animated: lang.t("settings.appearance.agentActivity.animated")
+        case .static: lang.t("settings.appearance.agentActivity.static")
+        case .hidden: lang.t("settings.appearance.agentActivity.hidden")
+        }
+    }
+
     private func title(for tab: IslandTab) -> String {
         switch tab {
         case .agents: lang.t("island.tab.agents")
@@ -817,7 +867,10 @@ struct AppearanceSettingsPane: View {
     }
 
     private var previewMediaActivity: MediaActivityState {
-        editingPreferences.musicActivityStyle.displayState(for: .playing)
+        editingPreferences.musicActivityStyle.displayState(
+            for: .playing,
+            isSpotifyTabVisible: model.isSpotifyTabVisible
+        )
     }
 
     private var previewSessionSections: [AppearanceSessionPreviewSection] {

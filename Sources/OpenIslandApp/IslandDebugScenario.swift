@@ -51,6 +51,7 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
     case completionCard
     case longCompletionCard
     case spotifyPlayer
+    case spotifyTrackPreview
     case tasksList
 
     var id: String { rawValue }
@@ -73,6 +74,8 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
             "Long Completion Card"
         case .spotifyPlayer:
             "Spotify Player"
+        case .spotifyTrackPreview:
+            "Spotify Track Preview"
         case .tasksList:
             "To-do List"
         }
@@ -96,6 +99,8 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
             "Long finished-task reply stays inside the card and scrolls internally."
         case .spotifyPlayer:
             "Expanded Spotify tab with deterministic playback metadata and controls."
+        case .spotifyTrackPreview:
+            "Compact now-playing preview shown briefly after Spotify changes tracks."
         case .tasksList:
             "Expanded To-do tab with active, completed, editable, and scrollable tasks."
         }
@@ -207,6 +212,20 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
                 sessions: [],
                 selectedSessionID: nil,
                 selectedTab: .spotify,
+                mediaSnapshot: Self.playingMediaSnapshot
+            )
+
+        case .spotifyTrackPreview:
+            return IslandDebugSnapshot(
+                title: title,
+                summary: summary,
+                previewHeight: 150,
+                notchStatus: .opened,
+                notchOpenReason: .mediaTrackChange,
+                islandSurface: .mediaTrackPreview(Self.playingMediaSnapshot),
+                sessions: [],
+                selectedSessionID: nil,
+                selectedTab: .agents,
                 mediaSnapshot: Self.playingMediaSnapshot
             )
 

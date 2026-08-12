@@ -488,6 +488,21 @@ struct V6MacBookSlotMetrics {
     }
 }
 
+struct V6ClosedSurfaceMetrics {
+    static let externalDisplayWidth: CGFloat = 360
+
+    static func maximumNotchedWidth(notchWidth: CGFloat) -> CGFloat {
+        let maximumLeadingContentWidth =
+            V6MacBookSlotMetrics.leadingActivityContentWidth(
+                mediaActivityWidth: 21
+            )
+        let maximumWingReserve = V6MacBookSlotMetrics.leadingReserve(
+            contentWidth: maximumLeadingContentWidth
+        )
+        return notchWidth + (maximumWingReserve * 2)
+    }
+}
+
 private enum RightSlotKey: Hashable {
     case count(Int)
     case agents(Int)

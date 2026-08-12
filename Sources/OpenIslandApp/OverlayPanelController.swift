@@ -476,16 +476,11 @@ final class OverlayPanelController {
     ) -> CGFloat {
         let popBonus: CGFloat = notchStatus == .popping ? 18 : 0
         if isNotchedDisplay {
-            let maximumLeadingContentWidth =
-                V6MacBookSlotMetrics.leadingActivityContentWidth(
-                    mediaActivityWidth: 21
-                )
-            let maximumWingReserve = V6MacBookSlotMetrics.leadingReserve(
-                contentWidth: maximumLeadingContentWidth
-            )
-            return notchWidth + (maximumWingReserve * 2) + popBonus
+            return V6ClosedSurfaceMetrics.maximumNotchedWidth(
+                notchWidth: notchWidth
+            ) + popBonus
         }
-        return 360 + popBonus
+        return V6ClosedSurfaceMetrics.externalDisplayWidth + popBonus
     }
 
     private func closedSurfaceRect(for model: AppModel) -> NSRect? {
@@ -510,11 +505,24 @@ final class OverlayPanelController {
         )
     }
 
-    /// Always returns the maximum (opened) panel size so the window never
-    /// needs to resize.  All visual transitions are driven purely by SwiftUI
-    /// inside this fixed-size window.
+    /// Returns the stable panel size for the active surface. Regular tab
+    /// transitions use the maximum opened size; the transient media preview
+    /// follows the compact, metadata-driven dimensions of its reference UI.
     private func panelSize(for model: AppModel?, on screen: NSScreen) -> CGSize {
         let insets = panelShadowInsets
+
+        if let snapshot = model?.islandSurface.mediaTrackPreviewSnapshot {
+            let previewSize = MediaTrackPreviewPolicy.surfaceSize(
+                availableScreenWidth: screen.visibleFrame.width,
+                notchWidth: screen.safeAreaInsets.top > 0 ? screen.notchSize.width : 0,
+                notchHeight: screen.notchSize.height,
+                snapshot: snapshot
+            )
+            return CGSize(
+                width: previewSize.width + (insets.horizontal * 2),
+                height: previewSize.height + insets.bottom
+            )
+        }
 
         guard let model else {
             return CGSize(
@@ -631,6 +639,15 @@ final class OverlayPanelController {
     }
 
     private func openedPanelWidth(for model: AppModel, on screen: NSScreen) -> CGFloat {
+        if let snapshot = model.islandSurface.mediaTrackPreviewSnapshot {
+            return MediaTrackPreviewPolicy.surfaceSize(
+                availableScreenWidth: screen.visibleFrame.width,
+                notchWidth: screen.safeAreaInsets.top > 0 ? screen.notchSize.width : 0,
+                notchHeight: screen.notchSize.height,
+                snapshot: snapshot
+            ).width
+        }
+
         switch model.selectedIslandTab {
         case .agents:
             return openedPanelWidth(for: screen)

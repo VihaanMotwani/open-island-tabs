@@ -70,7 +70,7 @@ final class AppModel {
     let monitoring = ProcessMonitoringCoordinator()
     let codexAppServer = CodexAppServerCoordinator()
     let updateChecker = UpdateChecker()
-    let spotifyPlayback = SpotifyPlaybackModel()
+    let spotifyPlayback: SpotifyPlaybackModel
     let taskStore: TaskStore
 
     var notchStatus: NotchStatus {
@@ -648,6 +648,7 @@ final class AppModel {
     init(
         discovery: SessionDiscoveryCoordinator = SessionDiscoveryCoordinator(),
         taskStore: TaskStore = TaskStore(),
+        spotifyPlayback: SpotifyPlaybackModel = SpotifyPlaybackModel(),
         terminalJumpAction: @escaping @Sendable (JumpTarget) throws -> String = { target in
             try TerminalJumpService().jump(to: target)
         },
@@ -657,6 +658,7 @@ final class AppModel {
     ) {
         self.discovery = discovery
         self.taskStore = taskStore
+        self.spotifyPlayback = spotifyPlayback
         self.terminalJumpAction = terminalJumpAction
         self.isNotificationSessionAlreadyFrontmost = isNotificationSessionAlreadyFrontmost
         UserDefaults.standard.register(defaults: [
@@ -713,6 +715,9 @@ final class AppModel {
         }
         overlay.ignoresPointerExitAccessor = { [weak self] in
             self?.ignoresPointerExitDuringHarness ?? false
+        }
+        spotifyPlayback.onTrackChange = { [weak self] snapshot in
+            self?.overlay.presentMediaTrackPreview(snapshot)
         }
 
         hooks.onStatusMessage = { [weak self] message in

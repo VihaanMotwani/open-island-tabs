@@ -27,6 +27,23 @@ struct IslandDebugScenarioTests {
         )
     }
 
+    @Test
+    func spotifyTrackPreviewScenarioCarriesTheCompactTransientSurface() {
+        let snapshot = IslandDebugScenario.spotifyTrackPreview.snapshot()
+
+        #expect(snapshot.notchStatus == .opened)
+        #expect(snapshot.notchOpenReason == .mediaTrackChange)
+        #expect(snapshot.selectedTab == .agents)
+        #expect(
+            snapshot.islandSurface.mediaTrackPreviewSnapshot?.title
+                == "Passionfruit"
+        )
+        #expect(
+            snapshot.islandSurface.mediaTrackPreviewSnapshot?.artist
+                == "Drake"
+        )
+    }
+
     @Test @MainActor
     func tasksScenarioCarriesAndLoadsDeterministicTaskState() {
         let snapshot = IslandDebugScenario.tasksList.snapshot()

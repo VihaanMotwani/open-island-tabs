@@ -357,6 +357,27 @@ def main() -> None:
             fail("spotifyPlayer is missing track metadata")
         assert_contains_any(labels, ["Open Spotify"], "spotifyPlayer labels")
 
+    elif scenario == "spotifyTrackPreview":
+        if notch_status != "opened":
+            fail(f"expected opened notch for spotifyTrackPreview, got {notch_status!r}")
+        if not island_surface.startswith("mediaTrackPreview("):
+            fail(f"expected compact mediaTrackPreview surface, got {island_surface!r}")
+        require_frame_between(
+            overlay_frame,
+            width=(220, 335),
+            height=(90, 150),
+            context="spotifyTrackPreview overlay frame",
+        )
+        if report.get("selectedTab") != "agents":
+            fail("spotifyTrackPreview should preserve the preferred Agents tab")
+        if report.get("mediaAvailability") != "running":
+            fail("spotifyTrackPreview is missing its deterministic running media fixture")
+        if report.get("mediaPlaybackState") != "playing":
+            fail("spotifyTrackPreview is missing its deterministic playing state")
+        if not report.get("mediaTitle"):
+            fail("spotifyTrackPreview is missing track metadata")
+        assert_contains_any(labels, ["Now playing"], "spotifyTrackPreview labels")
+
     elif scenario == "tasksList":
         if notch_status != "opened":
             fail(f"expected opened notch for tasksList, got {notch_status!r}")

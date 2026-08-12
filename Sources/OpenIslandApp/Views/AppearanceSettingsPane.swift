@@ -1,14 +1,9 @@
 import SwiftUI
 import OpenIslandCore
 
-/// v6 Personalization tab.
-///
-/// Two concerns, one preview:
-/// - **Right slot** — what shows on the right of the closed island.
-/// - **Center label** — what shows in the middle on external displays.
-///
-/// Everything else (idle behavior, per-tool agent colors, spinner, custom
-/// avatars) was cut in the v6 redesign round.
+/// Personalization for the closed island, expanded tabs, and Agents list.
+/// Display-specific choices stay attached to the MacBook-notch or external-
+/// display profile, while expanded-tab visibility applies everywhere.
 struct AppearanceSettingsPane: View {
     var model: AppModel
     @State private var previewMode: UnifiedBars.Mode = .idle
@@ -30,6 +25,7 @@ struct AppearanceSettingsPane: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 32) {
                 displayProfilePart
+                tabsPersonalizationPart
                 notchPersonalizationPart
                 sessionListPersonalizationPart
             }
@@ -38,6 +34,87 @@ struct AppearanceSettingsPane: View {
         }
         .background(Color(red: 0.055, green: 0.055, blue: 0.06))
         .navigationTitle(lang.t("settings.tab.appearance"))
+    }
+
+    // MARK: - Expanded tabs
+
+    private var tabsPersonalizationPart: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            partHeader(title: lang.t("settings.appearance.tabsPart.title"))
+            sectionHeader(
+                title: lang.t("settings.appearance.tabs.title"),
+                note: lang.t("settings.appearance.tabs.note")
+            )
+
+            VStack(spacing: 10) {
+                tabVisibilityRow(
+                    tab: .agents,
+                    icon: "terminal.fill",
+                    note: lang.t("settings.appearance.tabs.agents.note"),
+                    isOn: .constant(true),
+                    isLocked: true
+                )
+                tabVisibilityRow(
+                    tab: .spotify,
+                    icon: "music.note",
+                    note: lang.t("settings.appearance.tabs.spotify.note"),
+                    isOn: Binding(
+                        get: { model.isSpotifyTabVisible },
+                        set: { model.isSpotifyTabVisible = $0 }
+                    )
+                )
+                tabVisibilityRow(
+                    tab: .tasks,
+                    icon: "checklist",
+                    note: lang.t("settings.appearance.tabs.tasks.note"),
+                    isOn: Binding(
+                        get: { model.isTasksTabVisible },
+                        set: { model.isTasksTabVisible = $0 }
+                    )
+                )
+            }
+        }
+    }
+
+    private func tabVisibilityRow(
+        tab: IslandTab,
+        icon: String,
+        note: String,
+        isOn: Binding<Bool>,
+        isLocked: Bool = false
+    ) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(V6Palette.paper.opacity(0.78))
+                .frame(width: 30, height: 30)
+                .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title(for: tab))
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(V6Palette.paper.opacity(0.92))
+                Text(note)
+                    .font(.system(size: 11.5, weight: .medium))
+                    .foregroundStyle(V6Palette.paper.opacity(0.44))
+            }
+
+            Spacer(minLength: 12)
+
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .disabled(isLocked)
+                .accessibilityLabel(title(for: tab))
+        }
+        .padding(.horizontal, 14)
+        .frame(minHeight: 54)
+        .background(.white.opacity(0.035), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(.white.opacity(0.07), lineWidth: 1)
+        }
     }
 
     // MARK: - Display profile
@@ -126,6 +203,8 @@ struct AppearanceSettingsPane: View {
             previewSection
             rightSlotSection
             centerLabelSection
+            agentActivitySection
+            musicActivitySection
         }
     }
 
@@ -178,6 +257,9 @@ struct AppearanceSettingsPane: View {
                     mode: previewMode,
                     label: previewLabel,
                     rightSlot: previewRightContent,
+                    mediaActivity: previewMediaActivity,
+                    mediaActivityAnimationEnabled: editingPreferences.musicActivityStyle.allowsAnimation,
+                    agentActivityStyle: editingPreferences.agentActivityStyle,
                     layout: previewLayout,
                     physicalNotchWidth: physicalNotchW,
                     now: context.date
@@ -186,6 +268,83 @@ struct AppearanceSettingsPane: View {
         }
         .frame(height: pillHeight)
         .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    // MARK: - 03 · Agent activity
+
+    @ViewBuilder
+    private var agentActivitySection: some View {
+        sectionHeader(
+            title: lang.t("settings.appearance.agentActivity.title"),
+            note: lang.t("settings.appearance.agentActivity.note")
+        )
+
+        HStack(spacing: 12) {
+            ForEach(IslandAgentActivityStyle.allCases) { option in
+                optionCard(
+                    selected: editingPreferences.agentActivityStyle == option,
+                    title: title(for: option)
+                ) {
+                    model.updateAppearancePreferences(for: editingProfile) {
+                        $0.agentActivityStyle = option
+                    }
+                } icon: {
+                    agentActivityStylePreview(option)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func agentActivityStylePreview(_ option: IslandAgentActivityStyle) -> some View {
+        if option == .hidden {
+            Image(systemName: "eye.slash")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(V6Palette.paper.opacity(0.42))
+        } else {
+            UnifiedBars(
+                mode: .running,
+                size: 20,
+                animationEnabled: option.allowsAnimation
+            )
+        }
+    }
+
+    // MARK: - 04 · Music activity
+
+    @ViewBuilder
+    private var musicActivitySection: some View {
+        sectionHeader(
+            title: lang.t("settings.appearance.musicActivity.title"),
+            note: lang.t("settings.appearance.musicActivity.note")
+        )
+
+        HStack(spacing: 12) {
+            ForEach(IslandMusicActivityStyle.allCases) { option in
+                optionCard(
+                    selected: editingPreferences.musicActivityStyle == option,
+                    title: title(for: option)
+                ) {
+                    model.updateAppearancePreferences(for: editingProfile) {
+                        $0.musicActivityStyle = option
+                    }
+                } icon: {
+                    musicActivityStylePreview(option)
+                }
+            }
+        }
+    }
+
+    private func musicActivityStylePreview(_ option: IslandMusicActivityStyle) -> some View {
+        let systemName: String = switch option {
+        case .animated: "waveform"
+        case .static: "pause.fill"
+        case .hidden: "eye.slash"
+        }
+
+        return Image(systemName: systemName)
+            .font(.system(size: 18, weight: .semibold))
+            .foregroundStyle(V6Palette.paper.opacity(option == .hidden ? 0.42 : 0.88))
     }
 
     private var previewControls: some View {
@@ -226,7 +385,9 @@ struct AppearanceSettingsPane: View {
                 sections: previewSessionSections,
                 showsSections: editingPreferences.sessionGroup != .none,
                 indicator: editingPreferences.sessionStateIndicator,
+                usageDisplay: editingPreferences.usageDisplay,
                 profile: editingProfile,
+                visibleTabs: model.visibleIslandTabs,
                 lang: lang
             )
             .padding(.horizontal, 18)
@@ -637,6 +798,30 @@ struct AppearanceSettingsPane: View {
         }
     }
 
+    private func title(for option: IslandMusicActivityStyle) -> String {
+        switch option {
+        case .animated: lang.t("settings.appearance.musicActivity.animated")
+        case .static: lang.t("settings.appearance.musicActivity.static")
+        case .hidden: lang.t("settings.appearance.musicActivity.hidden")
+        }
+    }
+
+    private func title(for option: IslandAgentActivityStyle) -> String {
+        switch option {
+        case .animated: lang.t("settings.appearance.agentActivity.animated")
+        case .static: lang.t("settings.appearance.agentActivity.static")
+        case .hidden: lang.t("settings.appearance.agentActivity.hidden")
+        }
+    }
+
+    private func title(for tab: IslandTab) -> String {
+        switch tab {
+        case .agents: lang.t("island.tab.agents")
+        case .spotify: lang.t("island.tab.spotify")
+        case .tasks: lang.t("island.tab.tasks")
+        }
+    }
+
     private func title(for option: IslandCompletedStaleThreshold) -> String {
         switch option {
         case .twoMinutes:    lang.t("settings.appearance.staleThreshold.twoMinutes")
@@ -679,6 +864,13 @@ struct AppearanceSettingsPane: View {
         case .agents:
             return .agents(previewAgentCells)
         }
+    }
+
+    private var previewMediaActivity: MediaActivityState {
+        editingPreferences.musicActivityStyle.displayState(
+            for: .playing,
+            isSpotifyTabVisible: model.isSpotifyTabVisible
+        )
     }
 
     private var previewSessionSections: [AppearanceSessionPreviewSection] {
@@ -927,7 +1119,9 @@ private struct SessionListPanelPreview: View {
     let sections: [AppearanceSessionPreviewSection]
     let showsSections: Bool
     let indicator: IslandSessionStateIndicator
+    let usageDisplay: IslandUsageDisplay
     let profile: IslandAppearanceDisplayProfile
+    let visibleTabs: [IslandTab]
     let lang: LanguageManager
 
     private var items: [AppearanceSessionPreviewItem] {
@@ -953,14 +1147,14 @@ private struct SessionListPanelPreview: View {
     var body: some View {
         ViewThatFits(in: .horizontal) {
             panel(width: preferredPanelWidth)
-            panel(width: 500)
-            panel(width: 460)
+            panel(width: 450)
+            panel(width: 420)
         }
         .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private var preferredPanelWidth: CGFloat {
-        profile == .notch ? 540 : 520
+        profile == .notch ? 486 : 450
     }
 
     private func panel(width: CGFloat) -> some View {
@@ -971,6 +1165,8 @@ private struct SessionListPanelPreview: View {
 
             VStack(spacing: 0) {
                 panelHead
+                previewTabSwitcher
+                sessionListHeader
                 listBody
                 panelFoot
             }
@@ -985,18 +1181,67 @@ private struct SessionListPanelPreview: View {
     }
 
     private var sideInset: CGFloat {
-        profile == .notch ? 46 : 16
+        ExpandedNotchLayoutMetrics.safeContentHorizontalInset
     }
 
     private var panelHead: some View {
         HStack(spacing: 8) {
-            UnifiedBars(mode: .waiting, size: 22)
-                .frame(width: 24, height: 24)
+            if usageDisplay == .compact {
+                Text(lang.t("settings.appearance.preview.usageSample"))
+                    .font(.caption2.monospacedDigit().weight(.medium))
+                    .foregroundStyle(ExpandedNotchVisualStyle.textColor(.tertiary))
+                    .lineLimit(1)
+            } else {
+                Color.clear
+            }
 
-            Text(lang.t("island.sessionList.title").uppercased())
-                .font(.system(size: 10.5, weight: .semibold, design: .monospaced))
-                .tracking(1.4)
-                .foregroundStyle(V6Palette.paper.opacity(0.55))
+            Spacer(minLength: 0)
+
+            HStack(spacing: ExpandedNotchLayoutMetrics.headerControlSpacing) {
+                previewHeaderButton(systemName: "speaker.wave.2.fill")
+                previewHeaderButton(systemName: "gearshape")
+                previewHeaderButton(systemName: "power")
+            }
+        }
+        .padding(.leading, sideInset)
+        .padding(.trailing, sideInset)
+        .frame(height: 32)
+    }
+
+    private var previewTabSwitcher: some View {
+        HStack(spacing: 0) {
+            ForEach(visibleTabs) { tab in
+                Text(title(for: tab))
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(
+                        tab == .agents
+                            ? ExpandedNotchVisualStyle.textColor(.primary)
+                            : ExpandedNotchVisualStyle.textColor(.secondary)
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(
+                        tab == .agents ? Color.white.opacity(0.12) : Color.clear,
+                        in: RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    )
+            }
+        }
+        .padding(2)
+        .frame(
+            width: ExpandedNotchLayoutMetrics.tabSegmentedControlWidth(
+                visibleTabCount: visibleTabs.count
+            ),
+            height: ExpandedNotchLayoutMetrics.tabControlHeight
+        )
+        .background(.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .frame(maxWidth: .infinity)
+        .frame(height: ExpandedNotchLayoutMetrics.tabSwitcherHeight, alignment: .top)
+    }
+
+    private var sessionListHeader: some View {
+        HStack(spacing: 8) {
+            Text(lang.t("island.sessionList.title"))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(ExpandedNotchVisualStyle.textColor(.secondary))
 
             ViewThatFits(in: .horizontal) {
                 previewSessionOverview(compact: false)
@@ -1004,16 +1249,16 @@ private struct SessionListPanelPreview: View {
             }
 
             Spacer(minLength: 0)
-
-            previewHeaderButton(systemName: "gearshape.fill")
         }
-        .padding(.leading, sideInset)
-        .padding(.trailing, sideInset)
-        .frame(height: 42)
-        .overlay(alignment: .bottom) {
-            Rectangle()
-                .fill(.white.opacity(0.05))
-                .frame(height: 1)
+        .padding(.horizontal, sideInset)
+        .frame(height: ExpandedNotchLayoutMetrics.sessionHeaderHeight)
+    }
+
+    private func title(for tab: IslandTab) -> String {
+        switch tab {
+        case .agents: lang.t("island.tab.agents")
+        case .spotify: lang.t("island.tab.spotify")
+        case .tasks: lang.t("island.tab.tasks")
         }
     }
 
@@ -1100,22 +1345,26 @@ private struct SessionListPanelPreview: View {
     }
 
     private var listBody: some View {
-        VStack(spacing: 0) {
+        VStack(alignment: .leading, spacing: ExpandedNotchLayoutMetrics.agentCardSpacing) {
             ForEach(sections) { section in
-                if showsSections {
-                    sectionHeader(section)
-                }
+                VStack(alignment: .leading, spacing: ExpandedNotchLayoutMetrics.agentCardSpacing) {
+                    if showsSections {
+                        sectionHeader(section)
+                    }
 
-                ForEach(section.items) { item in
-                    SessionListLivePreviewRow(
-                        item: item,
-                        indicator: indicator,
-                        sideInset: sideInset,
-                        lang: lang
-                    )
+                    ForEach(section.items) { item in
+                        SessionListLivePreviewRow(
+                            item: item,
+                            indicator: indicator,
+                            sideInset: ExpandedNotchLayoutMetrics.agentCardHorizontalPadding,
+                            lang: lang
+                        )
+                    }
                 }
             }
         }
+        .padding(.horizontal, sideInset)
+        .padding(.vertical, ExpandedNotchLayoutMetrics.agentListVerticalPadding)
     }
 
     private func sectionHeader(_ section: AppearanceSessionPreviewSection) -> some View {
@@ -1130,15 +1379,8 @@ private struct SessionListPanelPreview: View {
                 .foregroundStyle(V6Palette.paper.opacity(0.4))
             Spacer(minLength: 0)
         }
-        .padding(.leading, sideInset)
-        .padding(.trailing, sideInset)
-        .padding(.top, 9)
-        .padding(.bottom, 6)
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(.white.opacity(0.05))
-                .frame(height: 1)
-        }
+        .padding(.horizontal, ExpandedNotchLayoutMetrics.agentCardHorizontalPadding)
+        .frame(height: 24)
     }
 
     @ViewBuilder
@@ -1205,16 +1447,23 @@ private struct SessionListLivePreviewRow: View {
             }
             .padding(.horizontal, rowLeadingPadding)
             .padding(.vertical, 11)
-            .background(rowFill)
-
             if item.phase != .idle {
                 detailPreview
             }
         }
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(.white.opacity(0.04))
-                .frame(height: 1)
+        .background {
+            RoundedRectangle(
+                cornerRadius: ExpandedNotchLayoutMetrics.agentCardCornerRadius,
+                style: .continuous
+            )
+            .fill(cardFill)
+        }
+        .overlay {
+            RoundedRectangle(
+                cornerRadius: ExpandedNotchLayoutMetrics.agentCardCornerRadius,
+                style: .continuous
+            )
+            .strokeBorder(.white.opacity(0.05), lineWidth: 0.5)
         }
         .overlay(alignment: .leading) {
             if indicator == .bar {
@@ -1225,6 +1474,12 @@ private struct SessionListLivePreviewRow: View {
                     .padding(.leading, 14)
             }
         }
+        .clipShape(
+            RoundedRectangle(
+                cornerRadius: ExpandedNotchLayoutMetrics.agentCardCornerRadius,
+                style: .continuous
+            )
+        )
         .opacity(item.phase == .idle ? 0.74 : 1)
     }
 
@@ -1320,9 +1575,15 @@ private struct SessionListLivePreviewRow: View {
         }
     }
 
-    private var rowFill: Color {
-        guard indicator == .tint else { return Color.clear }
-        return tint.opacity(item.phase == .idle ? 0.015 : 0.045)
+    private var cardFill: Color {
+        if indicator == .tint {
+            return tint.opacity(item.phase == .idle ? 0.035 : 0.08)
+        }
+        return Color.white.opacity(
+            item.phase == .done || item.phase == .idle
+                ? ExpandedNotchLayoutMetrics.agentCompletedCardFillOpacity
+                : ExpandedNotchLayoutMetrics.agentCardFillOpacity
+        )
     }
 
     @ViewBuilder

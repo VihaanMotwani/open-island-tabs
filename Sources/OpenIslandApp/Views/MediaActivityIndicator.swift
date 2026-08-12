@@ -5,6 +5,7 @@ import SwiftUI
 /// https://github.com/Subhan-code/Amicro--Micro-transitions-/blob/main/registry/ui/loading/apple-equalizer.tsx
 struct MediaActivityIndicator: View {
     let state: MediaActivityState
+    var animationEnabled: Bool = true
     let action: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -17,7 +18,7 @@ struct MediaActivityIndicator: View {
         Button(action: action) {
             EqualizerLayerRepresentable(
                 state: state,
-                reduceMotion: reduceMotion,
+                reduceMotion: reduceMotion || !animationEnabled,
                 tint: V6Palette.paper
             )
             .frame(width: 18, height: 18)
@@ -202,6 +203,7 @@ struct MediaEqualizerPattern: Equatable {
 
     static func make(
         for state: MediaActivityState,
+        animationEnabled: Bool = true,
         reduceMotion: Bool
     ) -> MediaEqualizerPattern {
         switch state {
@@ -209,7 +211,7 @@ struct MediaEqualizerPattern: Equatable {
             return still(scales: [0, 0, 0, 0])
         case .paused:
             return still(scales: [0.20, 0.76, 0.58, 0.82])
-        case .playing where reduceMotion:
+        case .playing where reduceMotion || !animationEnabled:
             return still(scales: [0.36, 0.82, 0.56, 0.72])
         case .playing:
             let restingScales: [CGFloat] = [0.28, 0.38, 0.24, 0.32]

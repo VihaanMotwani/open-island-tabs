@@ -53,6 +53,23 @@ struct TaskStoreTests {
     }
 
     @Test
+    func clearingCompletedTasksKeepsActiveTasksAndPersistsTheResult() throws {
+        let storageURL = temporaryStorageURL()
+        let store = TaskStore(storageURL: storageURL)
+        store.addTask(title: "Active")
+        store.addTask(title: "Done")
+        let doneID = try #require(store.tasks.last?.id)
+        store.toggleCompletion(id: doneID)
+
+        #expect(store.hasCompletedTasks)
+        store.clearCompletedTasks()
+
+        #expect(store.tasks.map(\.title) == ["Active"])
+        #expect(!store.hasCompletedTasks)
+        #expect(TaskStore(storageURL: storageURL).tasks.map(\.title) == ["Active"])
+    }
+
+    @Test
     func mutationsPersistAndReloadInDisplayOrder() throws {
         let storageURL = temporaryStorageURL()
         let writer = TaskStore(storageURL: storageURL)

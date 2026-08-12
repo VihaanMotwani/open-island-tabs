@@ -32,7 +32,8 @@ struct ExpandedNotchLayoutMetrics: Equatable, Sendable {
     static let notchHeaderHorizontalPadding = safeContentHorizontalInset
     static let tabSwitcherHeight: CGFloat = 36
     static let tabControlHeight: CGFloat = 26
-    static let tabSegmentedControlWidth: CGFloat = 216
+    static let tabSegmentWidth: CGFloat = 72
+    static let minimumTabSegmentedControlWidth: CGFloat = 96
     static let sessionHeaderHeight: CGFloat = 30
     static let sessionFooterHeight: CGFloat = 22
     static let spotifyContentHeight: CGFloat = 124
@@ -57,9 +58,17 @@ struct ExpandedNotchLayoutMetrics: Equatable, Sendable {
     static let tasksSegmentedControlHeight: CGFloat = 32
     static let tasksInputRowHeight: CGFloat = 36
     static let taskRowHeight: CGFloat = 34
+    static let tasksClearCompletedFooterHeight: CGFloat = 28
     static let tasksVerticalPadding: CGFloat = 18
     static let taskRowSpacing: CGFloat = 8
     static let maximumVisibleTaskRows = 5
+
+    static func tabSegmentedControlWidth(visibleTabCount: Int) -> CGFloat {
+        max(
+            minimumTabSegmentedControlWidth,
+            CGFloat(max(visibleTabCount, 1)) * tabSegmentWidth
+        )
+    }
 
     static func agentsSurfaceWidth(availableScreenWidth: CGFloat) -> CGFloat {
         min(
@@ -160,25 +169,39 @@ struct ExpandedNotchLayoutMetrics: Equatable, Sendable {
         min(max(totalCount, 0), maximumVisibleTaskRows)
     }
 
-    static func tasksExpandedHeight(totalCount: Int) -> CGFloat {
+    static func tasksExpandedHeight(
+        totalCount: Int,
+        showsClearCompleted: Bool = false
+    ) -> CGFloat {
         let visibleRows = visibleTaskCount(totalCount: totalCount)
         let rowsHeight = CGFloat(visibleRows) * taskRowHeight
         let spacingHeight = CGFloat(max(visibleRows - 1, 0)) * taskRowSpacing
+        let clearCompletedHeight = showsClearCompleted
+            ? tasksClearCompletedFooterHeight
+            : 0
         let measured = tasksVerticalPadding * 2
             + tasksSegmentedControlHeight
             + tasksInputRowHeight
             + 16
             + rowsHeight
             + spacingHeight
+            + clearCompletedHeight
+        let maximumHeight = tasksMaximumExpandedHeight + clearCompletedHeight
 
         return min(
             max(measured, tasksMinimumExpandedHeight),
-            tasksMaximumExpandedHeight
+            maximumHeight
         )
     }
 
-    static func tasksContentHeight(totalCount: Int) -> CGFloat {
-        tasksExpandedHeight(totalCount: totalCount)
+    static func tasksContentHeight(
+        totalCount: Int,
+        showsClearCompleted: Bool = false
+    ) -> CGFloat {
+        tasksExpandedHeight(
+            totalCount: totalCount,
+            showsClearCompleted: showsClearCompleted
+        )
             + (visibleTaskCount(totalCount: totalCount) == maximumVisibleTaskRows ? 10 : 0)
     }
 }

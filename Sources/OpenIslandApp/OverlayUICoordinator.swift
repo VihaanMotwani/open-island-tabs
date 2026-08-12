@@ -13,6 +13,7 @@ final class OverlayUICoordinator {
     var notchOpenReason: NotchOpenReason?
     var islandSurface: IslandSurface = .sessionList()
     private(set) var tabSelection = IslandTabSelectionState()
+    private(set) var visibleIslandTabs = Set(IslandTab.allCases)
     var isOverlayVisible: Bool { notchStatus != .closed }
     var selectedIslandTab: IslandTab { tabSelection.selectedTab }
     var preferredIslandTab: IslandTab { tabSelection.preferredTab }
@@ -148,7 +149,7 @@ final class OverlayUICoordinator {
     }
 
     func selectIslandTab(_ tab: IslandTab) {
-        tabSelection.select(tab)
+        tabSelection.select(tab, visibleTabs: visibleIslandTabs)
 
         if notchStatus == .opened {
             refreshOverlayPlacement()
@@ -167,6 +168,18 @@ final class OverlayUICoordinator {
         islandSurface = .sessionList()
         if notchStatus == .opened {
             notchOpenReason = .click
+        }
+    }
+
+    func updateVisibleIslandTabs(_ tabs: Set<IslandTab>) {
+        var resolvedTabs = tabs
+        resolvedTabs.insert(.agents)
+        guard resolvedTabs != visibleIslandTabs else { return }
+
+        visibleIslandTabs = resolvedTabs
+        tabSelection.reconcile(visibleTabs: resolvedTabs)
+        if notchStatus == .opened {
+            refreshOverlayPlacement()
         }
     }
 

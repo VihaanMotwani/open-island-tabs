@@ -38,6 +38,13 @@ struct ExpandedNotchLayoutMetricsTests {
     }
 
     @Test
+    func tabSwitcherCompactsWhenOptionalTabsAreHidden() {
+        #expect(ExpandedNotchLayoutMetrics.tabSegmentedControlWidth(visibleTabCount: 3) == 216)
+        #expect(ExpandedNotchLayoutMetrics.tabSegmentedControlWidth(visibleTabCount: 2) == 144)
+        #expect(ExpandedNotchLayoutMetrics.tabSegmentedControlWidth(visibleTabCount: 1) == 96)
+    }
+
+    @Test
     func agentsReuseMacIslandCardRhythm() {
         #expect(ExpandedNotchLayoutMetrics.agentCardCornerRadius == 12)
         #expect(ExpandedNotchLayoutMetrics.agentCardHorizontalPadding == 12)
@@ -142,5 +149,21 @@ struct ExpandedNotchLayoutMetricsTests {
         #expect(ExpandedNotchLayoutMetrics.tasksExpandedHeight(totalCount: 3) == 238)
         #expect(ExpandedNotchLayoutMetrics.tasksExpandedHeight(totalCount: 5) == 260)
         #expect(ExpandedNotchLayoutMetrics.tasksContentHeight(totalCount: 5) == 270)
+    }
+
+    @Test
+    func completedTaskFooterKeepsFiveTaskRowsFullyVisible() {
+        #expect(
+            ExpandedNotchLayoutMetrics.tasksExpandedHeight(
+                totalCount: 5,
+                showsClearCompleted: true
+            ) == 288
+        )
+        #expect(
+            ExpandedNotchLayoutMetrics.tasksContentHeight(
+                totalCount: 5,
+                showsClearCompleted: true
+            ) == 298
+        )
     }
 }

@@ -226,11 +226,17 @@ struct IslandPanelView: View {
         let physicalNotchWidth: CGFloat = targetOverlayScreen?.notchSize.width ?? 180
         let closedLabel = closedLayout == .external ? model.islandClosedLabel() : nil
         let closedRightSlot = model.islandClosedRightSlotContent()
-        let mediaActivity = MediaActivityState(snapshot: model.spotifyPlayback.snapshot)
+        let agentActivityStyle = model.islandAgentActivityStyle
+        let musicActivityStyle = model.islandMusicActivityStyle
+        let mediaActivity = musicActivityStyle.displayState(
+            for: MediaActivityState(snapshot: model.spotifyPlayback.snapshot),
+            isSpotifyTabVisible: model.isSpotifyTabVisible
+        )
         let closedGeometry = V6ClosedPillGeometry.resolve(
             label: closedLabel,
             rightSlot: closedRightSlot,
             mediaActivity: mediaActivity,
+            agentActivityStyle: agentActivityStyle,
             layout: closedLayout,
             height: closedNotchHeight,
             physicalNotchWidth: closedLayout == .macbook ? physicalNotchWidth : 0,
@@ -267,6 +273,8 @@ struct IslandPanelView: View {
                     label: closedLabel,
                     rightSlot: closedRightSlot,
                     mediaActivity: mediaActivity,
+                    mediaActivityAnimationEnabled: musicActivityStyle.allowsAnimation,
+                    agentActivityStyle: agentActivityStyle,
                     physicalNotchWidth: physicalNotchWidth
                 )
                     .opacity(1 - transitionState.openedContentOpacity)
@@ -335,6 +343,8 @@ struct IslandPanelView: View {
         label: String?,
         rightSlot: IslandRightSlotContent?,
         mediaActivity: MediaActivityState,
+        mediaActivityAnimationEnabled: Bool,
+        agentActivityStyle: IslandAgentActivityStyle,
         physicalNotchWidth: CGFloat
     ) -> some View {
         V6ClosedPill(
@@ -342,6 +352,8 @@ struct IslandPanelView: View {
             label: label,
             rightSlot: rightSlot,
             mediaActivity: mediaActivity,
+            mediaActivityAnimationEnabled: mediaActivityAnimationEnabled,
+            agentActivityStyle: agentActivityStyle,
             onMediaActivitySelected: openSpotifyTabFromActivityIndicator,
             layout: layout,
             height: closedNotchHeight,
@@ -353,7 +365,11 @@ struct IslandPanelView: View {
     }
 
     private func openSpotifyTabFromActivityIndicator() {
-        model.openIslandTab(.spotify)
+        if model.isSpotifyTabVisible {
+            model.openIslandTab(.spotify)
+        } else {
+            model.spotifyPlayback.handleLaunchTrigger(.activityIndicator)
+        }
     }
 
     // MARK: - Opened surface
@@ -465,9 +481,9 @@ struct IslandPanelView: View {
     private var openedTabSwitcher: some View {
         ZStack(alignment: .topLeading) {
             Picker("", selection: openedTabSelection) {
-                Text("Agents").tag(IslandTab.agents)
-                Text("Spotify").tag(IslandTab.spotify)
-                Text("To-do").tag(IslandTab.tasks)
+                ForEach(model.visibleIslandTabs) { tab in
+                    Text(islandTabTitle(tab)).tag(tab)
+                }
             }
             .labelsHidden()
             .pickerStyle(.segmented)
@@ -485,9 +501,21 @@ struct IslandPanelView: View {
                     .accessibilityHidden(true)
             }
         }
-        .frame(width: ExpandedNotchLayoutMetrics.tabSegmentedControlWidth)
+        .frame(
+            width: ExpandedNotchLayoutMetrics.tabSegmentedControlWidth(
+                visibleTabCount: model.visibleIslandTabs.count
+            )
+        )
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .accessibilityLabel("Island tabs")
+        .accessibilityLabel(model.lang.t("island.tab.accessibility"))
+    }
+
+    private func islandTabTitle(_ tab: IslandTab) -> String {
+        switch tab {
+        case .agents: model.lang.t("island.tab.agents")
+        case .spotify: model.lang.t("island.tab.spotify")
+        case .tasks: model.lang.t("island.tab.tasks")
+        }
     }
 
     private var openedTabSelection: Binding<IslandTab> {
@@ -538,6 +566,7 @@ struct IslandPanelView: View {
                 case .tasks:
                     TasksView(
                         store: model.taskStore,
+                        lang: model.lang,
                         onContentHeightChange: model.refreshOverlayPlacement
                     )
                 case .agents:

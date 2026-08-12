@@ -11,4 +11,9 @@ struct SpotifyLaunchPolicyTests {
     func pressingTheUnavailableCardLaunchesSpotify() {
         #expect(SpotifyLaunchPolicy.command(for: .unavailableCard) == .open)
     }
+
+    @Test
+    func pressingMusicActivityWhenItsTabIsHiddenLaunchesSpotify() {
+        #expect(SpotifyLaunchPolicy.command(for: .activityIndicator) == .open)
+    }
 }

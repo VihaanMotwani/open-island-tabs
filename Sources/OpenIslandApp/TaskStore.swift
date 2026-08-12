@@ -33,6 +33,10 @@ struct TaskItem: Codable, Equatable, Identifiable, Sendable {
 final class TaskStore {
     private(set) var tasks: [TaskItem] = []
 
+    var hasCompletedTasks: Bool {
+        tasks.contains(where: \.isCompleted)
+    }
+
     private let storageURL: URL
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
@@ -75,6 +79,12 @@ final class TaskStore {
 
     func deleteTask(id: UUID) {
         tasks.removeAll { $0.id == id }
+        save()
+    }
+
+    func clearCompletedTasks() {
+        guard hasCompletedTasks else { return }
+        tasks.removeAll(where: \.isCompleted)
         save()
     }
 

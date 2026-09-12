@@ -259,6 +259,65 @@ struct AppModelSessionListTests {
         #expect(model.islandSurface == .sessionList())
     }
 
+    @Test(arguments: ["cellFinished", "turn_aborted", "turn_complete"])
+    func yieldedDesktopPermissionKeepsNotificationUntilResolved(ending: String) throws {
+        let model = AppModel()
+        model.isSoundMuted = true
+        model.suppressFrontmostNotifications = false
+        model.state = SessionState(sessions: [AgentSession(
+            id: "yielded-permission", title: "Yielded permission regression", tool: .codex,
+            attachmentState: .attached, phase: .running, summary: "Working",
+            updatedAt: .now, codexRuntimeSurface: .desktopApp
+        )])
+        var snapshot = CodexRolloutReducer.snapshot(for: [
+            #"{"type":"session_meta","payload":{"id":"yielded-permission","originator":"Codex Desktop","source":"vscode"}}"#,
+        ])
+        func receive(_ payload: [String: Any], recordType: String = "response_item") throws {
+            let previous = snapshot
+            let data = try JSONSerialization.data(withJSONObject: ["type": recordType, "payload": payload])
+            CodexRolloutReducer.apply(line: String(decoding: data, as: UTF8.self), to: &snapshot)
+            for event in CodexRolloutReducer.events(
+                from: previous, to: snapshot, sessionID: "yielded-permission", transcriptPath: "/tmp/yielded-permission.jsonl"
+            ) {
+                model.applyTrackedEvent(event, updateLastActionMessage: false, ingress: .rollout)
+            }
+        }
+        try receive([
+            "type": "custom_tool_call", "name": "exec", "call_id": "permission-call",
+            "input": #"await tools.exec_command({cmd:"sleep 25",sandbox_permissions:"require_escalated"})"#,
+        ])
+        try receive([
+            "type": "custom_tool_call_output", "call_id": "permission-call",
+            "output": "Script running with cell ID 2\nWall time 1.0 seconds\nOutput:\n",
+        ])
+        #expect(model.notchStatus == .opened)
+        #expect(model.state.session(id: "yielded-permission")?.phase == .needsAttention)
+
+        // Other work and a yielded wait receipt are not permission resolution.
+        try receive(["type": "reasoning"])
+        try receive(["type": "function_call", "name": "js", "call_id": "ui-check", "arguments": "{}"])
+        try receive(["type": "function_call_output", "call_id": "ui-check", "output": "Unchanged"])
+        try receive(["type": "function_call", "name": "wait", "call_id": "wait-1", "arguments": #"{"cell_id":"2"}"#])
+        try receive([
+            "type": "function_call_output", "call_id": "wait-1",
+            "output": [["type": "input_text", "text": "Script running with cell ID 2\nWall time 1.0 seconds\nOutput:\n"]],
+        ])
+        #expect(model.notchStatus == .opened)
+        #expect(model.islandSurface == .sessionList(actionableSessionID: "yielded-permission"))
+        #expect(model.state.session(id: "yielded-permission")?.permissionRequest == nil)
+
+        if ending == "cellFinished" {
+            try receive(["type": "function_call", "name": "wait", "call_id": "wait-2", "arguments": #"{"cell_id":"2"}"#])
+            try receive(["type": "function_call_output", "call_id": "wait-2", "output": "Script completed\nOutput:\n"])
+        } else {
+            try receive(["type": ending], recordType: "event_msg")
+            try receive(["type": "task_started"], recordType: "event_msg")
+            try receive(["type": "reasoning"])
+        }
+        #expect(model.state.session(id: "yielded-permission")?.phase == .running)
+        #expect(model.notchStatus == .closed)
+    }
+
     @Test
     func desktopStatusDoesNotOverwriteHookBackedCLIApproval() throws {
         let model = AppModel()

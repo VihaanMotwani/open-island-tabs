@@ -76,6 +76,10 @@ the exact Codex task, where the user resolves the request. Entering this state
 opens an Agents notification under the normal foreground/startup notification
 policy. Repeated observations of the same wait do not reopen a dismissed
 notification; resuming work clears it and restores an interrupted Spotify tab.
+An exec response saying `Script running with cell ID …` is intermediate: attention
+persists across unrelated activity and wait polling until that cell finishes or
+the turn ends. An unresolved escalated tool call is still an attention hint;
+it does not prove Codex is displaying a human approval prompt.
 
 Codex CLI sessions launched from a terminal keep the hook-backed blocking flow:
 Open Island displays the request and returns the user's allow or deny directive

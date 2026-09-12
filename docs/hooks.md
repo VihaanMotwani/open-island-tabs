@@ -69,17 +69,34 @@ own approval policy resolves the tool automatically. When rollout discovery
 classifies the session as Desktop-owned—or `terminal_app` is `Codex.app`—Open
 Island acknowledges those interactive hooks without creating a local approval
 request. Codex Desktop remains responsible for deciding or presenting the
-approval. Open Island may still show a non-actionable needs-attention state
-from app-server status or an unresolved native permission call in the Desktop
-rollout. That state has no duplicate allow/deny controls and deep-links back to
-the exact Codex task, where the user resolves the request. Entering this state
-opens an Agents notification under the normal foreground/startup notification
-policy. Repeated observations of the same wait do not reopen a dismissed
-notification; resuming work clears it and restores an interrupted Spotify tab.
-An exec response saying `Script running with cell ID …` is intermediate: attention
-persists across unrelated activity and wait polling until that cell finishes or
-the turn ends. An unresolved escalated tool call is still an attention hint;
-it does not prove Codex is displaying a human approval prompt.
+approval. An unresolved `require_escalated` or `request_permissions` call is
+ordinary tool activity, including across yielded execution cells. It does not
+establish that a person needs to act in any permission mode:
+
+- **Ask for approval:** notify only when Codex actually presents a human request;
+  a tool call can already have a cached grant.
+- **Approve for me:** automatic safety reviews must stay quiet; only requests
+  escalated to the person should notify.
+- **Full access:** ordinary tool execution must stay quiet; a separate app-level
+  human permission request can still need attention.
+
+The app-server status renderer can display a non-actionable `waitingOnApproval`
+notification with a link to the Codex task, but **live Desktop approval detection
+is not implemented**. Open Island launches its own `codex app-server` process;
+that process reports Desktop-owned tasks as `notLoaded` and does not receive the
+owning window's pending approval requests. Transcript inspection is not a
+substitute. Direct approve/reject is also unavailable without the owning
+connection's request ID and response channel.
+
+The integration needs an authoritative human-request feed from the owning
+Desktop connection, with resolution events. Once connected, a human request
+must remain visible until resolved and must not be cleared by unrelated tool
+activity. This persistence and the human-vs-automatic distinction still require
+live end-to-end verification; synthetic status tests only verify rendering.
+See [Codex permission modes](https://learn.chatgpt.com/docs/permission-modes),
+[automatic review](https://learn.chatgpt.com/docs/sandboxing/auto-review), and
+[app-server approval protocol](https://learn.chatgpt.com/docs/app-server).
+
 When a resumed task has several rollout files with the same session ID, startup
 must not replace its active transcript with an older discovered copy. Otherwise
 the watcher misses new events even though the task still appears in Agents.

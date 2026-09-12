@@ -189,81 +189,12 @@ struct AppModelSessionListTests {
         #expect(model.islandSurface == .sessionList())
     }
 
-    @Test
-    func desktopRolloutAttentionNotifiesOncePerWaitAndRestoresSpotify() {
+    @Test(arguments: ["cellFinished", "turn_aborted", "turn_complete"])
+    func yieldedDesktopPermissionDoesNotInventHumanApproval(ending: String) throws {
         let model = AppModel()
         model.isSoundMuted = true
         model.suppressFrontmostNotifications = false
         model.selectIslandTab(.spotify)
-        model.notchOpen(reason: .click)
-        model.state = SessionState(sessions: [AgentSession(
-            id: "desktop-rollout",
-            title: "Permission notification regression",
-            tool: .codex,
-            attachmentState: .attached,
-            phase: .running,
-            summary: "Working",
-            updatedAt: .now,
-            codexRuntimeSurface: .desktopApp
-        )])
-
-        let lines = [
-            #"{"timestamp":"2026-09-12T21:00:00Z","type":"session_meta","payload":{"id":"desktop-rollout","cwd":"/tmp/notch","originator":"Codex Desktop","source":"vscode"}}"#,
-            #"{"timestamp":"2026-09-12T21:00:01Z","type":"response_item","payload":{"type":"custom_tool_call","call_id":"permission-1","name":"exec","input":"await tools.request_permissions({permissions:{network:{enabled:true}}})"}}"#,
-        ]
-        let waiting = CodexRolloutReducer.snapshot(for: lines)
-        let events = CodexRolloutReducer.events(
-            from: nil, to: waiting, sessionID: "desktop-rollout", transcriptPath: "/tmp/permission-regression.jsonl"
-        )
-        for event in events {
-            model.applyTrackedEvent(event, updateLastActionMessage: false, ingress: .rollout)
-        }
-        #expect(model.notchStatus == .opened)
-        #expect(model.selectedIslandTab == .agents)
-        #expect(model.islandSurface == .sessionList(actionableSessionID: "desktop-rollout"))
-        #expect(model.state.session(id: "desktop-rollout")?.permissionRequest == nil)
-
-        var resolved = waiting
-        CodexRolloutReducer.apply(
-            line: #"{"timestamp":"2026-09-12T21:00:02Z","type":"response_item","payload":{"type":"custom_tool_call_output","call_id":"permission-1","output":"Permission resolved"}}"#,
-            to: &resolved
-        )
-        for event in CodexRolloutReducer.events(
-            from: waiting, to: resolved, sessionID: "desktop-rollout", transcriptPath: "/tmp/permission-regression.jsonl"
-        ) {
-            model.applyTrackedEvent(event, updateLastActionMessage: false, ingress: .rollout)
-        }
-        #expect(model.selectedIslandTab == .spotify)
-        #expect(model.notchStatus == .opened)
-        #expect(model.notchOpenReason == .click)
-
-        // A later request can notify again, but replaying that same waiting
-        // state after the user dismisses it must not reopen the notch.
-        var nextWait = resolved
-        CodexRolloutReducer.apply(
-            line: #"{"timestamp":"2026-09-12T21:00:03Z","type":"response_item","payload":{"type":"custom_tool_call","call_id":"permission-2","name":"exec","input":"await tools.request_permissions({permissions:{network:{enabled:true}}})"}}"#,
-            to: &nextWait
-        )
-        let nextEvents = CodexRolloutReducer.events(
-            from: resolved, to: nextWait, sessionID: "desktop-rollout", transcriptPath: "/tmp/permission-regression.jsonl"
-        )
-        for event in nextEvents {
-            model.applyTrackedEvent(event, updateLastActionMessage: false, ingress: .rollout)
-        }
-        #expect(model.selectedIslandTab == .agents)
-        model.notchClose()
-        for event in nextEvents {
-            model.applyTrackedEvent(event, updateLastActionMessage: false, ingress: .rollout)
-        }
-        #expect(model.notchStatus == .closed)
-        #expect(model.islandSurface == .sessionList())
-    }
-
-    @Test(arguments: ["cellFinished", "turn_aborted", "turn_complete"])
-    func yieldedDesktopPermissionKeepsNotificationUntilResolved(ending: String) throws {
-        let model = AppModel()
-        model.isSoundMuted = true
-        model.suppressFrontmostNotifications = false
         model.state = SessionState(sessions: [AgentSession(
             id: "yielded-permission", title: "Yielded permission regression", tool: .codex,
             attachmentState: .attached, phase: .running, summary: "Working",
@@ -271,6 +202,7 @@ struct AppModelSessionListTests {
         )])
         var snapshot = CodexRolloutReducer.snapshot(for: [
             #"{"type":"session_meta","payload":{"id":"yielded-permission","originator":"Codex Desktop","source":"vscode"}}"#,
+            #"{"type":"turn_context","payload":{"approval_policy":"on-request","approvals_reviewer":"auto_review"}}"#,
         ])
         func receive(_ payload: [String: Any], recordType: String = "response_item") throws {
             let previous = snapshot
@@ -290,10 +222,10 @@ struct AppModelSessionListTests {
             "type": "custom_tool_call_output", "call_id": "permission-call",
             "output": "Script running with cell ID 2\nWall time 1.0 seconds\nOutput:\n",
         ])
-        #expect(model.notchStatus == .opened)
-        #expect(model.state.session(id: "yielded-permission")?.phase == .needsAttention)
+        #expect(model.notchStatus == .closed)
+        #expect(model.state.session(id: "yielded-permission")?.phase == .running)
 
-        // Other work and a yielded wait receipt are not permission resolution.
+        // Executing and yielding remain ordinary work after automatic review.
         try receive(["type": "reasoning"])
         try receive(["type": "function_call", "name": "js", "call_id": "ui-check", "arguments": "{}"])
         try receive(["type": "function_call_output", "call_id": "ui-check", "output": "Unchanged"])
@@ -302,8 +234,8 @@ struct AppModelSessionListTests {
             "type": "function_call_output", "call_id": "wait-1",
             "output": [["type": "input_text", "text": "Script running with cell ID 2\nWall time 1.0 seconds\nOutput:\n"]],
         ])
-        #expect(model.notchStatus == .opened)
-        #expect(model.islandSurface == .sessionList(actionableSessionID: "yielded-permission"))
+        #expect(model.notchStatus == .closed)
+        #expect(model.selectedIslandTab == .spotify)
         #expect(model.state.session(id: "yielded-permission")?.permissionRequest == nil)
 
         if ending == "cellFinished" {

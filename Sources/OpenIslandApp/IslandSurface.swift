@@ -32,6 +32,8 @@ enum IslandSurface: Equatable {
 
     static func notificationSurface(for event: AgentEvent) -> IslandSurface? {
         switch event {
+        case let .activityUpdated(payload) where payload.phase == .needsAttention:
+            .sessionList(actionableSessionID: payload.sessionID)
         case let .permissionRequested(payload):
             .sessionList(actionableSessionID: payload.sessionID)
         case let .questionAsked(payload):
@@ -54,7 +56,7 @@ enum IslandSurface: Equatable {
 
         switch session.phase {
         case .needsAttention:
-            return false
+            return true
         case .waitingForApproval:
             return session.permissionRequest != nil
         case .waitingForAnswer:

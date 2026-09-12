@@ -135,9 +135,10 @@ struct AppModelSessionListTests {
     }
 
     @Test
-    func repeatedDesktopApprovalStatusDoesNotOpenAnApprovalNotification() throws {
+    func desktopApprovalStatusOpensAttentionAndClearsOnResolution() throws {
         let model = AppModel()
         model.suppressFrontmostNotifications = false
+        model.isSoundMuted = true
         let jumpTarget = JumpTarget(
             terminalApp: "Codex.app",
             workspaceName: "notch",
@@ -172,6 +173,88 @@ struct AppModelSessionListTests {
         #expect(model.state.session(id: "desktop-thread")?.phase == .needsAttention)
         #expect(model.state.session(id: "desktop-thread")?.permissionRequest == nil)
         #expect(model.state.session(id: "desktop-thread")?.jumpTarget == jumpTarget)
+        #expect(model.notchStatus == .opened)
+        #expect(model.notchOpenReason == .notification)
+        #expect(model.selectedIslandTab == .agents)
+        #expect(model.islandSurface == .sessionList(actionableSessionID: "desktop-thread"))
+
+        let runningStatus = try JSONDecoder().decode(CodexThreadStatus.self, from: Data("""
+        {"type":"active","activeFlags":[]}
+        """.utf8))
+        model.codexAppServer.handleNotification(
+            .threadStatusChanged(threadId: "desktop-thread", status: runningStatus)
+        )
+        #expect(model.state.session(id: "desktop-thread")?.phase == .running)
+        #expect(model.notchStatus == .closed)
+        #expect(model.islandSurface == .sessionList())
+    }
+
+    @Test
+    func desktopRolloutAttentionNotifiesOncePerWaitAndRestoresSpotify() {
+        let model = AppModel()
+        model.isSoundMuted = true
+        model.suppressFrontmostNotifications = false
+        model.selectIslandTab(.spotify)
+        model.notchOpen(reason: .click)
+        model.state = SessionState(sessions: [AgentSession(
+            id: "desktop-rollout",
+            title: "Permission notification regression",
+            tool: .codex,
+            attachmentState: .attached,
+            phase: .running,
+            summary: "Working",
+            updatedAt: .now,
+            codexRuntimeSurface: .desktopApp
+        )])
+
+        let lines = [
+            #"{"timestamp":"2026-09-12T21:00:00Z","type":"session_meta","payload":{"id":"desktop-rollout","cwd":"/tmp/notch","originator":"Codex Desktop","source":"vscode"}}"#,
+            #"{"timestamp":"2026-09-12T21:00:01Z","type":"response_item","payload":{"type":"custom_tool_call","call_id":"permission-1","name":"exec","input":"await tools.request_permissions({permissions:{network:{enabled:true}}})"}}"#,
+        ]
+        let waiting = CodexRolloutReducer.snapshot(for: lines)
+        let events = CodexRolloutReducer.events(
+            from: nil, to: waiting, sessionID: "desktop-rollout", transcriptPath: "/tmp/permission-regression.jsonl"
+        )
+        for event in events {
+            model.applyTrackedEvent(event, updateLastActionMessage: false, ingress: .rollout)
+        }
+        #expect(model.notchStatus == .opened)
+        #expect(model.selectedIslandTab == .agents)
+        #expect(model.islandSurface == .sessionList(actionableSessionID: "desktop-rollout"))
+        #expect(model.state.session(id: "desktop-rollout")?.permissionRequest == nil)
+
+        var resolved = waiting
+        CodexRolloutReducer.apply(
+            line: #"{"timestamp":"2026-09-12T21:00:02Z","type":"response_item","payload":{"type":"custom_tool_call_output","call_id":"permission-1","output":"Permission resolved"}}"#,
+            to: &resolved
+        )
+        for event in CodexRolloutReducer.events(
+            from: waiting, to: resolved, sessionID: "desktop-rollout", transcriptPath: "/tmp/permission-regression.jsonl"
+        ) {
+            model.applyTrackedEvent(event, updateLastActionMessage: false, ingress: .rollout)
+        }
+        #expect(model.selectedIslandTab == .spotify)
+        #expect(model.notchStatus == .opened)
+        #expect(model.notchOpenReason == .click)
+
+        // A later request can notify again, but replaying that same waiting
+        // state after the user dismisses it must not reopen the notch.
+        var nextWait = resolved
+        CodexRolloutReducer.apply(
+            line: #"{"timestamp":"2026-09-12T21:00:03Z","type":"response_item","payload":{"type":"custom_tool_call","call_id":"permission-2","name":"exec","input":"await tools.request_permissions({permissions:{network:{enabled:true}}})"}}"#,
+            to: &nextWait
+        )
+        let nextEvents = CodexRolloutReducer.events(
+            from: resolved, to: nextWait, sessionID: "desktop-rollout", transcriptPath: "/tmp/permission-regression.jsonl"
+        )
+        for event in nextEvents {
+            model.applyTrackedEvent(event, updateLastActionMessage: false, ingress: .rollout)
+        }
+        #expect(model.selectedIslandTab == .agents)
+        model.notchClose()
+        for event in nextEvents {
+            model.applyTrackedEvent(event, updateLastActionMessage: false, ingress: .rollout)
+        }
         #expect(model.notchStatus == .closed)
         #expect(model.islandSurface == .sessionList())
     }

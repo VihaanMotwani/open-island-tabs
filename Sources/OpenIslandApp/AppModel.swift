@@ -1634,6 +1634,15 @@ final class AppModel {
             return state.session(id: payload.sessionID)?.phase == .completed
         }()
 
+        // Rollout and app-server observations can report the same wait.
+        // Notify only when entering attention, so dismissing a notification
+        // does not cause the next observation to reopen it.
+        let wasAlreadyNeedingAttention: Bool = {
+            guard case let .activityUpdated(payload) = event,
+                  payload.phase == .needsAttention else { return false }
+            return state.session(id: payload.sessionID)?.phase == .needsAttention
+        }()
+
         // Reject only stale rollout activity after completion. A completed
         // Codex thread can start another turn, and the watcher emits metadata
         // before activity with the same newest timestamp. Equality therefore
@@ -1700,7 +1709,8 @@ final class AppModel {
             lastActionMessage = describe(event)
         }
 
-        if let surface = IslandSurface.notificationSurface(for: event) {
+        if !wasAlreadyNeedingAttention,
+           let surface = IslandSurface.notificationSurface(for: event) {
             scheduleNotificationSurfacePresentationIfNeeded(
                 surface,
                 wasAlreadyCompleted: wasAlreadyCompleted,

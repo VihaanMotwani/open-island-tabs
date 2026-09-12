@@ -80,6 +80,9 @@ An exec response saying `Script running with cell ID …` is intermediate: atten
 persists across unrelated activity and wait polling until that cell finishes or
 the turn ends. An unresolved escalated tool call is still an attention hint;
 it does not prove Codex is displaying a human approval prompt.
+When a resumed task has several rollout files with the same session ID, startup
+must not replace its active transcript with an older discovered copy. Otherwise
+the watcher misses new events even though the task still appears in Agents.
 
 Codex CLI sessions launched from a terminal keep the hook-backed blocking flow:
 Open Island displays the request and returns the user's allow or deny directive

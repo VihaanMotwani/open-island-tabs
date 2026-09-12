@@ -974,6 +974,40 @@ struct AppModelSessionListTests {
     }
 
     @Test
+    func startupKeepsActiveCodexTranscriptWhenDiscoveringOlderCopy() throws {
+        let now = Date()
+        let directory = URL(fileURLWithPath: "/private/tmp").appendingPathComponent(UUID().uuidString)
+        let root = directory.appendingPathComponent("sessions")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let current = root.appendingPathComponent("rollout-current.jsonl")
+        let older = root.appendingPathComponent("rollout-older.jsonl")
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let timestamp = formatter.string(from: now.addingTimeInterval(-30))
+        let header = #"{"type":"session_meta","payload":{"id":"resumed-thread","cwd":"/tmp/notch","originator":"Codex Desktop","source":"vscode"}}"#
+        try (header + "\n").write(to: current, atomically: true, encoding: .utf8)
+        let aborted = "{\"timestamp\":\"\(timestamp)\",\"type\":\"event_msg\",\"payload\":{\"type\":\"turn_aborted\"}}"
+        try (header + "\n" + aborted + "\n").write(to: older, atomically: true, encoding: .utf8)
+        let store = CodexSessionStore(fileURL: directory.appendingPathComponent("cache.json"))
+        try store.save([CodexTrackedSessionRecord(
+            sessionID: "resumed-thread", title: "Resumed task", runtimeSurface: .desktopApp,
+            origin: .live, attachmentState: .attached, summary: "Working", phase: .running,
+            updatedAt: now, codexMetadata: CodexSessionMetadata(transcriptPath: current.path, processedDuration: 0)
+        )])
+        let discovery = SessionDiscoveryCoordinator(
+            codexSessionStore: store,
+            codexRolloutDiscovery: CodexRolloutDiscovery(rootURL: root, persistedThreadTitles: { _ in [:] })
+        )
+        let model = AppModel(discovery: discovery)
+        let payload = discovery.loadStartupDiscoveryPayload()
+        #expect(payload.discoveredCodexRecords.contains { $0.codexMetadata?.transcriptPath == older.path })
+        discovery.applyStartupDiscoveryPayload(payload)
+        #expect(model.state.session(id: "resumed-thread")?.codexMetadata?.transcriptPath == current.path)
+        #expect(model.state.session(id: "resumed-thread")?.phase == .running)
+    }
+
+    @Test
     func startupReclassifiesLegacyCachedDesktopOwnershipFromRolloutHeader() throws {
         let now = Date()
         let testDirectory = FileManager.default.temporaryDirectory

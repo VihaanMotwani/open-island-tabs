@@ -1656,15 +1656,35 @@ final class AppModel {
         return .deny(message: "Permission denied in Open Island.", interrupt: false)
     }
 
+    private func isCodexDesktopAttentionCandidate(_ session: AgentSession) -> Bool {
+        guard session.tool == .codex, !session.isSessionEnded else { return false }
+        if session.codexRuntimeSurface == .desktopApp { return true }
+        guard session.codexRuntimeSurface == .unknown else { return false }
+        let terminal = session.jumpTarget?.terminalApp.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return (terminal == nil || terminal == "" || terminal == "unknown")
+            && session.jumpTarget?.terminalTTY == nil
+    }
+
     private func syncCodexDesktopAttention() {
         guard desktopAttentionEnabled else { return }
-        desktopIPC.sync(sessionIDs: Set(state.sessions.filter {
-            $0.codexRuntimeSurface == .desktopApp && !$0.isSessionEnded
-        }.map(\.id)))
+        desktopIPC.sync(sessionIDs: Set(state.sessions.filter(isCodexDesktopAttentionCandidate).map(\.id)))
     }
 
     func applyCodexDesktopAttention(_ update: CodexDesktopAttentionUpdate) {
-        guard state.session(id: update.sessionID)?.codexRuntimeSurface == .desktopApp else { return }
+        guard let session = state.session(id: update.sessionID),
+              isCodexDesktopAttentionCandidate(session) else { return }
+        // A version-checked snapshot from the owning Desktop window identifies
+        // transcriptless tasks without relying on inherited hook environment.
+        if session.codexRuntimeSurface == .unknown {
+            var target = session.jumpTarget ?? JumpTarget(
+                terminalApp: "Codex.app", workspaceName: session.title, paneTitle: session.title
+            )
+            target.terminalApp = "Codex.app"
+            target.codexThreadID = session.id
+            applyTrackedEvent(.jumpTargetUpdated(JumpTargetUpdated(
+                sessionID: session.id, jumpTarget: target, timestamp: .now
+            )), updateLastActionMessage: false)
+        }
         let wasPending = desktopPendingRequestIDs[update.sessionID]?.isEmpty == false
         if update.pendingRequestIDs.isEmpty {
             desktopAppApprovals.removeValue(forKey: update.sessionID)
@@ -1803,6 +1823,9 @@ final class AppModel {
         }
 
         state.apply(event)
+        if ingress == .bridge, case .sessionStarted = event {
+            syncCodexDesktopAttention()
+        }
         if ingress == .rollout,
            case let .activityUpdated(payload) = event,
            payload.phase == .running,

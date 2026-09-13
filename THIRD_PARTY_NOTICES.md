@@ -42,6 +42,16 @@ Opening/closing spring choices were informed by Boring Notch's `ContentView.swif
 
 Source paths and integration details are in [docs/calendar.md](docs/calendar.md).
 
+## Boring Notch music player
+
+Music layout and shared album-art geometry adapt `components/Notch/NotchHomeView.swift`
+and `ContentView.swift` from the Boring Notch commit above, under GPL-3.0.
+Credit to Hugo Persson, Harsh Vardhan Goswami, Richard Kunkli, Mustafa Ramadan,
+and the Boring Notch contributors. Open Island modifications dated September 13,
+2026 retain Spotify controls and agent priority, add synchronized cover/metadata
+loading and stale-result protection, and respect Reduce Motion.
+See [docs/music-ui.md](docs/music-ui.md).
+
 ## Calendr
 
 The EventKit adapter derives from Calendr through Boring Notch. The following

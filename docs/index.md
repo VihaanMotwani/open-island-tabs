@@ -30,6 +30,8 @@ This index is the repository map for humans and coding agents. Read these files 
 
 ## Runtime And Product Notes
 
+- [docs/music-ui.md](./music-ui.md) for music presentation, transitions, and Boring Notch attribution
+
 - [docs/calendar.md](./calendar.md) for Calendar access, source attribution, and verification
 
 - [docs/notch-surface-model.md](./notch-surface-model.md) for the island surface routing model and debug harness intent

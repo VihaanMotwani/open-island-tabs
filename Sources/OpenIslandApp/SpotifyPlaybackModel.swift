@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import Observation
 
 enum SpotifyLaunchTrigger: Equatable, Sendable {
@@ -22,6 +22,12 @@ enum SpotifyLaunchPolicy {
 @Observable
 final class SpotifyPlaybackModel {
     private(set) var snapshot: MediaPlaybackSnapshot = .notRunning
+    let presentation = MusicPresentationModel()
+    @ObservationIgnored private var presentationTask: Task<Void, Never>?
+    @ObservationIgnored private var presentationKey: MusicTrackKey?
+    @ObservationIgnored private var commandGeneration = 0
+    @ObservationIgnored private var pendingCommandCount = 0
+    @ObservationIgnored private var commandTask: Task<Void, Never>?
 
     @ObservationIgnored
     var onTrackChange: ((MediaPlaybackSnapshot) -> Void)?
@@ -68,25 +74,46 @@ final class SpotifyPlaybackModel {
     }
 
     func refresh() async {
-        guard !usesDebugSnapshot else { return }
+        guard !usesDebugSnapshot, pendingCommandCount == 0 else { return }
+        let generation = commandGeneration
         let refreshedSnapshot = await provider.fetchSnapshot()
+        guard generation == commandGeneration, pendingCommandCount == 0 else { return }
         snapshot = refreshedSnapshot
+        updatePresentation(for: refreshedSnapshot)
         publishTrackChangeIfNeeded(for: refreshedSnapshot)
     }
 
-    func applyDebugSnapshot(_ snapshot: MediaPlaybackSnapshot) {
+    func applyDebugSnapshot(_ snapshot: MediaPlaybackSnapshot, artwork: NSImage? = nil) {
         stop()
+        presentationTask?.cancel()
         usesDebugSnapshot = true
         self.snapshot = snapshot
+        presentation.applyPreview(snapshot, artwork: artwork)
+    }
+
+    private func updatePresentation(for snapshot: MediaPlaybackSnapshot) {
+        let key = snapshot.availability == .running ? MusicTrackKey(snapshot) : nil
+        guard key != presentationKey else { return }
+        presentationKey = key
+        presentationTask?.cancel()
+        presentationTask = Task { await presentation.update(snapshot) }
     }
 
     func perform(_ command: MediaPlaybackCommand) {
+        commandGeneration += 1
+        pendingCommandCount += 1
         applyOptimisticUpdate(for: command)
 
-        Task { @MainActor [weak self] in
+        // Preserve input order and only poll after the latest command has landed.
+        let previousCommand = commandTask
+        commandTask = Task { @MainActor [weak self] in
+            await previousCommand?.value
             guard let self else { return }
             await provider.perform(command)
-            await refresh()
+            pendingCommandCount -= 1
+            if pendingCommandCount == 0 {
+                await refresh()
+            }
         }
     }
 

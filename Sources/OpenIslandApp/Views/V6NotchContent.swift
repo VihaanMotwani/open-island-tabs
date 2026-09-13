@@ -322,7 +322,7 @@ struct V6ClosedPill: View {
                     animationEnabled: mediaActivityAnimationEnabled,
                     action: onMediaActivitySelected ?? {}
                 )
-                .transition(.opacity.combined(with: .scale(scale: 0.82)))
+                .transition(.opacity)
             }
 
             if agentActivityStyle.isVisible {

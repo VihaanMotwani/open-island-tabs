@@ -46,6 +46,19 @@ final class OpenIslandAppDelegate: NSObject, NSApplicationDelegate {
 
             harnessRuntimeMonitor.recordMilestone("bootstrapCompleted")
 
+            if harnessLaunchConfiguration.scenario == .spotifyTrackChange {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [self] in
+                    var next = model.spotifyPlayback.snapshot
+                    next.title = "Midnight City"
+                    next.artist = "M83"
+                    next.album = "Hurry Up, We're Dreaming"
+                    next.artworkURL = nil
+                    next.position = 0
+                    model.spotifyPlayback.applyDebugSnapshot(next, artwork: MusicPreviewArtwork.image(alternate: true))
+                    harnessRuntimeMonitor.recordMilestone("musicTrackChanged")
+                }
+            }
+
             if let captureDelay = harnessLaunchConfiguration.captureDelay,
                harnessLaunchConfiguration.artifactDirectoryURL != nil {
                 harnessRuntimeMonitor.recordMilestone(

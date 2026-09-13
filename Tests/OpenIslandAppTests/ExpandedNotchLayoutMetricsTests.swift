@@ -9,9 +9,9 @@ struct ExpandedNotchLayoutMetricsTests {
         )
         let layout = ExpandedNotchLayoutMetrics.spotifyLayout(availableWidth: availableWidth)
 
-        #expect(layout.artworkSize == 68)
-        #expect(layout.spacing == 8.5)
-        #expect(layout.detailWidth == 253.5)
+        #expect(layout.artworkSize == 96)
+        #expect(layout.spacing == 16)
+        #expect(layout.detailWidth == 218)
         #expect(availableWidth == 330)
     }
 
@@ -19,9 +19,9 @@ struct ExpandedNotchLayoutMetricsTests {
     func spotifyLayoutShrinksArtworkBeforeCrowdingMetadata() {
         let layout = ExpandedNotchLayoutMetrics.spotifyLayout(availableWidth: 292.5)
 
-        #expect(layout.artworkSize == 64)
-        #expect(layout.spacing == 8.5)
-        #expect(layout.detailWidth == 220)
+        #expect(layout.artworkSize == 76.5)
+        #expect(layout.spacing == 16)
+        #expect(layout.detailWidth == 200)
     }
 
     @Test
@@ -33,7 +33,7 @@ struct ExpandedNotchLayoutMetricsTests {
         #expect(ExpandedNotchLayoutMetrics.tabControlHeight == 26)
         #expect(ExpandedNotchLayoutMetrics.sessionHeaderHeight == 30)
         #expect(ExpandedNotchLayoutMetrics.sessionFooterHeight == 22)
-        #expect(ExpandedNotchLayoutMetrics.spotifyContentHeight == 124)
+        #expect(ExpandedNotchLayoutMetrics.spotifyContentHeight == 156)
         #expect(ExpandedNotchLayoutMetrics.maximumCompletionMessageHeight == 184)
     }
 

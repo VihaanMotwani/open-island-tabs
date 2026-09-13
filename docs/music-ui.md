@@ -4,13 +4,15 @@ The Spotify tab uses an artwork-led player with left-aligned song information,
 a seek bar with elapsed and total time, transport controls, and volume.
 Spotify remains the playback provider; this change adds no music services.
 
-The compact notch, track-change preview, and expanded player share one artwork
-presentation. A track's cover and labels arrive together, retaining the previous
+The closed notch retains its animated equalizer while music is playing and a
+static equalizer while paused. Album artwork does not replace that indicator.
+The track-change preview and expanded player share one artwork presentation.
+A track's cover and labels arrive together, retaining the previous
 pair while loading. Requests time out, failed images resolve to a music-note
 placeholder, and superseded results cannot replace a newer selection. A small
 in-memory image cache avoids repeated downloads when revisiting tracks.
 
-Artwork shares a geometry namespace across compact and expanded states, adapted
+Artwork shares a geometry namespace across the preview and expanded player, adapted
 from Boring Notch. Cover and label changes use a short fade and vertical motion.
 Reduce Motion disables decorative movement. Existing agent alerts and manually
 opened tabs retain priority over the 2.2-second track-change preview.

@@ -279,6 +279,9 @@ struct V6ClosedPill: View {
     var rightSlot: IslandRightSlotContent?
     var mediaActivity: MediaActivityState = .hidden
     var mediaActivityAnimationEnabled: Bool = true
+    var musicPresentation: MusicPresentationModel?
+    var artworkNamespace: Namespace.ID?
+    var artworkIsSource = true
     var agentActivityStyle: IslandAgentActivityStyle = .animated
     var onMediaActivitySelected: (() -> Void)?
     var layout: V6ClosedLayout
@@ -317,12 +320,25 @@ struct V6ClosedPill: View {
     private var leadingActivityCluster: some View {
         HStack(spacing: V6MacBookSlotMetrics.leadingActivitySpacing) {
             if mediaActivity != .hidden {
-                MediaActivityIndicator(
-                    state: mediaActivity,
-                    animationEnabled: mediaActivityAnimationEnabled,
-                    action: onMediaActivitySelected ?? {}
-                )
-                .transition(.opacity.combined(with: .scale(scale: 0.82)))
+                if let track = musicPresentation?.track, track.artwork != nil {
+                    Button(action: onMediaActivitySelected ?? {}) {
+                        MusicArtworkView(track: track, cornerRadius: 4,
+                            namespace: artworkNamespace, isSource: artworkIsSource)
+                            .frame(width: 18, height: 18)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Spotify")
+                    .accessibilityValue(mediaActivity == .playing ? "Playing" : "Paused")
+                    .accessibilityHint("Opens Spotify controls")
+                    .help([track.title, track.artist].joined(separator: " — "))
+                } else {
+                    MediaActivityIndicator(
+                        state: mediaActivity,
+                        animationEnabled: mediaActivityAnimationEnabled,
+                        action: onMediaActivitySelected ?? {}
+                    )
+                    .transition(.opacity)
+                }
             }
 
             if agentActivityStyle.isVisible {

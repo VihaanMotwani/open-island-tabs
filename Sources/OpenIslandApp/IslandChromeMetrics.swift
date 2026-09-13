@@ -36,7 +36,7 @@ struct ExpandedNotchLayoutMetrics: Equatable, Sendable {
     static let minimumTabSegmentedControlWidth: CGFloat = 96
     static let sessionHeaderHeight: CGFloat = 30
     static let sessionFooterHeight: CGFloat = 22
-    static let spotifyContentHeight: CGFloat = 124
+    static let spotifyContentHeight: CGFloat = 156
     static let calendarContentHeight: CGFloat = 304
     static let agentsListChromeHeight: CGFloat = 60
     static let agentsEmptyStateHeight: CGFloat = 108
@@ -50,10 +50,10 @@ struct ExpandedNotchLayoutMetrics: Equatable, Sendable {
     static let agentCardFillOpacity = 0.08
     static let agentCompletedCardFillOpacity = 0.05
     static let agentListVerticalPadding: CGFloat = 8
-    static let preferredSpotifyArtworkSize: CGFloat = 68
+    static let preferredSpotifyArtworkSize: CGFloat = 96
     static let minimumSpotifyArtworkSize: CGFloat = 64
-    static let minimumSpotifyDetailWidth: CGFloat = 220
-    static let spotifySpacing: CGFloat = 8.5
+    static let minimumSpotifyDetailWidth: CGFloat = 200
+    static let spotifySpacing: CGFloat = 16
     static let tasksMinimumExpandedHeight: CGFloat = 124
     static let tasksMaximumExpandedHeight: CGFloat = 260
     static let tasksSegmentedControlHeight: CGFloat = 32

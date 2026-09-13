@@ -120,7 +120,7 @@ private func mediaSnapshot(
         title: title,
         artist: artist,
         album: album,
-        artworkURL: URL(string: "https://example.com/\(title).jpg"),
+        artworkURL: nil, // Playback-event tests do not fetch artwork from the network.
         duration: 240,
         position: position,
         volume: 0.5

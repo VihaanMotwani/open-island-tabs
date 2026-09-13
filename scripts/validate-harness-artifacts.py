@@ -336,7 +336,7 @@ def main() -> None:
         if selected_session(report).get("id") != "session-completion-long":
             assert_contains_any(text_values, ["README.md", "worktree"], "longCompletionCard text values")
 
-    elif scenario == "spotifyPlayer":
+    elif scenario in ("spotifyPlayer", "spotifyTrackChange", "spotifyPaused", "spotifyLongTitle"):
         if notch_status != "opened":
             fail(f"expected opened notch for spotifyPlayer, got {notch_status!r}")
         if island_surface != "sessionList":
@@ -351,11 +351,17 @@ def main() -> None:
             fail("spotifyPlayer did not select the Spotify tab")
         if report.get("mediaAvailability") != "running":
             fail("spotifyPlayer is missing its deterministic running media fixture")
-        if report.get("mediaPlaybackState") != "playing":
+        if report.get("mediaPlaybackState") != ("paused" if scenario == "spotifyPaused" else "playing"):
             fail("spotifyPlayer is missing its deterministic playing state")
         if not report.get("mediaTitle"):
             fail("spotifyPlayer is missing track metadata")
         assert_contains_any(labels, ["Open Spotify"], "spotifyPlayer labels")
+        for control in ("Previous track", "Next track", "Spotify volume", "Play Spotify" if scenario == "spotifyPaused" else "Pause Spotify"):
+            assert_contains_any(button_labels, [control], "Spotify playback controls")
+        if scenario == "spotifyTrackChange":
+            assert_contains_any(text_values | labels, ["Midnight City"], "New track title")
+            if any("Passionfruit" in value for value in text_values):
+                fail("Previous song title remained after the track transition")
 
     elif scenario == "spotifyTrackPreview":
         if notch_status != "opened":

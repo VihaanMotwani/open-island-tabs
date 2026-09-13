@@ -54,6 +54,9 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
     case completionCard
     case longCompletionCard
     case spotifyPlayer
+    case spotifyTrackChange
+    case spotifyPaused
+    case spotifyLongTitle
     case spotifyTrackPreview
     case tasksList
     case calendarAgenda
@@ -83,6 +86,9 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
             "Long Completion Card"
         case .spotifyPlayer:
             "Spotify Player"
+        case .spotifyTrackChange: "Spotify Track Change"
+        case .spotifyPaused: "Spotify Paused"
+        case .spotifyLongTitle: "Spotify Long Title"
         case .spotifyTrackPreview:
             "Spotify Track Preview"
         case .tasksList:
@@ -114,6 +120,9 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
             "Long finished-task reply stays inside the card and scrolls internally."
         case .spotifyPlayer:
             "Expanded Spotify tab with deterministic playback metadata and controls."
+        case .spotifyTrackChange: "Synthetic artwork and metadata transition in the expanded player."
+        case .spotifyPaused: "Paused artwork and playback controls."
+        case .spotifyLongTitle: "Long song and artist names in the compact player layout."
         case .spotifyTrackPreview:
             "Compact now-playing preview shown briefly after Spotify changes tracks."
         case .tasksList:
@@ -222,7 +231,13 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
                 selectedSessionID: session.id
             )
 
-        case .spotifyPlayer:
+        case .spotifyPlayer, .spotifyTrackChange, .spotifyPaused, .spotifyLongTitle:
+            var media = Self.playingMediaSnapshot
+            if self == .spotifyPaused { media.playbackState = .paused }
+            if self == .spotifyLongTitle {
+                media.title = "A very long song title that still leaves room for playback controls"
+                media.artist = "An artist name with featured collaborators"
+            }
             return IslandDebugSnapshot(
                 title: title,
                 summary: summary,
@@ -233,7 +248,7 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
                 sessions: [],
                 selectedSessionID: nil,
                 selectedTab: .spotify,
-                mediaSnapshot: Self.playingMediaSnapshot
+                mediaSnapshot: media
             )
 
         case .spotifyTrackPreview:

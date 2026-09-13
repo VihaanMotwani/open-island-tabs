@@ -119,6 +119,7 @@ struct IslandPanelView: View {
     @State private var keepsOpenedSurfaceMounted = false
     @State private var openedSurfaceMountGeneration: UInt64 = 0
     @State private var tabTransitionDirection: IslandTabTransitionDirection = .stationary
+    @Namespace private var musicArtworkNamespace
 
     private var isOpened: Bool {
         model.notchStatus == .opened
@@ -363,6 +364,9 @@ struct IslandPanelView: View {
             rightSlot: rightSlot,
             mediaActivity: mediaActivity,
             mediaActivityAnimationEnabled: mediaActivityAnimationEnabled,
+            musicPresentation: model.spotifyPlayback.presentation,
+            artworkNamespace: musicArtworkNamespace,
+            artworkIsSource: !usesOpenedVisualState,
             agentActivityStyle: agentActivityStyle,
             onMediaActivitySelected: openSpotifyTabFromActivityIndicator,
             layout: layout,
@@ -387,8 +391,8 @@ struct IslandPanelView: View {
     @ViewBuilder
     private func openedSurface(width openedWidth: CGFloat, height openedHeight: CGFloat) -> some View {
         if let snapshot = model.islandSurface.mediaTrackPreviewSnapshot {
-            MediaTrackPreviewView(snapshot: snapshot)
-                .id("\(snapshot.title)\u{0}\(snapshot.artist)\u{0}\(snapshot.album)")
+            MediaTrackPreviewView(snapshot: snapshot, presentation: model.spotifyPlayback.presentation,
+                artworkNamespace: musicArtworkNamespace, artworkIsSource: usesOpenedVisualState)
                 .padding(.horizontal, MediaTrackPreviewPolicy.contentSafeAreaInset)
                 .padding(.top, closedNotchHeight)
                 .frame(width: openedWidth, height: openedHeight, alignment: .top)
@@ -581,7 +585,8 @@ struct IslandPanelView: View {
             Group {
                 switch model.selectedIslandTab {
                 case .spotify:
-                    SpotifyPlayerView(model: model.spotifyPlayback)
+                    SpotifyPlayerView(model: model.spotifyPlayback, artworkNamespace: musicArtworkNamespace,
+                        artworkIsSource: usesOpenedVisualState)
                 case .calendar:
                     CalendarAgendaView(model: model.calendarAgenda, lang: model.lang, isActive: model.notchStatus == .opened)
                 case .tasks:

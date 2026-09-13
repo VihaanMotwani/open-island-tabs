@@ -1,3 +1,8 @@
+// Player composition, artwork glow and paused scaling adapted from Boring Notch's
+// NotchHomeView.swift (GPL-3.0), by Hugo Persson, Harsh Vardhan Goswami,
+// Richard Kunkli, Mustafa Ramadan, and contributors. Modified for Open Island's
+// Spotify controls, synchronized track presentation, and accessibility.
+// See docs/music-ui.md and THIRD_PARTY_NOTICES.md.
 import SwiftUI
 
 enum SpotifyArtworkDestination {
@@ -6,6 +11,10 @@ enum SpotifyArtworkDestination {
 
 struct SpotifyPlayerView: View {
     let model: SpotifyPlaybackModel
+    var artworkNamespace: Namespace.ID?
+    var artworkIsSource = true
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     @State private var scrubPosition: TimeInterval = 0
     @State private var volume: Double = 0
@@ -41,8 +50,7 @@ struct SpotifyPlayerView: View {
                 availableWidth: contentWidth
             )
 
-            VStack(spacing: 7) {
-                HStack(spacing: layout.spacing) {
+            HStack(spacing: layout.spacing) {
                     Link(destination: SpotifyArtworkDestination.url) {
                         artwork
                             .frame(width: layout.artworkSize, height: layout.artworkSize)
@@ -52,21 +60,25 @@ struct SpotifyPlayerView: View {
                     .accessibilityHint("Opens in Spotify")
                     .help("Open in Spotify")
 
-                    VStack(spacing: 5) {
-                        VStack(spacing: 1) {
-                            Text(snapshot.title.isEmpty ? "Spotify" : snapshot.title)
-                                .font(.system(size: 14.45, weight: .semibold))
-                                .foregroundStyle(ExpandedNotchVisualStyle.textColor(.primary))
-                                .lineLimit(1)
-                                .truncationMode(.tail)
+                    VStack(alignment: .leading, spacing: 7) {
+                        MusicTrackLabels(track: model.presentation.track, fallback: snapshot)
 
-                            Text(snapshot.artist.isEmpty ? "Ready to play" : snapshot.artist)
-                                .font(.system(size: 14.45, weight: .semibold))
-                                .foregroundStyle(ExpandedNotchVisualStyle.textColor(.secondary))
-                                .lineLimit(1)
-                                .truncationMode(.tail)
+                        VStack(spacing: 1) {
+                            SpotifySeekSlider(
+                                value: $scrubPosition,
+                                upperBound: max(snapshot.duration, 1),
+                                accessibilityValue: "\(timeLabel(scrubPosition)) of \(timeLabel(snapshot.duration))",
+                                onEditingChanged: handleScrubbingChanged
+                            )
+                            HStack {
+                                Text(timeLabel(scrubPosition))
+                                Spacer()
+                                Text(timeLabel(snapshot.duration))
+                            }
+                            .font(.system(size: 9, weight: .medium).monospacedDigit())
+                            .foregroundStyle(.white.opacity(0.4))
+                            .accessibilityHidden(true)
                         }
-                        .frame(maxWidth: .infinity)
 
                         ZStack {
                             HStack(spacing: 17) {
@@ -102,14 +114,6 @@ struct SpotifyPlayerView: View {
                         .frame(height: 30)
                     }
                     .frame(width: layout.detailWidth)
-                }
-
-                SpotifySeekSlider(
-                    value: $scrubPosition,
-                    upperBound: max(snapshot.duration, 1),
-                    accessibilityValue: "\(timeLabel(scrubPosition)) of \(timeLabel(snapshot.duration))",
-                    onEditingChanged: handleScrubbingChanged
-                )
             }
             .frame(
                 width: contentWidth,
@@ -126,30 +130,32 @@ struct SpotifyPlayerView: View {
     }
 
     private var artwork: some View {
-        AsyncImage(url: snapshot.artworkURL) { phase in
-            switch phase {
-            case let .success(image):
-                image
+        ZStack {
+            if let image = model.presentation.track?.artwork, !reduceTransparency {
+                Image(nsImage: image)
                     .resizable()
-                    .scaledToFill()
-            default:
-                ZStack {
-                    Color.white.opacity(0.035)
-                    SpotifyGlyph()
-                        .frame(width: 36, height: 36)
-                        .opacity(0.56)
-                }
+                    .scaledToFit()
+                    .scaleEffect(1.18)
+                    .blur(radius: 18)
+                    .opacity(snapshot.playbackState == .playing ? 0.3 : 0.08)
+                    .id(model.presentation.track?.id)
+                    .transition(.opacity)
+                    .accessibilityHidden(true)
             }
+            MusicArtworkView(track: model.presentation.track, cornerRadius: 13,
+                namespace: artworkNamespace, isSource: artworkIsSource)
+                .scaleEffect(snapshot.playbackState == .playing || reduceMotion ? 1 : 0.9)
+                .overlay(alignment: .bottomTrailing) {
+                    SpotifyGlyph()
+                        .frame(width: 16, height: 16)
+                        .padding(3)
+                        .background(.black, in: Circle())
+                        .offset(x: 5, y: 5)
+                        .accessibilityHidden(true)
+                }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 15, style: .continuous)
-                .stroke(
-                    .white.opacity(ExpandedNotchVisualStyle.dividerOpacity),
-                    lineWidth: 0.5
-                )
-        }
-        .shadow(color: .black.opacity(0.18), radius: 4, y: 2)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: model.presentation.track?.id)
+        .animation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.85), value: snapshot.playbackState)
         .accessibilityHidden(true)
     }
 
@@ -282,7 +288,7 @@ private struct SpotifyTransportButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: systemName)
-                .font(.system(size: 20.4, weight: .bold))
+                .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(
                     isHovered
                         ? .white
@@ -317,7 +323,9 @@ private struct SpotifyPlayPauseButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                .font(.system(size: 28.9, weight: .bold))
+                .font(.system(size: 22, weight: .semibold))
+                .contentTransition(.symbolEffect(.replace))
+                .transaction { if reduceMotion { $0.disablesAnimations = true } }
                 .foregroundStyle(.white.opacity(isHovered ? 1 : 0.94))
                 .frame(width: 30, height: 30)
                 .background(.white.opacity(isHovered ? 0.10 : 0), in: Circle())

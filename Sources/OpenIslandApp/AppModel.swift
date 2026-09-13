@@ -1422,7 +1422,7 @@ final class AppModel {
             calendarAgenda = CalendarAgendaModel(provider: calendarPreview, viewMode: calendarPreview.viewMode)
         }
         if let mediaSnapshot = snapshot.mediaSnapshot {
-            spotifyPlayback.applyDebugSnapshot(mediaSnapshot)
+            spotifyPlayback.applyDebugSnapshot(mediaSnapshot, artwork: MusicPreviewArtwork.image())
         }
         overlay.applyOverlayState(from: snapshot, presentOverlay: presentOverlay, autoCollapseNotificationCards: autoCollapseNotificationCards)
     }

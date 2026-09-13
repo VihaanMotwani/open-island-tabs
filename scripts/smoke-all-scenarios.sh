@@ -7,7 +7,7 @@ cd "$repo_root"
 
 timestamp="$(date +%Y%m%d-%H%M%S)"
 base_dir="${OPEN_ISLAND_HARNESS_ARTIFACT_DIR:-$repo_root/output/harness/smoke-all-$timestamp}"
-scenarios=(closed sessionList claudeDemo approvalCard questionCard completionCard longCompletionCard spotifyPlayer tasksList calendarAgenda calendarMonth calendarYear calendarConnect calendarEmpty calendarDenied)
+scenarios=(closed sessionList claudeDemo approvalCard questionCard completionCard longCompletionCard spotifyPlayer spotifyTrackPreview spotifyTrackChange spotifyPaused spotifyLongTitle tasksList calendarAgenda calendarMonth calendarYear calendarConnect calendarEmpty calendarDenied)
 
 mkdir -p "$base_dir"
 

@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import Observation
 
 enum SpotifyLaunchTrigger: Equatable, Sendable {
@@ -22,6 +22,9 @@ enum SpotifyLaunchPolicy {
 @Observable
 final class SpotifyPlaybackModel {
     private(set) var snapshot: MediaPlaybackSnapshot = .notRunning
+    let presentation = MusicPresentationModel()
+    @ObservationIgnored private var presentationTask: Task<Void, Never>?
+    @ObservationIgnored private var presentationKey: MusicTrackKey?
 
     @ObservationIgnored
     var onTrackChange: ((MediaPlaybackSnapshot) -> Void)?
@@ -71,13 +74,24 @@ final class SpotifyPlaybackModel {
         guard !usesDebugSnapshot else { return }
         let refreshedSnapshot = await provider.fetchSnapshot()
         snapshot = refreshedSnapshot
+        updatePresentation(for: refreshedSnapshot)
         publishTrackChangeIfNeeded(for: refreshedSnapshot)
     }
 
-    func applyDebugSnapshot(_ snapshot: MediaPlaybackSnapshot) {
+    func applyDebugSnapshot(_ snapshot: MediaPlaybackSnapshot, artwork: NSImage? = nil) {
         stop()
+        presentationTask?.cancel()
         usesDebugSnapshot = true
         self.snapshot = snapshot
+        presentation.applyPreview(snapshot, artwork: artwork)
+    }
+
+    private func updatePresentation(for snapshot: MediaPlaybackSnapshot) {
+        let key = snapshot.availability == .running ? MusicTrackKey(snapshot) : nil
+        guard key != presentationKey else { return }
+        presentationKey = key
+        presentationTask?.cancel()
+        presentationTask = Task { await presentation.update(snapshot) }
     }
 
     func perform(_ command: MediaPlaybackCommand) {

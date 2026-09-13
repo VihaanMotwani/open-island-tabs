@@ -37,8 +37,10 @@ enum IslandTransitionMotionPolicy {
         }
 
         switch status {
-        case .opened, .closed:
-            return Animation.spring(.bouncy(duration: duration(for: status)))
+        case .opened:
+            return Animation.spring(response: duration(for: status), dampingFraction: 0.82)
+        case .closed:
+            return Animation.spring(response: duration(for: status), dampingFraction: 1)
         case .popping:
             return Animation.spring(response: 0.3, dampingFraction: 0.5)
         }

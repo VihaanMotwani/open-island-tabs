@@ -267,3 +267,35 @@
 
 /* Window Titles */
 "window.settings" = "Open Island 设置";
+
+// Calendar
+"island.tab.calendar" = "日历";
+"settings.appearance.tabs.calendar.note" = "查看 macOS 日历中的每日安排。";
+"calendar.today" = "今天";
+"calendar.view.day" = "日";
+"calendar.view.month" = "月";
+"calendar.view.year" = "年";
+"calendar.previous.day" = "上一天";
+"calendar.next.day" = "下一天";
+"calendar.previous.month" = "上个月";
+"calendar.next.month" = "下个月";
+"calendar.previous.year" = "上一年";
+"calendar.next.year" = "下一年";
+"calendar.chooseDay" = "选择日期查看日程";
+"calendar.chooseMonth" = "选择月份查看日历";
+"calendar.events" = "个日程";
+"calendar.loading" = "正在加载日程";
+"calendar.loadError" = "无法加载日程。";
+"calendar.retry" = "重试";
+"calendar.empty" = "这一天没有日程";
+"calendar.connectionTitle" = "今日安排，一目了然";
+"calendar.connectionNote" = "连接 Mac 上的日历，在这里查看每日安排。";
+"calendar.connect" = "连接日历";
+"calendar.connecting" = "正在连接…";
+"calendar.settings" = "打开日历权限设置";
+"calendar.appBundleRequired" = "请打开 Open Island Dev.app 以连接日历。";
+"calendar.connectError" = "无法连接日历，请重试。";
+"calendar.denied" = "请在系统设置中允许完全访问日历，以显示您的日程。";
+"calendar.restricted" = "此 Mac 限制了日历访问。";
+"calendar.allDay" = "全天";
+"calendar.untitled" = "无标题日程";

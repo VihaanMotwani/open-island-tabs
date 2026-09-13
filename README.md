@@ -197,6 +197,8 @@ Issues and pull requests for this fork belong in [VihaanMotwani/open-island-tabs
 
 This codebase began as a fork of [Octane0411/open-vibe-island](https://github.com/Octane0411/open-vibe-island) and remains licensed under [GPL v3](LICENSE). Credit for the upstream project belongs to its [original contributors](https://github.com/Octane0411/open-vibe-island/graphs/contributors).
 
+The Calendar tab adapts the date strip, agenda layout, and EventKit integration from [Boring Notch](https://github.com/TheBoredTeam/boring.notch) by TheBoredTeam. Its motion also informed our notch spring tuning. Thanks to Harsh Vardhan Goswami and the Boring Notch and Calendr contributors. See [source details](docs/calendar.md) and [third-party notices](THIRD_PARTY_NOTICES.md).
+
 This fork is independently maintained. The upstream maintainers do not endorse, support, release, or accept responsibility for this fork. Use the [upstream repository](https://github.com/Octane0411/open-vibe-island), [upstream releases](https://github.com/Octane0411/open-vibe-island/releases), and upstream community channels only for the upstream project.
 
 ## Report a Bug via Your Code Agent

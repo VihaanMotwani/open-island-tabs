@@ -30,6 +30,7 @@ final class AppModel {
     private static let appearanceProfileSettingsDefaultsKey = "appearance.island.v8.settingsProfile"
     private static let spotifyTabVisibleDefaultsKey = "appearance.island.tabs.spotify.visible"
     private static let tasksTabVisibleDefaultsKey = "appearance.island.tabs.tasks.visible"
+    private static let calendarTabVisibleDefaultsKey = "appearance.island.tabs.calendar.visible"
 
     private static let syntheticClaudeSessionPrefix = "claude-process:"
     private static let liveSessionStalenessWindow: TimeInterval = 15 * 60
@@ -82,6 +83,7 @@ final class AppModel {
     let updateChecker = UpdateChecker()
     let spotifyPlayback: SpotifyPlaybackModel
     let taskStore: TaskStore
+    private(set) var calendarAgenda = CalendarAgendaModel(provider: EventKitCalendarProvider())
 
     var notchStatus: NotchStatus {
         get { overlay.notchStatus }
@@ -339,6 +341,10 @@ final class AppModel {
                 islandTabVisibility.showsTasks,
                 forKey: Self.tasksTabVisibleDefaultsKey
             )
+            UserDefaults.standard.set(
+                islandTabVisibility.showsCalendar,
+                forKey: Self.calendarTabVisibleDefaultsKey
+            )
             overlay.updateVisibleIslandTabs(Set(islandTabVisibility.visibleTabs))
         }
     }
@@ -351,6 +357,11 @@ final class AppModel {
     var isTasksTabVisible: Bool {
         get { islandTabVisibility.showsTasks }
         set { islandTabVisibility.showsTasks = newValue }
+    }
+
+    var isCalendarTabVisible: Bool {
+        get { islandTabVisibility.showsCalendar }
+        set { islandTabVisibility.showsCalendar = newValue }
     }
     var overlayDisplaySelectionID: String {
         get { overlay.overlayDisplaySelectionID }
@@ -678,6 +689,7 @@ final class AppModel {
             Self.suppressFrontmostNotificationsDefaultsKey: true,
             Self.spotifyTabVisibleDefaultsKey: true,
             Self.tasksTabVisibleDefaultsKey: true,
+            Self.calendarTabVisibleDefaultsKey: true,
         ])
         isSoundMuted = UserDefaults.standard.bool(forKey: Self.soundMutedDefaultsKey)
         selectedSoundName = NotificationSoundService.selectedSoundName
@@ -700,7 +712,8 @@ final class AppModel {
         topBarAppearancePreferences = Self.loadAppearancePreferences(for: .topBar)
         islandTabVisibility = IslandTabVisibility(
             showsSpotify: UserDefaults.standard.bool(forKey: Self.spotifyTabVisibleDefaultsKey),
-            showsTasks: UserDefaults.standard.bool(forKey: Self.tasksTabVisibleDefaultsKey)
+            showsTasks: UserDefaults.standard.bool(forKey: Self.tasksTabVisibleDefaultsKey),
+            showsCalendar: UserDefaults.standard.bool(forKey: Self.calendarTabVisibleDefaultsKey)
         )
         watchNotificationEnabled = UserDefaults.standard.bool(forKey: Self.watchNotificationEnabledKey)
         if watchNotificationEnabled {
@@ -1405,6 +1418,9 @@ final class AppModel {
 
         overlay.selectIslandTab(snapshot.selectedTab)
         taskStore.replaceTasksForDebug(snapshot.tasks)
+        if let calendarPreview = snapshot.calendarPreview {
+            calendarAgenda = CalendarAgendaModel(provider: calendarPreview, viewMode: calendarPreview.viewMode)
+        }
         if let mediaSnapshot = snapshot.mediaSnapshot {
             spotifyPlayback.applyDebugSnapshot(mediaSnapshot)
         }

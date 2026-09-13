@@ -72,6 +72,15 @@ struct AppearanceSettingsPane: View {
                         set: { model.isTasksTabVisible = $0 }
                     )
                 )
+                tabVisibilityRow(
+                    tab: .calendar,
+                    icon: "calendar",
+                    note: lang.t("settings.appearance.tabs.calendar.note"),
+                    isOn: Binding(
+                        get: { model.isCalendarTabVisible },
+                        set: { model.isCalendarTabVisible = $0 }
+                    )
+                )
             }
         }
     }
@@ -819,6 +828,7 @@ struct AppearanceSettingsPane: View {
         case .agents: lang.t("island.tab.agents")
         case .spotify: lang.t("island.tab.spotify")
         case .tasks: lang.t("island.tab.tasks")
+        case .calendar: lang.t("island.tab.calendar")
         }
     }
 
@@ -1259,6 +1269,7 @@ private struct SessionListPanelPreview: View {
         case .agents: lang.t("island.tab.agents")
         case .spotify: lang.t("island.tab.spotify")
         case .tasks: lang.t("island.tab.tasks")
+        case .calendar: lang.t("island.tab.calendar")
         }
     }
 

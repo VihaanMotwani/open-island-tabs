@@ -3,6 +3,25 @@ import Testing
 
 struct IslandTabSelectionTests {
     @Test
+    func calendarReturnsAfterAnAgentAlertAndCanBeHidden() {
+        var visibility = IslandTabVisibility()
+        #expect(visibility.visibleTabs == [.agents, .spotify, .tasks, .calendar])
+        var state = IslandTabSelectionState()
+        state.select(.calendar, visibleTabs: Set(visibility.visibleTabs))
+
+        state.beginAgentTakeover(.actionRequired)
+        #expect(state.selectedTab == .agents)
+        state.resolveAgentTakeover()
+        #expect(state.selectedTab == .calendar)
+        #expect(!state.selectedTab.showsAgentUsage)
+
+        visibility.showsCalendar = false
+        state.reconcile(visibleTabs: Set(visibility.visibleTabs))
+        #expect(state.selectedTab == .agents)
+        #expect(state.preferredTab == .agents)
+    }
+
+    @Test
     func onlyAgentsTabShowsAgentUsage() {
         #expect(IslandTab.agents.showsAgentUsage)
         #expect(!IslandTab.spotify.showsAgentUsage)

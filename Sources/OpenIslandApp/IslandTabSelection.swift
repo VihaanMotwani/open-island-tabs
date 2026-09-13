@@ -10,6 +10,7 @@ enum IslandTab: CaseIterable, Hashable, Identifiable, Sendable {
     case agents
     case spotify
     case tasks
+    case calendar
 
     var id: IslandTab { self }
 
@@ -29,6 +30,7 @@ enum IslandTab: CaseIterable, Hashable, Identifiable, Sendable {
         case .agents: 0
         case .spotify: 1
         case .tasks: 2
+        case .calendar: 3
         }
     }
 }
@@ -36,11 +38,13 @@ enum IslandTab: CaseIterable, Hashable, Identifiable, Sendable {
 struct IslandTabVisibility: Equatable, Sendable {
     var showsSpotify = true
     var showsTasks = true
+    var showsCalendar = true
 
     var visibleTabs: [IslandTab] {
         var tabs: [IslandTab] = [.agents]
         if showsSpotify { tabs.append(.spotify) }
         if showsTasks { tabs.append(.tasks) }
+        if showsCalendar { tabs.append(.calendar) }
         return tabs
     }
 }

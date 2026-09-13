@@ -533,6 +533,7 @@ struct IslandPanelView: View {
         case .agents: model.lang.t("island.tab.agents")
         case .spotify: model.lang.t("island.tab.spotify")
         case .tasks: model.lang.t("island.tab.tasks")
+        case .calendar: model.lang.t("island.tab.calendar")
         }
     }
 
@@ -581,6 +582,8 @@ struct IslandPanelView: View {
                 switch model.selectedIslandTab {
                 case .spotify:
                     SpotifyPlayerView(model: model.spotifyPlayback)
+                case .calendar:
+                    CalendarAgendaView(model: model.calendarAgenda, lang: model.lang, isActive: model.notchStatus == .opened)
                 case .tasks:
                     TasksView(
                         store: model.taskStore,

@@ -32,6 +32,7 @@ struct AppModelSessionListTests {
             "appearance.island.v8.topBar.showIdleSessions",
             "appearance.island.tabs.spotify.visible",
             "appearance.island.tabs.tasks.visible",
+            "appearance.island.tabs.calendar.visible",
             "app.suppressFrontmostNotifications",
             "feature.completionReply.enabled",
             "overlay.sound.muted",
@@ -1045,6 +1046,7 @@ struct AppModelSessionListTests {
 
         model.isTasksTabVisible = false
         model.isSpotifyTabVisible = false
+        model.isCalendarTabVisible = false
 
         #expect(model.visibleIslandTabs == [.agents])
         #expect(model.selectedIslandTab == .agents)

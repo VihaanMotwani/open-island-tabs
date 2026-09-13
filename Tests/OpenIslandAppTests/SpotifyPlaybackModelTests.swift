@@ -5,6 +5,70 @@ import Testing
 struct SpotifyPlaybackModelTests {
     @Test
     @MainActor
+    func rapidSeeksStayInOrderAndKeepTheLatestPositionVisible() async {
+        let provider = SeekingPlaybackProvider(snapshot: mediaSnapshot(
+            title: "Track", artist: "Artist", album: "Album", position: 30))
+        let model = SpotifyPlaybackModel(provider: provider)
+        await model.refresh()
+        model.perform(.seek(to: 180))
+        while provider.pendingCommand == nil { await Task.yield() }
+        model.perform(.seek(to: 40))
+        await model.refresh()
+        #expect(model.snapshot.position == 40)
+        #expect(provider.commands == [.seek(to: 180)])
+
+        provider.pendingCommand?.resume()
+        provider.pendingCommand = nil
+        while provider.pendingCommand == nil { await Task.yield() }
+        #expect(provider.commands == [.seek(to: 180), .seek(to: 40)])
+        #expect(model.snapshot.position == 40)
+        provider.pendingCommand?.resume()
+        provider.pendingCommand = nil
+        while provider.snapshot.position != 40 { await Task.yield() }
+        await model.refresh()
+        #expect(model.snapshot.position == 40)
+    }
+
+    @Test
+    @MainActor
+    func pollingWhileASeekIsPendingPreservesTheRequestedPosition() async {
+        let provider = SeekingPlaybackProvider(snapshot: mediaSnapshot(
+            title: "Track", artist: "Artist", album: "Album", position: 30))
+        let model = SpotifyPlaybackModel(provider: provider)
+        await model.refresh()
+        model.perform(.seek(to: 180))
+        while provider.pendingCommand == nil { await Task.yield() }
+        await model.refresh()
+        #expect(model.snapshot.position == 180)
+        provider.pendingCommand?.resume()
+        provider.pendingCommand = nil
+    }
+
+    @Test
+    @MainActor
+    func aPollStartedBeforeSeekingCannotMoveTheSliderBack() async {
+        let initial = mediaSnapshot(title: "Track", artist: "Artist", album: "Album", position: 30)
+        let provider = SeekingPlaybackProvider(snapshot: initial)
+        let model = SpotifyPlaybackModel(provider: provider)
+        await model.refresh()
+        provider.holdNextRead = true
+        let oldPoll = Task { await model.refresh() }
+        while provider.pendingRead == nil { await Task.yield() }
+
+        model.perform(.seek(to: 180))
+        #expect(model.snapshot.position == 180)
+        provider.pendingRead?.resume(returning: initial)
+        provider.pendingRead = nil
+        await oldPoll.value
+        #expect(model.snapshot.position == 180)
+
+        while provider.pendingCommand == nil { await Task.yield() }
+        provider.pendingCommand?.resume()
+        provider.pendingCommand = nil
+    }
+
+    @Test
+    @MainActor
     func refreshPublishesOnlyDistinctTrackChangesAfterPriming() async {
         let initialTrack = mediaSnapshot(
             title: "Midnight City",
@@ -105,6 +169,28 @@ private actor MediaPlaybackProviderStub: MediaPlaybackProviding {
     }
 
     func perform(_ command: MediaPlaybackCommand) async {}
+}
+
+@MainActor
+private final class SeekingPlaybackProvider: MediaPlaybackProviding {
+    var snapshot: MediaPlaybackSnapshot
+    var commands: [MediaPlaybackCommand] = []
+    var holdNextRead = false
+    var pendingRead: CheckedContinuation<MediaPlaybackSnapshot, Never>?
+    var pendingCommand: CheckedContinuation<Void, Never>?
+    init(snapshot: MediaPlaybackSnapshot) { self.snapshot = snapshot }
+    func fetchSnapshot() async -> MediaPlaybackSnapshot {
+        if holdNextRead {
+            holdNextRead = false
+            return await withCheckedContinuation { pendingRead = $0 }
+        }
+        return snapshot
+    }
+    func perform(_ command: MediaPlaybackCommand) async {
+        commands.append(command)
+        await withCheckedContinuation { pendingCommand = $0 }
+        if case let .seek(position) = command { snapshot.position = position }
+    }
 }
 
 private func mediaSnapshot(

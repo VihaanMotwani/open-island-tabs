@@ -66,10 +66,11 @@ struct SpotifyPlayerView: View {
                         VStack(spacing: 1) {
                             SpotifySeekSlider(
                                 value: $scrubPosition,
-                                upperBound: max(snapshot.duration, 1),
+                                upperBound: snapshot.duration,
                                 accessibilityValue: "\(timeLabel(scrubPosition)) of \(timeLabel(snapshot.duration))",
                                 onEditingChanged: handleScrubbingChanged
                             )
+                            .frame(height: 22)
                             HStack {
                                 Text(timeLabel(scrubPosition))
                                 Spacer()
@@ -229,51 +230,6 @@ struct SpotifyPlayerView: View {
         guard interval.isFinite, interval > 0 else { return "0:00" }
         let seconds = Int(interval.rounded(.down))
         return "\(seconds / 60):\(String(format: "%02d", seconds % 60))"
-    }
-}
-
-private struct SpotifySeekSlider: View {
-    @Binding var value: TimeInterval
-    let upperBound: TimeInterval
-    let accessibilityValue: String
-    let onEditingChanged: (Bool) -> Void
-
-    private var fraction: CGFloat {
-        guard upperBound > 0 else { return 0 }
-        return CGFloat(min(max(value / upperBound, 0), 1))
-    }
-
-    var body: some View {
-        ZStack {
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(.white.opacity(0.12))
-                        .frame(height: 3)
-
-                    Capsule()
-                        .fill(.white.opacity(0.88))
-                        .frame(width: geometry.size.width * fraction, height: 3)
-
-                    Circle()
-                        .fill(.white.opacity(0.94))
-                        .frame(width: 7, height: 7)
-                        .offset(x: max(0, (geometry.size.width - 7) * fraction))
-                }
-                .frame(maxHeight: .infinity, alignment: .center)
-            }
-
-            Slider(
-                value: $value,
-                in: 0...upperBound,
-                onEditingChanged: onEditingChanged
-            )
-            .opacity(0.001)
-        }
-        .frame(height: 12)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Playback position")
-        .accessibilityValue(accessibilityValue)
     }
 }
 

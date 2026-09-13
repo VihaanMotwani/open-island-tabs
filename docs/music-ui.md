@@ -4,6 +4,12 @@ The Spotify tab uses an artwork-led player with left-aligned song information,
 a seek bar with elapsed and total time, transport controls, and volume.
 Spotify remains the playback provider; this change adds no music services.
 
+The seek bar uses one native control for drawing and input, with a 22-point hit
+area. Clicking sets an absolute position; dragging follows the pointer in either
+direction and commits on release. Keyboard and accessibility adjustments use
+the same seek callback. Playback commands run in input order, and polling cannot
+replace the requested position with a response from before or during a seek.
+
 The closed notch retains its animated equalizer while music is playing and a
 static equalizer while paused. Album artwork does not replace that indicator.
 The track-change preview and expanded player share one artwork presentation.
@@ -34,7 +40,7 @@ notification policy remain Open Island's existing implementation.
 
 ## Verification
 
-Run `swift test --filter 'MusicPresentationModelTests|SpotifyPlaybackModelTests|MediaTrackPreviewTests'`
+Run `swift test --filter 'MusicPresentationModelTests|SpotifyPlaybackModelTests|SpotifySeekControlTests|MediaTrackPreviewTests'`
 and `zsh scripts/harness.sh lint docs build`. Synthetic harness scenarios cover
 the player, compact track preview, and track changes without controlling Spotify.
 Use the refreshed development bundle for real playback verification.

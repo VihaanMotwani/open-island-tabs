@@ -4,10 +4,22 @@ Calendar is the fourth expanded tab: Agents, Spotify, To-do, Calendar. It can
 be hidden in Appearance settings. Agent alerts temporarily select Agents;
 after resolution, the preferred Calendar tab returns with its selected date.
 
-The date strip includes seven days before today and fourteen after it. Click a
-date to see its agenda; Today returns to the current day. Events show their
-calendar name and color, with all-day events first. Longer agendas scroll
-within a fixed-height surface, keeping the notch stable while browsing dates.
+Day, Month, and Year share a fixed-height surface and period navigation. Today
+returns to the current date without changing views. The selection and view
+remain when switching tabs or temporarily displaying an agent alert.
+
+- Day shows a date strip and scrolling agenda, with all-day events first.
+  The strip covers seven days before today and fourteen after it, and follows
+  the selected date when browsing farther away.
+- Month shows a locale-aligned six-week grid, including adjacent-month dates.
+  Up to three calendar-colored dots indicate events, including overnight spans.
+  Clicking a date opens its Day agenda.
+- Year shows month tiles; clicking one opens Month. Year is a navigation view
+  and does not query a full year of events.
+
+Month and Year navigation work without calendar access. Month offers Connect
+Calendar before displaying event dots. The arrows move one day, month, or year
+according to the selected view, using calendar arithmetic across leap years.
 
 ## Calendar access
 
@@ -58,6 +70,8 @@ Synthetic visual scenarios, which never access personal calendars:
 
 ```sh
 OPEN_ISLAND_HARNESS_SCENARIO=calendarAgenda zsh scripts/harness.sh smoke
+OPEN_ISLAND_HARNESS_SCENARIO=calendarMonth zsh scripts/harness.sh smoke
+OPEN_ISLAND_HARNESS_SCENARIO=calendarYear zsh scripts/harness.sh smoke
 OPEN_ISLAND_HARNESS_SCENARIO=calendarConnect zsh scripts/harness.sh smoke
 OPEN_ISLAND_HARNESS_SCENARIO=calendarEmpty zsh scripts/harness.sh smoke
 OPEN_ISLAND_HARNESS_SCENARIO=calendarDenied zsh scripts/harness.sh smoke

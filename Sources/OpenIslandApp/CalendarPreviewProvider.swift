@@ -4,6 +4,7 @@ import Foundation
 struct CalendarPreviewProvider: CalendarEventsProviding {
     let access: CalendarAccess
     let items: [CalendarAgendaEvent]
+    var viewMode: CalendarViewMode = .day
 
     func authorizationStatus() async -> CalendarAccess { access }
     func requestAccess() async throws -> Bool { access == .authorized }

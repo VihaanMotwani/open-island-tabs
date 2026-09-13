@@ -37,7 +37,7 @@ struct ExpandedNotchLayoutMetrics: Equatable, Sendable {
     static let sessionHeaderHeight: CGFloat = 30
     static let sessionFooterHeight: CGFloat = 22
     static let spotifyContentHeight: CGFloat = 124
-    static let calendarContentHeight: CGFloat = 246
+    static let calendarContentHeight: CGFloat = 304
     static let agentsListChromeHeight: CGFloat = 60
     static let agentsEmptyStateHeight: CGFloat = 108
     static let installHooksHintReservedHeight: CGFloat = 48

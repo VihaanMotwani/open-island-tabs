@@ -5,6 +5,101 @@ import Testing
 @MainActor
 struct CalendarAgendaModelTests {
     @Test
+    func periodNavigationDoesNotSkipFebruaryAndTodayPreservesTheView() async {
+        let provider = CalendarProviderStub()
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let model = CalendarAgendaModel(provider: provider, calendar: calendar)
+        await model.selectDate(date("2024-01-31T00:00:00Z"))
+        await model.setViewMode(.month)
+
+        await model.navigate(by: 1)
+        #expect(model.selectedDate == date("2024-02-01T00:00:00Z"))
+        await model.navigate(by: -1)
+        #expect(model.selectedDate == date("2024-01-01T00:00:00Z"))
+
+        await model.setViewMode(.year)
+        await model.navigate(by: -1)
+        #expect(model.selectedDate == date("2023-01-01T00:00:00Z"))
+
+        await model.goToToday(now: date("2026-09-13T12:00:00Z"))
+        #expect(model.selectedDate == date("2026-09-13T00:00:00Z"))
+        #expect(model.viewMode == .year)
+        #expect(provider.accessRequestCount == 0)
+    }
+
+    @Test
+    func yearViewNavigatesToAMonthWithoutFetchingAYearOfEvents() async {
+        let provider = CalendarProviderStub()
+        provider.status = .authorized
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let model = CalendarAgendaModel(provider: provider, calendar: calendar)
+        await model.selectDate(date("2024-02-29T00:00:00Z"))
+        provider.lastInterval = nil
+
+        await model.setViewMode(.year)
+
+        #expect(model.yearMonths.count == 12)
+        #expect(model.yearMonths.first == date("2024-01-01T00:00:00Z"))
+        #expect(model.yearMonths.last == date("2024-12-01T00:00:00Z"))
+        #expect(provider.lastInterval == nil)
+        #expect(model.events.isEmpty)
+        #expect(!model.isLoading)
+
+        await model.selectMonth(date("2024-11-01T00:00:00Z"))
+
+        #expect(model.viewMode == .month)
+        #expect(model.selectedDate == date("2024-11-01T00:00:00Z"))
+        #expect(provider.lastInterval != nil)
+    }
+
+    @Test
+    func monthEventsCoverOvernightSpansAndClickingADateOpensItsAgenda() async {
+        let provider = CalendarProviderStub()
+        provider.status = .authorized
+        provider.items = [
+            event("overnight", start: "2024-02-28T23:00:00Z", end: "2024-02-29T01:00:00Z"),
+            event("all-day", start: "2024-02-29T00:00:00Z", end: "2024-03-01T00:00:00Z", allDay: true),
+        ]
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let model = CalendarAgendaModel(provider: provider, calendar: calendar)
+        await model.selectDate(date("2024-02-15T00:00:00Z"))
+        await model.setViewMode(.month)
+
+        #expect(model.events(on: date("2024-02-28T00:00:00Z")).map(\.id) == ["overnight"])
+        #expect(model.events(on: date("2024-02-29T00:00:00Z")).map(\.id) == ["all-day", "overnight"])
+        #expect(model.events(on: date("2024-03-01T00:00:00Z")).isEmpty)
+
+        await model.selectDate(date("2024-02-29T00:00:00Z"))
+
+        #expect(model.viewMode == .day)
+        #expect(model.events.map(\.id) == ["all-day", "overnight"])
+        #expect(provider.lastInterval?.end == date("2024-03-01T00:00:00Z"))
+    }
+
+    @Test
+    func monthViewIncludesLeapDayAndUsesTheConfiguredFirstWeekday() async {
+        let provider = CalendarProviderStub()
+        provider.status = .authorized
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        calendar.firstWeekday = 2 // Monday
+        let model = CalendarAgendaModel(provider: provider, calendar: calendar)
+        await model.selectDate(date("2024-02-15T12:00:00Z"))
+
+        await model.setViewMode(.month)
+
+        #expect(model.viewMode == .month)
+        #expect(model.monthDates.count == 42)
+        #expect(model.monthDates.first == date("2024-01-29T00:00:00Z"))
+        #expect(model.monthDates.contains(date("2024-02-29T00:00:00Z")))
+        #expect(provider.lastInterval?.start == date("2024-01-29T00:00:00Z"))
+        #expect(provider.lastInterval?.end == date("2024-03-11T00:00:00Z"))
+    }
+
+    @Test
     func reopeningAfterMidnightAdvancesToday() async {
         let provider = CalendarProviderStub()
         var calendar = Calendar(identifier: .gregorian)

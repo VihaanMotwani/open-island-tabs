@@ -1419,7 +1419,7 @@ final class AppModel {
         overlay.selectIslandTab(snapshot.selectedTab)
         taskStore.replaceTasksForDebug(snapshot.tasks)
         if let calendarPreview = snapshot.calendarPreview {
-            calendarAgenda = CalendarAgendaModel(provider: calendarPreview)
+            calendarAgenda = CalendarAgendaModel(provider: calendarPreview, viewMode: calendarPreview.viewMode)
         }
         if let mediaSnapshot = snapshot.mediaSnapshot {
             spotifyPlayback.applyDebugSnapshot(mediaSnapshot)

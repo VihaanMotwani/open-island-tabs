@@ -22,10 +22,21 @@ struct CalendarAgendaView: View {
     var body: some View {
         VStack(spacing: 10) {
             dateHeader
-            dateStrip
-            Rectangle().fill(.white.opacity(0.08)).frame(height: 1)
-            agenda
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            viewSelector
+            switch model.viewMode {
+            case .day:
+                dateStrip
+                Rectangle().fill(.white.opacity(0.08)).frame(height: 1)
+                agenda.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            case .month:
+                CalendarMonthView(model: model, lang: lang)
+                overviewFooter
+            case .year:
+                CalendarYearView(model: model)
+                Text(lang.t("calendar.chooseMonth"))
+                    .font(.system(size: 10))
+                    .foregroundStyle(.white.opacity(0.4))
+            }
         }
         .padding(.horizontal, ExpandedNotchLayoutMetrics.safeContentHorizontalInset)
         .padding(.top, 8)
@@ -46,16 +57,19 @@ struct CalendarAgendaView: View {
     }
 
     private var dateHeader: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(model.selectedDate.formatted(.dateTime.month(.wide)))
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.92))
+        HStack(spacing: 8) {
+            if model.viewMode != .year {
+                Text(model.selectedDate.formatted(.dateTime.month(.wide)))
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.92))
+            }
             Text(model.selectedDate.formatted(.dateTime.year()))
-                .font(.system(size: 13))
-                .foregroundStyle(.white.opacity(0.45))
+                .font(.system(size: model.viewMode == .year ? 15 : 13, weight: model.viewMode == .year ? .semibold : .regular))
+                .foregroundStyle(.white.opacity(model.viewMode == .year ? 0.92 : 0.45))
             Spacer()
+            navigationButton(-1)
             Button(lang.t("calendar.today")) {
-                select(.now)
+                Task { await model.goToToday() }
             }
             .font(.system(size: 11, weight: .medium))
             .foregroundStyle(.white.opacity(0.75))
@@ -63,7 +77,79 @@ struct CalendarAgendaView: View {
             .padding(.horizontal, 9)
             .padding(.vertical, 4)
             .background(.white.opacity(0.08), in: Capsule())
+            navigationButton(1)
         }
+    }
+
+    private func navigationButton(_ offset: Int) -> some View {
+        Button {
+            Task { await model.navigate(by: offset) }
+        } label: {
+            Image(systemName: offset < 0 ? "chevron.left" : "chevron.right")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.65))
+                .frame(width: 24, height: 24)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(lang.t("calendar.\(offset < 0 ? "previous" : "next").\(model.viewMode.rawValue)"))
+    }
+
+    private var viewSelector: some View {
+        HStack(spacing: 2) {
+            ForEach(CalendarViewMode.allCases) { mode in
+                Button {
+                    Task { await model.setViewMode(mode) }
+                } label: {
+                    Text(lang.t("calendar.view.\(mode.rawValue)"))
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.white.opacity(model.viewMode == mode ? 0.95 : 0.45))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 24)
+                        .background {
+                            if model.viewMode == mode {
+                                RoundedRectangle(cornerRadius: 7)
+                                    .fill(.white.opacity(0.12))
+                                    .matchedGeometryEffect(id: "calendar-mode", in: dateSelection)
+                            }
+                        }
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(model.viewMode == mode ? .isSelected : [])
+            }
+        }
+        .padding(3)
+        .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 10))
+        .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: model.viewMode)
+    }
+
+    @ViewBuilder
+    private var overviewFooter: some View {
+        HStack(spacing: 6) {
+            if model.access != .authorized {
+                if model.access == .restricted || model.requiresAppBundle {
+                    Text(lang.t(connectionMessageKey)).lineLimit(2)
+                } else {
+                    Button(lang.t(model.isConnecting ? "calendar.connecting" : model.access == .notDetermined ? "calendar.connect" : "calendar.settings")) {
+                        connectOrOpenSettings()
+                    }
+                    .disabled(model.isConnecting)
+                }
+            } else if model.hasError {
+                Text(lang.t("calendar.loadError"))
+                Button(lang.t("calendar.retry")) { refreshIfActive() }
+            } else if model.isLoading {
+                ProgressView().controlSize(.mini)
+                Text(lang.t("calendar.loading"))
+            } else {
+                Text(lang.t("calendar.chooseDay"))
+            }
+        }
+        .font(.system(size: 10))
+        .foregroundStyle(.white.opacity(0.55))
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, minHeight: 16)
     }
 
     private var dateStrip: some View {
@@ -173,11 +259,7 @@ struct CalendarAgendaView: View {
                 .fixedSize(horizontal: false, vertical: true)
             if model.access != .restricted && !model.requiresAppBundle {
                 Button {
-                    if model.access == .notDetermined {
-                        Task { await model.connect() }
-                    } else if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars") {
-                        NSWorkspace.shared.open(url)
-                    }
+                    connectOrOpenSettings()
                 } label: {
                     Text(lang.t(model.isConnecting ? "calendar.connecting" : model.access == .notDetermined ? "calendar.connect" : "calendar.settings"))
                         .font(.system(size: 11, weight: .semibold))
@@ -205,6 +287,14 @@ struct CalendarAgendaView: View {
 
     private func select(_ date: Date) {
         Task { await model.selectDate(date) }
+    }
+
+    private func connectOrOpenSettings() {
+        if model.access == .notDetermined {
+            Task { await model.connect() }
+        } else if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars") {
+            NSWorkspace.shared.open(url)
+        }
     }
 
     private func refreshIfActive() {

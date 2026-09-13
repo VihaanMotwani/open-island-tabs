@@ -57,6 +57,8 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
     case spotifyTrackPreview
     case tasksList
     case calendarAgenda
+    case calendarMonth
+    case calendarYear
     case calendarConnect
     case calendarEmpty
     case calendarDenied
@@ -86,6 +88,8 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
         case .tasksList:
             "To-do List"
         case .calendarAgenda: "Calendar Agenda"
+        case .calendarMonth: "Calendar Month"
+        case .calendarYear: "Calendar Year"
         case .calendarConnect: "Connect Calendar"
         case .calendarEmpty: "Empty Calendar"
         case .calendarDenied: "Calendar Access Denied"
@@ -115,6 +119,8 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
         case .tasksList:
             "Expanded To-do tab with active, completed, editable, and scrollable tasks."
         case .calendarAgenda: "Calendar tab with synthetic all-day and timed events."
+        case .calendarMonth: "Six-week calendar grid with synthetic event indicators."
+        case .calendarYear: "Month navigation for the selected year."
         case .calendarConnect: "Calendar tab before calendar access is requested."
         case .calendarEmpty: "Connected Calendar tab with no events."
         case .calendarDenied: "Calendar tab after access has been denied."
@@ -257,15 +263,15 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
                 selectedTab: .tasks,
                 tasks: Self.demoTasks
             )
-        case .calendarAgenda, .calendarConnect, .calendarEmpty, .calendarDenied:
+        case .calendarAgenda, .calendarMonth, .calendarYear, .calendarConnect, .calendarEmpty, .calendarDenied:
             let day = Calendar.current.startOfDay(for: now)
-            let events = self == .calendarAgenda ? CalendarPreviewProvider.demoEvents(on: day) : []
+            let events = self == .calendarAgenda || self == .calendarMonth ? CalendarPreviewProvider.demoEvents(on: day) : []
             let access: CalendarAccess = self == .calendarConnect ? .notDetermined : self == .calendarDenied ? .denied : .authorized
             return IslandDebugSnapshot(
-                title: title, summary: summary, previewHeight: 330,
+                title: title, summary: summary, previewHeight: 390,
                 notchStatus: .opened, notchOpenReason: .click, islandSurface: .sessionList(),
                 sessions: [], selectedSessionID: nil, selectedTab: .calendar,
-                calendarPreview: CalendarPreviewProvider(access: access, items: events)
+                calendarPreview: CalendarPreviewProvider(access: access, items: events, viewMode: self == .calendarMonth ? .month : self == .calendarYear ? .year : .day)
             )
         }
     }

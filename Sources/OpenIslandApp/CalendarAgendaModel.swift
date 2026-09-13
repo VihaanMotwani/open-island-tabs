@@ -1,6 +1,14 @@
 import Foundation
 import Observation
 
+enum CalendarViewMode: String, CaseIterable, Identifiable, Sendable {
+    case day
+    case month
+    case year
+
+    var id: Self { self }
+}
+
 enum CalendarAccess: Equatable, Sendable {
     case notDetermined
     case authorized
@@ -40,6 +48,7 @@ final class CalendarAgendaModel {
     private(set) var events: [CalendarAgendaEvent] = []
     private(set) var selectedDate: Date
     private(set) var today: Date
+    private(set) var viewMode: CalendarViewMode = .day
     private(set) var isLoading = false
     private(set) var isConnecting = false
     private(set) var hasError = false
@@ -49,9 +58,10 @@ final class CalendarAgendaModel {
     @ObservationIgnored private let calendar: Calendar
     @ObservationIgnored private var refreshGeneration = 0
 
-    init(provider: any CalendarEventsProviding, calendar: Calendar = .autoupdatingCurrent, now: Date = .now) {
+    init(provider: any CalendarEventsProviding, calendar: Calendar = .autoupdatingCurrent, now: Date = .now, viewMode: CalendarViewMode = .day) {
         self.provider = provider
         self.calendar = calendar
+        self.viewMode = viewMode
         selectedDate = calendar.startOfDay(for: now)
         today = calendar.startOfDay(for: now)
     }
@@ -60,6 +70,72 @@ final class CalendarAgendaModel {
         let distance = calendar.dateComponents([.day], from: today, to: selectedDate).day ?? 0
         let anchor = (-7...14).contains(distance) ? today : selectedDate
         return (-7...14).compactMap { calendar.date(byAdding: .day, value: $0, to: anchor) }
+    }
+
+    /// A fixed six-week grid avoids resizing the notch between months.
+    var monthDates: [Date] {
+        guard let month = calendar.dateInterval(of: .month, for: selectedDate) else { return [] }
+        let leadingDays = (calendar.component(.weekday, from: month.start) - calendar.firstWeekday + 7) % 7
+        guard let first = calendar.date(byAdding: .day, value: -leadingDays, to: month.start) else { return [] }
+        return (0..<42).compactMap { calendar.date(byAdding: .day, value: $0, to: first) }
+    }
+
+    private var queryInterval: DateInterval? {
+        switch viewMode {
+        case .year:
+            nil
+        case .day:
+            calendar.dateInterval(of: .day, for: selectedDate)
+        case .month:
+            if let first = monthDates.first, let last = monthDates.last,
+               let end = calendar.date(byAdding: .day, value: 1, to: last) {
+                DateInterval(start: first, end: end)
+            } else {
+                nil
+            }
+        }
+    }
+
+    var yearMonths: [Date] {
+        guard let year = calendar.dateInterval(of: .year, for: selectedDate),
+              let range = calendar.range(of: .month, in: .year, for: selectedDate) else { return [] }
+        return (0..<range.count).compactMap { calendar.date(byAdding: .month, value: $0, to: year.start) }
+    }
+
+    func selectMonth(_ date: Date) async {
+        guard let month = calendar.dateInterval(of: .month, for: date) else { return }
+        selectedDate = month.start
+        await setViewMode(.month)
+    }
+
+    func navigate(by offset: Int) async {
+        let component: Calendar.Component = switch viewMode {
+        case .day: .day
+        case .month: .month
+        case .year: .year
+        }
+        guard let period = calendar.dateInterval(of: component, for: selectedDate),
+              let date = calendar.date(byAdding: component, value: offset, to: period.start) else { return }
+        selectedDate = date
+        events = []
+        await refresh()
+    }
+
+    func goToToday(now: Date = .now) async {
+        selectedDate = calendar.startOfDay(for: now)
+        events = []
+        await refresh(now: now)
+    }
+
+    func setViewMode(_ mode: CalendarViewMode) async {
+        viewMode = mode
+        events = []
+        await refresh()
+    }
+
+    func events(on date: Date) -> [CalendarAgendaEvent] {
+        guard let interval = calendar.dateInterval(of: .day, for: date) else { return [] }
+        return events.filter { $0.start < interval.end && $0.end > interval.start }
     }
 
     func refresh(now: Date = .now) async {
@@ -79,7 +155,11 @@ final class CalendarAgendaModel {
             isLoading = false
             return
         }
-        guard let interval = calendar.dateInterval(of: .day, for: selectedDate) else { return }
+        guard let interval = queryInterval else {
+            events = []
+            isLoading = false
+            return
+        }
         isLoading = true
         hasError = false
         defer { if generation == refreshGeneration { isLoading = false } }
@@ -110,6 +190,7 @@ final class CalendarAgendaModel {
 
     func selectDate(_ date: Date) async {
         selectedDate = calendar.startOfDay(for: date)
+        viewMode = .day
         events = []
         await refresh()
     }

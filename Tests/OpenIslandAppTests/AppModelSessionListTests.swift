@@ -135,9 +135,10 @@ struct AppModelSessionListTests {
     }
 
     @Test
-    func repeatedDesktopApprovalStatusDoesNotOpenAnApprovalNotification() throws {
+    func desktopApprovalStatusAloneDoesNotInventHumanAttention() throws {
         let model = AppModel()
         model.suppressFrontmostNotifications = false
+        model.isSoundMuted = true
         let jumpTarget = JumpTarget(
             terminalApp: "Codex.app",
             workspaceName: "notch",
@@ -169,11 +170,267 @@ struct AppModelSessionListTests {
             .threadStatusChanged(threadId: "desktop-thread", status: waitingStatus)
         )
 
-        #expect(model.state.session(id: "desktop-thread")?.phase == .needsAttention)
+        #expect(model.state.session(id: "desktop-thread")?.phase == .running)
         #expect(model.state.session(id: "desktop-thread")?.permissionRequest == nil)
         #expect(model.state.session(id: "desktop-thread")?.jumpTarget == jumpTarget)
         #expect(model.notchStatus == .closed)
+
+        let runningStatus = try JSONDecoder().decode(CodexThreadStatus.self, from: Data("""
+        {"type":"active","activeFlags":[]}
+        """.utf8))
+        model.codexAppServer.handleNotification(
+            .threadStatusChanged(threadId: "desktop-thread", status: runningStatus)
+        )
+        #expect(model.state.session(id: "desktop-thread")?.phase == .running)
+        #expect(model.notchStatus == .closed)
         #expect(model.islandSurface == .sessionList())
+    }
+
+    @Test(arguments: ["cellFinished", "turn_aborted", "turn_complete"])
+    func yieldedDesktopPermissionDoesNotInventHumanApproval(ending: String) throws {
+        let model = AppModel()
+        model.isSoundMuted = true
+        model.suppressFrontmostNotifications = false
+        model.selectIslandTab(.spotify)
+        model.state = SessionState(sessions: [AgentSession(
+            id: "yielded-permission", title: "Yielded permission regression", tool: .codex,
+            attachmentState: .attached, phase: .running, summary: "Working",
+            updatedAt: .now, codexRuntimeSurface: .desktopApp
+        )])
+        var snapshot = CodexRolloutReducer.snapshot(for: [
+            #"{"type":"session_meta","payload":{"id":"yielded-permission","originator":"Codex Desktop","source":"vscode"}}"#,
+            #"{"type":"turn_context","payload":{"approval_policy":"on-request","approvals_reviewer":"auto_review"}}"#,
+        ])
+        func receive(_ payload: [String: Any], recordType: String = "response_item") throws {
+            let previous = snapshot
+            let data = try JSONSerialization.data(withJSONObject: ["type": recordType, "payload": payload])
+            CodexRolloutReducer.apply(line: String(decoding: data, as: UTF8.self), to: &snapshot)
+            for event in CodexRolloutReducer.events(
+                from: previous, to: snapshot, sessionID: "yielded-permission", transcriptPath: "/tmp/yielded-permission.jsonl"
+            ) {
+                model.applyTrackedEvent(event, updateLastActionMessage: false, ingress: .rollout)
+            }
+        }
+        try receive([
+            "type": "custom_tool_call", "name": "exec", "call_id": "permission-call",
+            "input": #"await tools.exec_command({cmd:"sleep 25",sandbox_permissions:"require_escalated"})"#,
+        ])
+        try receive([
+            "type": "custom_tool_call_output", "call_id": "permission-call",
+            "output": "Script running with cell ID 2\nWall time 1.0 seconds\nOutput:\n",
+        ])
+        #expect(model.notchStatus == .closed)
+        #expect(model.state.session(id: "yielded-permission")?.phase == .running)
+
+        // Executing and yielding remain ordinary work after automatic review.
+        try receive(["type": "reasoning"])
+        try receive(["type": "function_call", "name": "js", "call_id": "ui-check", "arguments": "{}"])
+        try receive(["type": "function_call_output", "call_id": "ui-check", "output": "Unchanged"])
+        try receive(["type": "function_call", "name": "wait", "call_id": "wait-1", "arguments": #"{"cell_id":"2"}"#])
+        try receive([
+            "type": "function_call_output", "call_id": "wait-1",
+            "output": [["type": "input_text", "text": "Script running with cell ID 2\nWall time 1.0 seconds\nOutput:\n"]],
+        ])
+        #expect(model.notchStatus == .closed)
+        #expect(model.selectedIslandTab == .spotify)
+        #expect(model.state.session(id: "yielded-permission")?.permissionRequest == nil)
+
+        if ending == "cellFinished" {
+            try receive(["type": "function_call", "name": "wait", "call_id": "wait-2", "arguments": #"{"cell_id":"2"}"#])
+            try receive(["type": "function_call_output", "call_id": "wait-2", "output": "Script completed\nOutput:\n"])
+        } else {
+            try receive(["type": ending], recordType: "event_msg")
+            try receive(["type": "task_started"], recordType: "event_msg")
+            try receive(["type": "reasoning"])
+        }
+        #expect(model.state.session(id: "yielded-permission")?.phase == .running)
+        #expect(model.notchStatus == .closed)
+    }
+
+    @Test
+    func desktopHumanRequestStaysVisibleUntilOwnerRemovesIt() throws {
+        let model = AppModel()
+        model.isSoundMuted = true
+        model.suppressFrontmostNotifications = false
+        model.selectIslandTab(.spotify)
+        model.notchOpen(reason: .click)
+        model.state = SessionState(sessions: [AgentSession(
+            id: "desktop-human", title: "Human approval", tool: .codex,
+            attachmentState: .attached, phase: .running, summary: "Working",
+            updatedAt: .now, codexRuntimeSurface: .desktopApp
+        )])
+        var stream = CodexDesktopRequestStream()
+        func receive(_ change: [String: Any]) throws {
+            let data = try JSONSerialization.data(withJSONObject: [
+                "type": "broadcast", "method": "thread-stream-state-changed", "version": 11,
+                "sourceClientId": "owner", "params": [
+                    "hostId": "local", "conversationId": "desktop-human", "change": change,
+                ],
+            ])
+            if let update = stream.receive(data) {
+                model.applyCodexDesktopAttention(update)
+            }
+        }
+        // Shape captured from a real Calculator permission in Approve for me.
+        let request: [String: Any] = [
+            "id": 75, "method": "mcpServer/elicitation/request", "params": [
+                "threadId": "desktop-human", "mode": "form", "serverName": "cua_repl",
+                "message": "Allow Computer Use to use Calculator?",
+                "_meta": ["codex_approval_kind": "mcp_tool_call",
+                          "x-codex-turn-metadata": ["auto_review_enabled": true]],
+            ],
+        ]
+        try receive(["type": "snapshot", "revision": 1, "conversationState": ["requests": []]])
+        #expect(model.selectedIslandTab == .spotify)
+        try receive(["type": "patches", "baseRevision": 1, "revision": 2, "patches": [
+            ["op": "add", "path": ["requests", 0], "value": request],
+        ]])
+        #expect(model.state.session(id: "desktop-human")?.phase == .needsAttention)
+        #expect(model.selectedIslandTab == .agents)
+        #expect(model.islandSurface == .sessionList(actionableSessionID: "desktop-human"))
+        #expect(model.state.session(id: "desktop-human")?.permissionRequest == nil)
+        model.applyTrackedEvent(.activityUpdated(SessionActivityUpdated(
+            sessionID: "desktop-human", summary: "Unrelated parallel work", phase: .running, timestamp: .now
+        )), ingress: .rollout)
+        model.overlay.handleNotificationAutoCollapseDeadline()
+        model.handlePointerPressedOutsideIslandSurface()
+        #expect(model.notchStatus == .opened)
+        #expect(model.state.session(id: "desktop-human")?.phase == .needsAttention)
+        try receive(["type": "patches", "baseRevision": 2, "revision": 3, "patches": [
+            ["op": "replace", "path": ["requests"], "value": []],
+        ]])
+        #expect(model.state.session(id: "desktop-human")?.phase == .running)
+        #expect(model.selectedIslandTab == .spotify)
+        #expect(model.notchOpenReason == .click)
+        model.handlePointerPressedOutsideIslandSurface()
+        #expect(model.notchStatus == .closed)
+    }
+
+    @Test
+    func desktopRequestSnapshotsRecoverGapsAndKeepOtherRequestsPending() throws {
+        let model = AppModel()
+        model.isSoundMuted = true
+        model.suppressFrontmostNotifications = true
+        model.state = SessionState(sessions: [AgentSession(
+            id: "desktop-human", title: "Human approval", tool: .codex,
+            attachmentState: .attached, phase: .running, summary: "Working",
+            updatedAt: .now, codexRuntimeSurface: .desktopApp
+        )])
+        var stream = CodexDesktopRequestStream()
+        func receive(_ change: [String: Any], version: Int = 11) throws {
+            let data = try JSONSerialization.data(withJSONObject: [
+                "type": "broadcast", "method": "thread-stream-state-changed", "version": version,
+                "sourceClientId": "owner", "params": [
+                    "hostId": "local", "conversationId": "desktop-human", "change": change,
+                ],
+            ])
+            if let update = stream.receive(data) { model.applyCodexDesktopAttention(update) }
+        }
+        func request(_ id: Int) -> [String: Any] {
+            ["id": id, "method": "item/commandExecution/requestApproval", "params": ["threadId": "desktop-human"]]
+        }
+        try receive(["type": "snapshot", "revision": 0, "conversationState": [
+            "requests": [], "threadRuntimeStatus": ["type": "active", "activeFlags": ["waitingOnApproval"]],
+            "automaticApprovalReviewItems": [["status": "inProgress"]],
+        ]])
+        #expect(model.notchStatus == .closed)
+        try receive(["type": "snapshot", "revision": 1, "conversationState": ["requests": [request(1), request(2)]]])
+        #expect(model.notchStatus == .opened)
+        try receive(["type": "patches", "baseRevision": 1, "revision": 2, "patches": [
+            ["op": "remove", "path": ["requests", 0]],
+        ]])
+        #expect(model.state.session(id: "desktop-human")?.phase == .needsAttention)
+        // Missing revisions and unknown protocol versions cannot resolve a prompt.
+        try receive(["type": "patches", "baseRevision": 3, "revision": 4, "patches": [
+            ["op": "replace", "path": ["requests"], "value": []],
+        ]])
+        #expect(stream.needsSnapshot == ["desktop-human"])
+        try receive(["type": "snapshot", "revision": 5, "conversationState": ["requests": []]], version: 12)
+        #expect(model.state.session(id: "desktop-human")?.phase == .needsAttention)
+        model.notchClose()
+        try receive(["type": "snapshot", "revision": 5, "conversationState": ["requests": [request(2)]]])
+        #expect(model.notchStatus == .closed)
+        #expect(stream.needsSnapshot.isEmpty)
+        // Reconnect replaces cached state with an authoritative empty snapshot.
+        stream.reset()
+        try receive(["type": "snapshot", "revision": 0, "conversationState": ["requests": []]])
+        #expect(model.state.session(id: "desktop-human")?.phase == .running)
+    }
+
+    @Test(arguments: [true, false], [true, false])
+    func desktopAppPermissionSendsExactUserDecisionAndWaitsForOwner(allowed: Bool, delivered: Bool) async throws {
+        let model = AppModel()
+        model.isSoundMuted = true
+        model.suppressFrontmostNotifications = false
+        model.state = SessionState(sessions: [AgentSession(
+            id: "desktop-human", title: "Human approval", tool: .codex,
+            attachmentState: .attached, phase: .running, summary: "Working",
+            updatedAt: .now, codexRuntimeSurface: .desktopApp
+        )])
+        var stream = CodexDesktopRequestStream()
+        let data = Data(#"{"type":"broadcast","method":"thread-stream-state-changed","version":11,"sourceClientId":"owner","params":{"hostId":"local","conversationId":"desktop-human","change":{"type":"snapshot","revision":1,"conversationState":{"requests":[{"id":75,"method":"mcpServer/elicitation/request","params":{"threadId":"desktop-human","serverName":"cua_repl","mode":"form","message":"Allow Computer Use to use Calculator?","requestedSchema":{"type":"object","properties":{}},"_meta":{"codex_approval_kind":"mcp_tool_call","connector_id":"computer-use","tool_name":"get_app_state","tool_params":{"app":"com.apple.calculator"}}}}]}}}}"#.utf8)
+        let received = stream.receive(data)
+        let update = try #require(received)
+        model.applyCodexDesktopAttention(update)
+        #expect(model.state.session(id: "desktop-human")?.phase == .waitingForApproval)
+        #expect(model.state.session(id: "desktop-human")?.permissionRequest?.summary == "Allow Computer Use to use Calculator?")
+        var decisions: [Bool] = []
+        model.desktopApprovalResponder = { approval, allowed in
+            #expect(approval.sessionID == "desktop-human")
+            #expect(approval.ownerClientID == "owner")
+            #expect(approval.requestKey == "number:75")
+            decisions.append(allowed)
+            return delivered
+        }
+        model.approvePermission(for: "desktop-human", action: .allowOnce, expectedRequestID: UUID())
+        #expect(decisions.isEmpty)
+        model.approvePermission(for: "desktop-human", action: allowed ? .allowOnce : .deny,
+            expectedRequestID: model.state.session(id: "desktop-human")?.permissionRequest?.id)
+        for _ in 0..<20 where decisions.isEmpty { await Task.yield() }
+        #expect(decisions == [allowed])
+        // Transport acknowledgment alone does not resolve the visible request.
+        #expect(model.state.session(id: "desktop-human")?.phase == .waitingForApproval)
+        #expect(model.notchStatus == .opened)
+    }
+
+    @Test(arguments: [false, true])
+    func desktopAppPermissionClearsWhenResolvedInsideCodex(restored: Bool) throws {
+        var model = AppModel()
+        model.isSoundMuted = true
+        model.suppressFrontmostNotifications = false
+        model.state = SessionState(sessions: [AgentSession(
+            id: "desktop-human", title: "Human approval", tool: .codex,
+            attachmentState: .attached, phase: .running, summary: "Working",
+            updatedAt: .now, codexRuntimeSurface: .desktopApp
+        )])
+        var stream = CodexDesktopRequestStream()
+        let pending = Data(#"{"type":"broadcast","method":"thread-stream-state-changed","version":11,"sourceClientId":"owner","params":{"hostId":"local","conversationId":"desktop-human","change":{"type":"snapshot","revision":1,"conversationState":{"requests":[{"id":75,"method":"mcpServer/elicitation/request","params":{"threadId":"desktop-human","mode":"form","message":"Allow Computer Use to use Font Book?","requestedSchema":{"type":"object","properties":{}},"_meta":{"codex_approval_kind":"mcp_tool_call","connector_id":"computer-use","tool_name":"get_app_state","tool_params":{"app":"com.apple.FontBook"}}}}]}}}}"#.utf8)
+        let pendingUpdate = stream.receive(pending)
+        model.applyCodexDesktopAttention(try #require(pendingUpdate))
+        model.applyTrackedEvent(.activityUpdated(SessionActivityUpdated(
+            sessionID: "desktop-human", summary: "Reading app state", phase: .running, timestamp: .now
+        )), ingress: .rollout)
+        #expect(model.state.session(id: "desktop-human")?.phase == .waitingForApproval)
+        model.handlePointerPressedOutsideIslandSurface()
+        #expect(model.notchStatus == .opened)
+        if restored {
+            // A restart restores the visible permission without an in-memory IPC cache.
+            let saved = model.state
+            model = AppModel()
+            model.isSoundMuted = true
+            model.state = saved
+            stream.reset()
+        }
+        // No Island button is clicked: Codex removes its own resolved request.
+        let resolved = Data(#"{"type":"broadcast","method":"thread-stream-state-changed","version":11,"sourceClientId":"owner","params":{"hostId":"local","conversationId":"desktop-human","change":{"type":"snapshot","revision":2,"conversationState":{"requests":[]}}}}"#.utf8)
+        let resolvedUpdate = stream.receive(resolved)
+        model.applyCodexDesktopAttention(try #require(resolvedUpdate))
+        #expect(model.state.session(id: "desktop-human")?.phase == .running)
+        #expect(model.state.session(id: "desktop-human")?.permissionRequest == nil)
+        #expect(model.notchStatus == .closed)
+        if !restored {
+            #expect(model.state.session(id: "desktop-human")?.summary == "Reading app state")
+        }
     }
 
     @Test
@@ -829,6 +1086,40 @@ struct AppModelSessionListTests {
         #expect(model.liveSessionCount == 0)
         #expect(model.state.session(id: "recovered-session")?.attachmentState == .stale)
         #expect(model.shouldShowSessionBootstrapPlaceholder)
+    }
+
+    @Test
+    func startupKeepsActiveCodexTranscriptWhenDiscoveringOlderCopy() throws {
+        let now = Date()
+        let directory = URL(fileURLWithPath: "/private/tmp").appendingPathComponent(UUID().uuidString)
+        let root = directory.appendingPathComponent("sessions")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let current = root.appendingPathComponent("rollout-current.jsonl")
+        let older = root.appendingPathComponent("rollout-older.jsonl")
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let timestamp = formatter.string(from: now.addingTimeInterval(-30))
+        let header = #"{"type":"session_meta","payload":{"id":"resumed-thread","cwd":"/tmp/notch","originator":"Codex Desktop","source":"vscode"}}"#
+        try (header + "\n").write(to: current, atomically: true, encoding: .utf8)
+        let aborted = "{\"timestamp\":\"\(timestamp)\",\"type\":\"event_msg\",\"payload\":{\"type\":\"turn_aborted\"}}"
+        try (header + "\n" + aborted + "\n").write(to: older, atomically: true, encoding: .utf8)
+        let store = CodexSessionStore(fileURL: directory.appendingPathComponent("cache.json"))
+        try store.save([CodexTrackedSessionRecord(
+            sessionID: "resumed-thread", title: "Resumed task", runtimeSurface: .desktopApp,
+            origin: .live, attachmentState: .attached, summary: "Working", phase: .running,
+            updatedAt: now, codexMetadata: CodexSessionMetadata(transcriptPath: current.path, processedDuration: 0)
+        )])
+        let discovery = SessionDiscoveryCoordinator(
+            codexSessionStore: store,
+            codexRolloutDiscovery: CodexRolloutDiscovery(rootURL: root, persistedThreadTitles: { _ in [:] })
+        )
+        let model = AppModel(discovery: discovery)
+        let payload = discovery.loadStartupDiscoveryPayload()
+        #expect(payload.discoveredCodexRecords.contains { $0.codexMetadata?.transcriptPath == older.path })
+        discovery.applyStartupDiscoveryPayload(payload)
+        #expect(model.state.session(id: "resumed-thread")?.codexMetadata?.transcriptPath == current.path)
+        #expect(model.state.session(id: "resumed-thread")?.phase == .running)
     }
 
     @Test

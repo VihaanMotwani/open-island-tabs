@@ -298,6 +298,17 @@ final class SessionDiscoveryCoordinator {
     }
 
     private func merge(discovered: AgentSession, into existing: AgentSession) -> AgentSession {
+        // Resumed Desktop tasks can have several rollout files with the same
+        // session ID. Startup excludes cached paths, so discovery may return
+        // an older copy. Never redirect the live watcher to that stale file.
+        if existing.tool == .codex,
+           discovered.updatedAt < existing.updatedAt,
+           let existingPath = existing.codexMetadata?.transcriptPath,
+           let discoveredPath = discovered.codexMetadata?.transcriptPath,
+           existingPath != discoveredPath {
+            return existing
+        }
+
         var merged = existing
         let discoveredIsNewer = discovered.updatedAt >= existing.updatedAt
 

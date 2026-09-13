@@ -330,84 +330,27 @@ struct CodexSessionTrackingTests {
         #expect(finalEvents.contains(where: { $0.trackedMetadataUpdate?.codexMetadata.currentCommandPreview == nil }))
     }
 
-    @Test
-    func codexRolloutReducerMarksUnresolvedDesktopExecPermissionAsNeedsAttention() {
-        let snapshot = CodexRolloutReducer.snapshot(for: desktopApprovalRolloutLines(
-            input: #"""
-            const r = await tools.exec_command({
-              cmd: "open -R /tmp/open-island/README.md",
-              workdir: "/tmp/open-island",
-              sandbox_permissions: "require_escalated",
-              justification: "Allow revealing the README in Finder?"
-            }); text(r.output)
-            """#
-        ))
-
-        #expect(snapshot.phase == .needsAttention)
-        #expect(snapshot.summary == "Needs attention in Codex.")
-        #expect(snapshot.currentTool == nil)
-        #expect(snapshot.currentCommandPreview == nil)
-    }
-
-    @Test
-    func codexRolloutReducerClearsDesktopPermissionAttentionOnlyForMatchingOutput() {
-        var snapshot = CodexRolloutReducer.snapshot(for: desktopApprovalRolloutLines(
-            input: #"""
-            const r = await tools.exec_command({
-              cmd: "open -R /tmp/open-island/README.md",
-              sandbox_permissions: "require_escalated",
-              justification: "Allow revealing the README in Finder?"
-            }); text(r.output)
-            """#
-        ))
-
-        CodexRolloutReducer.apply(
-            line: rolloutLine(
-                timestamp: "2026-08-02T10:01:01.000Z",
-                type: "response_item",
+    @Test(arguments: ["auto_review", "user", "full_access"])
+    func codexRolloutDoesNotInferHumanApprovalFromPermissionTool(reviewer: String) {
+        for input in [
+            #"await tools.exec_command({cmd: "sleep 25", sandbox_permissions: "require_escalated"})"#,
+            #"await tools.request_permissions({permissions: {network: {enabled: true}}})"#,
+        ] {
+            var lines = desktopApprovalRolloutLines(input: input)
+            lines.insert(rolloutLine(
+                timestamp: "2026-08-02T10:01:00.000Z", type: "turn_context",
                 payload: [
-                    "type": "custom_tool_call_output",
-                    "call_id": "call-unrelated",
-                    "output": "done",
+                    "approval_policy": reviewer == "full_access" ? "never" : "on-request",
+                    "approvals_reviewer": reviewer == "full_access" ? "user" : reviewer,
                 ]
-            ),
-            to: &snapshot
-        )
-
-        #expect(snapshot.phase == .needsAttention)
-        #expect(snapshot.summary == "Needs attention in Codex.")
-
-        CodexRolloutReducer.apply(
-            line: rolloutLine(
-                timestamp: "2026-08-02T10:01:02.000Z",
-                type: "response_item",
-                payload: [
-                    "type": "custom_tool_call_output",
-                    "call_id": "call-desktop-approval",
-                    "output": "Script completed successfully",
-                ]
-            ),
-            to: &snapshot
-        )
-
-        #expect(snapshot.phase == .running)
-        #expect(snapshot.summary == "Thinking.")
-    }
-
-    @Test
-    func codexRolloutReducerMarksDirectDesktopNetworkPermissionAsNeedsAttention() {
-        let snapshot = CodexRolloutReducer.snapshot(for: desktopApprovalRolloutLines(
-            callID: "call-network-approval",
-            input: #"""
-            const r = await tools.request_permissions({
-              permissions: { network: { enabled: true } },
-              reason: "Allow ChatGPT to connect to the internet?"
-            }); text(r)
-            """#
-        ))
-
-        #expect(snapshot.phase == .needsAttention)
-        #expect(snapshot.summary == "Needs attention in Codex.")
+            ), at: 1)
+            let snapshot = CodexRolloutReducer.snapshot(for: lines)
+            // Even Ask for approval can use cached grants. A tool request is
+            // not evidence that Codex actually presented a human prompt.
+            #expect(snapshot.phase == .running)
+            #expect(snapshot.currentTool == "exec")
+            #expect(snapshot.summary == "Running exec.")
+        }
     }
 
     @Test
@@ -1615,7 +1558,7 @@ struct CodexSessionTrackingTests {
     }
 
     @Test
-    func codexRolloutWatcherUsesTargetDesktopOwnershipForPendingPermission() async throws {
+    func codexRolloutWatcherDoesNotInferHumanApprovalFromDesktopOwnership() async throws {
         let rootURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("open-island-rollout-desktop-approval-\(UUID().uuidString)", isDirectory: true)
         let rolloutURL = rootURL.appendingPathComponent("rollout.jsonl")
@@ -1654,10 +1597,8 @@ struct CodexSessionTrackingTests {
         watcher.stop()
 
         let events = await recorder.snapshot()
-        #expect(events.contains(where: {
-            $0.trackedActivityUpdate?.phase == .needsAttention
-                && $0.trackedActivityUpdate?.summary == "Needs attention in Codex."
-        }))
+        #expect(events.contains(where: { $0.trackedActivityUpdate?.phase == .running }))
+        #expect(!events.contains(where: { $0.trackedActivityUpdate?.phase == .needsAttention }))
     }
 
     @Test

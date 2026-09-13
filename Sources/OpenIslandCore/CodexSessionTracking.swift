@@ -878,7 +878,6 @@ public struct CodexRolloutWatchTarget: Equatable, Sendable {
 
 public struct CodexRolloutSnapshot: Equatable, Sendable {
     public var runtimeSurface: CodexRuntimeSurface
-    var pendingDesktopApprovalCallIDs: Set<String>
     public var summary: String?
     public var phase: SessionPhase
     public var updatedAt: Date?
@@ -926,7 +925,6 @@ public struct CodexRolloutSnapshot: Equatable, Sendable {
         isInterrupted: Bool = false
     ) {
         self.runtimeSurface = runtimeSurface
-        pendingDesktopApprovalCallIDs = []
         self.summary = summary
         self.phase = phase
         self.updatedAt = updatedAt
@@ -1048,6 +1046,7 @@ public enum CodexRolloutReducer {
         default:
             break
         }
+
     }
 
     private static func applySessionMeta(
@@ -1205,7 +1204,6 @@ public enum CodexRolloutReducer {
             return
         case "task_complete", "turn_complete":
             finishCurrentProcessingSegment(at: timestamp, in: &snapshot)
-            snapshot.pendingDesktopApprovalCallIDs.removeAll()
             snapshot.currentTool = nil
             snapshot.currentCommandPreview = nil
             snapshot.phase = .completed
@@ -1220,7 +1218,6 @@ public enum CodexRolloutReducer {
             }
         case "turn_aborted":
             finishCurrentProcessingSegment(at: timestamp, in: &snapshot)
-            snapshot.pendingDesktopApprovalCallIDs.removeAll()
             snapshot.currentTool = nil
             snapshot.currentCommandPreview = nil
             snapshot.phase = .completed
@@ -1570,15 +1567,9 @@ public enum CodexRolloutReducer {
                 return
             }
 
-            if payload["type"] as? String == "custom_tool_call",
-               isDesktopPermissionRequest(payload, runtimeSurface: snapshot.runtimeSurface) {
-                if let callID = clipped(payload["call_id"] as? String) {
-                    snapshot.pendingDesktopApprovalCallIDs.insert(callID)
-                }
-                applyDesktopApprovalAttention(to: &snapshot)
-                break
-            }
-
+            // A permission-requesting tool may be automatically reviewed or
+            // covered by an existing grant. Its transcript does not tell us
+            // whether Codex is waiting for a person, even when the call yields.
             applyGoalLifecycle(
                 toolName: toolName,
                 arguments: payload["arguments"],
@@ -1622,15 +1613,7 @@ public enum CodexRolloutReducer {
                 eventTimestamp: timestamp,
                 to: &snapshot
             )
-            let callID = clipped(payload["call_id"] as? String)
-            if let callID {
-                snapshot.pendingDesktopApprovalCallIDs.remove(callID)
-            }
-            if snapshot.pendingDesktopApprovalCallIDs.isEmpty {
-                applyThinking(to: &snapshot)
-            } else {
-                applyDesktopApprovalAttention(to: &snapshot)
-            }
+            applyThinking(to: &snapshot)
         default:
             return
         }
@@ -1638,90 +1621,6 @@ public enum CodexRolloutReducer {
         if let timestamp {
             snapshot.updatedAt = timestamp
         }
-    }
-
-    private static func isDesktopPermissionRequest(
-        _ payload: [String: Any],
-        runtimeSurface: CodexRuntimeSurface
-    ) -> Bool {
-        guard runtimeSurface == .desktopApp,
-              payload["name"] as? String == "exec",
-              let input = payload["input"] as? String else {
-            return false
-        }
-
-        let escalatedExecProperty = #"(?:["']?sandbox_permissions["']?)\s*:\s*["']require_escalated["']"#
-        if containsExecutableJavaScriptPattern(escalatedExecProperty, in: input) {
-            return true
-        }
-
-        let requestPermissionsCall = #"tools\s*\.\s*request_permissions\s*\("#
-        return containsExecutableJavaScriptPattern(requestPermissionsCall, in: input)
-    }
-
-    private static func containsExecutableJavaScriptPattern(
-        _ pattern: String,
-        in source: String
-    ) -> Bool {
-        guard let expression = try? NSRegularExpression(pattern: pattern) else {
-            return false
-        }
-
-        let searchRange = NSRange(source.startIndex..<source.endIndex, in: source)
-        return expression.matches(in: source, range: searchRange).contains { match in
-            guard let range = Range(match.range, in: source) else {
-                return false
-            }
-            return isExecutableJavaScriptPosition(range.lowerBound, in: source)
-        }
-    }
-
-    private static func isExecutableJavaScriptPosition(
-        _ position: String.Index,
-        in source: String
-    ) -> Bool {
-        var cursor = source.startIndex
-        var quote: Character?
-        var isEscaped = false
-        var isLineComment = false
-        var isBlockComment = false
-
-        while cursor < position {
-            let character = source[cursor]
-            let nextIndex = source.index(after: cursor)
-            let nextCharacter = nextIndex < source.endIndex ? source[nextIndex] : nil
-
-            if isLineComment {
-                if character == "\n" {
-                    isLineComment = false
-                }
-            } else if isBlockComment {
-                if character == "*", nextCharacter == "/" {
-                    isBlockComment = false
-                    cursor = nextIndex
-                }
-            } else if let activeQuote = quote {
-                if isEscaped {
-                    isEscaped = false
-                } else if character == "\\" {
-                    isEscaped = true
-                } else if character == activeQuote {
-                    quote = nil
-                }
-            } else if character == "\"" || character == "'" || character == "`" {
-                quote = character
-            } else if character == "/", nextCharacter == "/" {
-                isLineComment = true
-                cursor = nextIndex
-            } else if character == "/", nextCharacter == "*" {
-                isBlockComment = true
-                cursor = nextIndex
-            }
-
-            cursor = source.index(after: cursor)
-        }
-
-        return quote == nil && !isLineComment && !isBlockComment
     }
 
     private static func applyToolActivity(
@@ -1768,19 +1667,6 @@ public enum CodexRolloutReducer {
         snapshot.isCompleted = false
         snapshot.isInterrupted = false
         snapshot.summary = summary ?? "Approval needed."
-    }
-
-    private static func applyDesktopApprovalAttention(to snapshot: inout CodexRolloutSnapshot) {
-        guard !snapshot.isCompleted else {
-            return
-        }
-
-        snapshot.currentTool = nil
-        snapshot.currentCommandPreview = nil
-        snapshot.phase = .needsAttention
-        snapshot.isCompleted = false
-        snapshot.isInterrupted = false
-        snapshot.summary = "Needs attention in Codex."
     }
 
     private static func applyQuestionRequest(summary: String?, to snapshot: inout CodexRolloutSnapshot) {

@@ -69,10 +69,64 @@ own approval policy resolves the tool automatically. When rollout discovery
 classifies the session as Desktop-owned—or `terminal_app` is `Codex.app`—Open
 Island acknowledges those interactive hooks without creating a local approval
 request. Codex Desktop remains responsible for deciding or presenting the
-approval. Open Island may still show a non-actionable needs-attention state
-from app-server status or an unresolved native permission call in the Desktop
-rollout. That state has no duplicate allow/deny controls and deep-links back to
-the exact Codex task, where the user resolves the request.
+approval. An unresolved `require_escalated` or `request_permissions` call is
+ordinary tool activity, including across yielded execution cells. It does not
+establish that a person needs to act in any permission mode:
+
+- **Ask for approval:** notify only when Codex actually presents a human request;
+  a tool call can already have a cached grant.
+- **Approve for me:** automatic safety reviews must stay quiet; only requests
+  escalated to the person should notify.
+- **Full access:** ordinary tool execution must stay quiet; a separate app-level
+  human permission request can still need attention.
+
+Open Island follows the owning Desktop window through the same-user IPC socket
+at `~/.codex/ipc/ipc.sock`. The supported internal protocol is
+`thread-stream-state-changed` version 11. Snapshots and revision-checked patches
+provide the actual pending `requests` list, separately from automatic-review
+items. Command, file, permission, and MCP elicitation requests produce persistent
+**Needs attention in Codex** with a task jump target. A real Calculator app
+permission was observed in this list with `auto_review_enabled: true`.
+
+The notification remains visible across unrelated activity and clicks outside
+the Island, and clears when the owning window removes the last request.
+Explicit Island dismissal remains available. An empty owner list must explicitly
+resolve the permission card before replaying running activity: ordinary updates
+intentionally preserve unresolved approvals. An empty owner snapshot also
+clears a restored Desktop permission after restarting Open Island. Repeated
+observations do not reopen a manually dismissed notification. Real human
+requests can notify even when Codex is foreground. Revision gaps trigger a new snapshot; reconnects resubscribe.
+A disconnect or unknown protocol version does not establish resolution. Only
+request state is retained in memory; the received conversation history is
+discarded. This is an internal versioned protocol, not a documented stable
+companion API; Codex updates may require adapting the reader.
+
+The connection never starts a router or takes thread ownership. Plain Computer
+Use app-access prompts (`get_app_state`, one app identifier, no form fields)
+can show **Allow once** and **Deny**. A user click carries the displayed request's
+identity; the client revalidates its owner and full prompt against current
+stream state, then sends the corresponding follower response. It never adds a
+persistent grant. Disconnected, outdated, and replaced requests cannot be
+answered, and the card only clears when the owner removes the request.
+
+Other command, file, permission, and richer elicitation requests keep the
+non-actionable jump-to-Codex notification. This avoids presenting a decision
+without the complete review UI required by that request. Tests cover the actual
+Calculator payload, both decisions, transport failure, stale clicks, multiple
+requests, revision gaps, reconnect snapshots, and clearing app-access cards
+when the user responds inside Codex, including after an Island restart. Manual
+verification should cover automatic-review silence, Island Allow/Deny actions,
+and notification clearing after a response inside Codex.
+The separate `codex app-server` subprocess continues providing metadata; its
+`waitingOnApproval` flag alone no longer creates a human-attention notification.
+
+See [Codex permission modes](https://learn.chatgpt.com/docs/permission-modes),
+[automatic review](https://learn.chatgpt.com/docs/sandboxing/auto-review), and
+[app-server approval protocol](https://learn.chatgpt.com/docs/app-server).
+
+When a resumed task has several rollout files with the same session ID, startup
+must not replace its active transcript with an older discovered copy. Otherwise
+the watcher misses new events even though the task still appears in Agents.
 
 Codex CLI sessions launched from a terminal keep the hook-backed blocking flow:
 Open Island displays the request and returns the user's allow or deny directive

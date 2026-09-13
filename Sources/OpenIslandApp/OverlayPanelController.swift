@@ -301,8 +301,10 @@ final class OverlayPanelController {
             cancelHoverOpenImmediately()
         } else if model.notchStatus == .opened {
             if !isPointInExpandedArea(screenLocation) {
-                model.notchClose()
-                repostMouseDown(at: screenLocation)
+                model.handlePointerPressedOutsideIslandSurface()
+                if model.notchStatus == .closed {
+                    repostMouseDown(at: screenLocation)
+                }
             }
         }
     }

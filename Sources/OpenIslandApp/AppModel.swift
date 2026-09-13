@@ -1373,6 +1373,15 @@ final class AppModel {
     private func refreshOverlayPlacementIfVisible() { overlay.refreshOverlayPlacementIfVisible() }
     func notePointerInsideIslandSurface() { overlay.notePointerInsideIslandSurface() }
     func handlePointerExitedIslandSurface() { overlay.handlePointerExitedIslandSurface() }
+    func handlePointerPressedOutsideIslandSurface() {
+        // Working in another app must not dismiss a real pending Codex request.
+        // Explicit Island dismissal and request resolution still close the card.
+        if let sessionID = islandSurface.sessionID,
+           desktopPendingRequestIDs[sessionID]?.isEmpty == false {
+            return
+        }
+        notchClose()
+    }
     private func presentNotificationSurface(_ surface: IslandSurface) { overlay.presentNotificationSurface(surface) }
     private func reconcileIslandSurfaceAfterStateChange() { overlay.reconcileIslandSurfaceAfterStateChange() }
     private func dismissNotificationSurfaceIfPresent(for sessionID: String) { overlay.dismissNotificationSurfaceIfPresent(for: sessionID) }

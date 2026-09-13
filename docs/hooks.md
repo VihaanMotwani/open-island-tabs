@@ -88,9 +88,10 @@ items. Command, file, permission, and MCP elicitation requests produce persisten
 **Needs attention in Codex** with a task jump target. A real Calculator app
 permission was observed in this list with `auto_review_enabled: true`.
 
-The notification remains pending across unrelated activity and clears when the
-owning window removes the last request. This must explicitly resolve the
-permission card before replaying running activity: ordinary running updates
+The notification remains visible across unrelated activity and clicks outside
+the Island, and clears when the owning window removes the last request.
+Explicit Island dismissal remains available. An empty owner list must explicitly
+resolve the permission card before replaying running activity: ordinary updates
 intentionally preserve unresolved approvals. An empty owner snapshot also
 clears a restored Desktop permission after restarting Open Island. Repeated
 observations do not reopen a manually dismissed notification. Real human

@@ -293,6 +293,7 @@ struct AppModelSessionListTests {
             sessionID: "desktop-human", summary: "Unrelated parallel work", phase: .running, timestamp: .now
         )), ingress: .rollout)
         model.overlay.handleNotificationAutoCollapseDeadline()
+        model.handlePointerPressedOutsideIslandSurface()
         #expect(model.notchStatus == .opened)
         #expect(model.state.session(id: "desktop-human")?.phase == .needsAttention)
         try receive(["type": "patches", "baseRevision": 2, "revision": 3, "patches": [
@@ -301,6 +302,8 @@ struct AppModelSessionListTests {
         #expect(model.state.session(id: "desktop-human")?.phase == .running)
         #expect(model.selectedIslandTab == .spotify)
         #expect(model.notchOpenReason == .click)
+        model.handlePointerPressedOutsideIslandSurface()
+        #expect(model.notchStatus == .closed)
     }
 
     @Test
@@ -408,6 +411,8 @@ struct AppModelSessionListTests {
             sessionID: "desktop-human", summary: "Reading app state", phase: .running, timestamp: .now
         )), ingress: .rollout)
         #expect(model.state.session(id: "desktop-human")?.phase == .waitingForApproval)
+        model.handlePointerPressedOutsideIslandSurface()
+        #expect(model.notchStatus == .opened)
         if restored {
             // A restart restores the visible permission without an in-memory IPC cache.
             let saved = model.state

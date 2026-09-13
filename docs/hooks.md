@@ -89,9 +89,12 @@ items. Command, file, permission, and MCP elicitation requests produce persisten
 permission was observed in this list with `auto_review_enabled: true`.
 
 The notification remains pending across unrelated activity and clears when the
-owning window removes the last request. Repeated observations do not reopen a
-manually dismissed notification. Real human requests can notify even when Codex
-is foreground. Revision gaps trigger a new snapshot; reconnects resubscribe.
+owning window removes the last request. This must explicitly resolve the
+permission card before replaying running activity: ordinary running updates
+intentionally preserve unresolved approvals. An empty owner snapshot also
+clears a restored Desktop permission after restarting Open Island. Repeated
+observations do not reopen a manually dismissed notification. Real human
+requests can notify even when Codex is foreground. Revision gaps trigger a new snapshot; reconnects resubscribe.
 A disconnect or unknown protocol version does not establish resolution. Only
 request state is retained in memory; the received conversation history is
 discarded. This is an internal versioned protocol, not a documented stable
@@ -109,8 +112,10 @@ Other command, file, permission, and richer elicitation requests keep the
 non-actionable jump-to-Codex notification. This avoids presenting a decision
 without the complete review UI required by that request. Tests cover the actual
 Calculator payload, both decisions, transport failure, stale clicks, multiple
-requests, revision gaps, and reconnect snapshots. A fresh human click through
-the installed Island remains the final end-to-end verification step.
+requests, revision gaps, reconnect snapshots, and clearing app-access cards
+when the user responds inside Codex, including after an Island restart. Manual
+verification should cover automatic-review silence, Island Allow/Deny actions,
+and notification clearing after a response inside Codex.
 The separate `codex app-server` subprocess continues providing metadata; its
 `waitingOnApproval` flag alone no longer creates a human-attention notification.
 

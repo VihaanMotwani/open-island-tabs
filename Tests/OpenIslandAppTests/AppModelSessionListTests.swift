@@ -390,6 +390,44 @@ struct AppModelSessionListTests {
         #expect(model.notchStatus == .opened)
     }
 
+    @Test(arguments: [false, true])
+    func desktopAppPermissionClearsWhenResolvedInsideCodex(restored: Bool) throws {
+        var model = AppModel()
+        model.isSoundMuted = true
+        model.suppressFrontmostNotifications = false
+        model.state = SessionState(sessions: [AgentSession(
+            id: "desktop-human", title: "Human approval", tool: .codex,
+            attachmentState: .attached, phase: .running, summary: "Working",
+            updatedAt: .now, codexRuntimeSurface: .desktopApp
+        )])
+        var stream = CodexDesktopRequestStream()
+        let pending = Data(#"{"type":"broadcast","method":"thread-stream-state-changed","version":11,"sourceClientId":"owner","params":{"hostId":"local","conversationId":"desktop-human","change":{"type":"snapshot","revision":1,"conversationState":{"requests":[{"id":75,"method":"mcpServer/elicitation/request","params":{"threadId":"desktop-human","mode":"form","message":"Allow Computer Use to use Font Book?","requestedSchema":{"type":"object","properties":{}},"_meta":{"codex_approval_kind":"mcp_tool_call","connector_id":"computer-use","tool_name":"get_app_state","tool_params":{"app":"com.apple.FontBook"}}}}]}}}}"#.utf8)
+        let pendingUpdate = stream.receive(pending)
+        model.applyCodexDesktopAttention(try #require(pendingUpdate))
+        model.applyTrackedEvent(.activityUpdated(SessionActivityUpdated(
+            sessionID: "desktop-human", summary: "Reading app state", phase: .running, timestamp: .now
+        )), ingress: .rollout)
+        #expect(model.state.session(id: "desktop-human")?.phase == .waitingForApproval)
+        if restored {
+            // A restart restores the visible permission without an in-memory IPC cache.
+            let saved = model.state
+            model = AppModel()
+            model.isSoundMuted = true
+            model.state = saved
+            stream.reset()
+        }
+        // No Island button is clicked: Codex removes its own resolved request.
+        let resolved = Data(#"{"type":"broadcast","method":"thread-stream-state-changed","version":11,"sourceClientId":"owner","params":{"hostId":"local","conversationId":"desktop-human","change":{"type":"snapshot","revision":2,"conversationState":{"requests":[]}}}}"#.utf8)
+        let resolvedUpdate = stream.receive(resolved)
+        model.applyCodexDesktopAttention(try #require(resolvedUpdate))
+        #expect(model.state.session(id: "desktop-human")?.phase == .running)
+        #expect(model.state.session(id: "desktop-human")?.permissionRequest == nil)
+        #expect(model.notchStatus == .closed)
+        if !restored {
+            #expect(model.state.session(id: "desktop-human")?.summary == "Reading app state")
+        }
+    }
+
     @Test
     func desktopStatusDoesNotOverwriteHookBackedCLIApproval() throws {
         let model = AppModel()

@@ -1661,7 +1661,16 @@ final class AppModel {
             desktopAppApprovals.removeValue(forKey: update.sessionID)
             desktopPresentedPermissions.removeValue(forKey: update.sessionID)
             desktopPendingRequestIDs.removeValue(forKey: update.sessionID)
-            guard wasPending || state.session(id: update.sessionID)?.phase == .needsAttention else { return }
+            let phase = state.session(id: update.sessionID)?.phase
+            guard wasPending || phase == .needsAttention || phase == .waitingForApproval else { return }
+            // Ordinary running activity intentionally preserves a permission card.
+            // The owner's empty request list is an explicit resolution, including
+            // when the pending card was restored after an app restart.
+            if phase == .waitingForApproval {
+                applyTrackedEvent(.actionableStateResolved(ActionableStateResolved(
+                    sessionID: update.sessionID, summary: "Codex permission resolved.", timestamp: .now
+                )), updateLastActionMessage: false)
+            }
             let resumed = desktopDeferredActivity.removeValue(forKey: update.sessionID)
                 ?? .activityUpdated(SessionActivityUpdated(
                     sessionID: update.sessionID, summary: "Codex is working…", phase: .running, timestamp: .now

@@ -3,6 +3,8 @@
 The Spotify tab uses an artwork-led player with left-aligned song information,
 a seek bar with elapsed and total time, transport controls, and volume.
 Spotify remains the playback provider; this change adds no music services.
+Album covers use clean rounded edges without an ambient glow, keeping the
+presentation understated and consistent with the surrounding macOS controls.
 
 The seek bar uses one native control for drawing and input, with a 22-point hit
 area. Clicking sets an absolute position; dragging follows the pointer in either
@@ -28,7 +30,7 @@ opened tabs retain priority over the 2.2-second track-change preview.
 Adapted from TheBoredTeam's [Boring Notch at 99900bf](https://github.com/TheBoredTeam/boring.notch/tree/99900bf630a3d3e97fae079df2175993318d51f7):
 
 - `boringNotch/components/Notch/NotchHomeView.swift`: artwork-led layout,
-  left-aligned metadata, progress/time labels, artwork glow and paused scaling.
+  left-aligned metadata, progress/time labels and paused scaling.
   Created by Hugo Persson; modified by Harsh Vardhan Goswami, Richard Kunkli,
   Mustafa Ramadan, and contributors.
 - `boringNotch/ContentView.swift`: shared album-art geometry between closed
@@ -53,5 +55,5 @@ OPEN_ISLAND_HARNESS_SCENARIO=spotifyPaused zsh scripts/harness.sh smoke
 OPEN_ISLAND_HARNESS_SCENARIO=spotifyLongTitle zsh scripts/harness.sh smoke
 ```
 
-The harness uses original geometric covers. Its AppKit cache-display PNGs can
-omit SwiftUI blur compositing, so assess the artwork glow in the live app.
+The harness uses original geometric covers. Assess the final appearance and
+song transitions in the refreshed development bundle as well.

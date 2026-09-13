@@ -1,4 +1,4 @@
-// Player composition, artwork glow and paused scaling adapted from Boring Notch's
+// Player composition and paused scaling adapted from Boring Notch's
 // NotchHomeView.swift (GPL-3.0), by Hugo Persson, Harsh Vardhan Goswami,
 // Richard Kunkli, Mustafa Ramadan, and contributors. Modified for Open Island's
 // Spotify controls, synchronized track presentation, and accessibility.
@@ -14,7 +14,6 @@ struct SpotifyPlayerView: View {
     var artworkNamespace: Namespace.ID?
     var artworkIsSource = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     @State private var scrubPosition: TimeInterval = 0
     @State private var volume: Double = 0
@@ -131,33 +130,19 @@ struct SpotifyPlayerView: View {
     }
 
     private var artwork: some View {
-        ZStack {
-            if let image = model.presentation.track?.artwork, !reduceTransparency {
-                Image(nsImage: image)
-                    .resizable()
-                    .scaledToFit()
-                    .scaleEffect(1.18)
-                    .blur(radius: 18)
-                    .opacity(snapshot.playbackState == .playing ? 0.3 : 0.08)
-                    .id(model.presentation.track?.id)
-                    .transition(.opacity)
+        MusicArtworkView(track: model.presentation.track, cornerRadius: 13,
+            namespace: artworkNamespace, isSource: artworkIsSource)
+            .scaleEffect(snapshot.playbackState == .playing || reduceMotion ? 1 : 0.9)
+            .overlay(alignment: .bottomTrailing) {
+                SpotifyGlyph()
+                    .frame(width: 16, height: 16)
+                    .padding(3)
+                    .background(.black, in: Circle())
+                    .offset(x: 5, y: 5)
                     .accessibilityHidden(true)
             }
-            MusicArtworkView(track: model.presentation.track, cornerRadius: 13,
-                namespace: artworkNamespace, isSource: artworkIsSource)
-                .scaleEffect(snapshot.playbackState == .playing || reduceMotion ? 1 : 0.9)
-                .overlay(alignment: .bottomTrailing) {
-                    SpotifyGlyph()
-                        .frame(width: 16, height: 16)
-                        .padding(3)
-                        .background(.black, in: Circle())
-                        .offset(x: 5, y: 5)
-                        .accessibilityHidden(true)
-                }
-        }
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: model.presentation.track?.id)
-        .animation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.85), value: snapshot.playbackState)
-        .accessibilityHidden(true)
+            .animation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.85), value: snapshot.playbackState)
+            .accessibilityHidden(true)
     }
 
     private var unavailableState: some View {

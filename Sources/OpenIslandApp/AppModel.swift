@@ -69,6 +69,12 @@ final class AppModel {
     let discovery: SessionDiscoveryCoordinator
     let monitoring = ProcessMonitoringCoordinator()
     let codexAppServer = CodexAppServerCoordinator()
+    @ObservationIgnored private var desktopAttentionEnabled = false
+    @ObservationIgnored private lazy var desktopIPC = CodexDesktopIPCClient { [weak self] update in
+        Task { @MainActor [weak self] in self?.applyCodexDesktopAttention(update) }
+    }
+    @ObservationIgnored private var desktopPendingRequestIDs: [String: Set<String>] = [:]
+    @ObservationIgnored private var desktopDeferredActivity: [String: AgentEvent] = [:]
     let updateChecker = UpdateChecker()
     let spotifyPlayback: SpotifyPlaybackModel
     let taskStore: TaskStore
@@ -734,6 +740,8 @@ final class AppModel {
         discovery.stateAccessor = { [weak self] in self?.state ?? SessionState() }
         discovery.stateUpdater = { [weak self] in self?.state = $0 }
         discovery.onStateChanged = { [weak self] in
+            self?.restoreDesktopAttentionAfterDiscovery()
+            self?.syncCodexDesktopAttention()
             self?.synchronizeSelection()
             self?.refreshOverlayPlacementIfVisible()
             self?.codexAppServer.refreshThreadsIfNeeded()
@@ -788,6 +796,8 @@ final class AppModel {
         monitoring.stateAccessor = { [weak self] in self?.state ?? SessionState() }
         monitoring.stateUpdater = { [weak self] in self?.state = $0 }
         monitoring.onSessionsReconciled = { [weak self] in
+            self?.restoreDesktopAttentionAfterDiscovery()
+            self?.syncCodexDesktopAttention()
             self?.synchronizeSelection()
             self?.refreshOverlayPlacementIfVisible()
         }
@@ -810,6 +820,7 @@ final class AppModel {
             if !self.isResolvingInitialLiveSessions {
                 self.discovery.maintainCodexAppSessionsIfNeeded()
                 self.codexAppServer.refreshThreadsIfNeeded()
+                self.syncCodexDesktopAttention()
             }
         }
         refreshOverlayDisplayConfiguration()
@@ -1196,6 +1207,7 @@ final class AppModel {
         hasStarted = true
 
         if loadRuntimeState {
+            desktopAttentionEnabled = true
             isResolvingInitialLiveSessions = true
 
             Task.detached(priority: .userInitiated) { [weak self] in
@@ -1607,12 +1619,60 @@ final class AppModel {
         return .deny(message: "Permission denied in Open Island.", interrupt: false)
     }
 
+    private func syncCodexDesktopAttention() {
+        guard desktopAttentionEnabled else { return }
+        desktopIPC.sync(sessionIDs: Set(state.sessions.filter {
+            $0.codexRuntimeSurface == .desktopApp && !$0.isSessionEnded
+        }.map(\.id)))
+    }
+
+    func applyCodexDesktopAttention(_ update: CodexDesktopAttentionUpdate) {
+        guard state.session(id: update.sessionID)?.codexRuntimeSurface == .desktopApp else { return }
+        let wasPending = desktopPendingRequestIDs[update.sessionID]?.isEmpty == false
+        if update.pendingRequestIDs.isEmpty {
+            desktopPendingRequestIDs.removeValue(forKey: update.sessionID)
+            guard wasPending || state.session(id: update.sessionID)?.phase == .needsAttention else { return }
+            let resumed = desktopDeferredActivity.removeValue(forKey: update.sessionID)
+                ?? .activityUpdated(SessionActivityUpdated(
+                    sessionID: update.sessionID, summary: "Codex is working…", phase: .running, timestamp: .now
+                ))
+            applyTrackedEvent(resumed, updateLastActionMessage: false)
+        } else {
+            desktopPendingRequestIDs[update.sessionID] = update.pendingRequestIDs
+            applyTrackedEvent(.activityUpdated(SessionActivityUpdated(
+                sessionID: update.sessionID, summary: "Needs attention in Codex.", phase: .needsAttention, timestamp: .now
+            )), updateLastActionMessage: false)
+        }
+    }
+
+    private func preservingDesktopAttention(in event: AgentEvent) -> AgentEvent {
+        let id: String
+        switch event {
+        case .activityUpdated(let payload) where payload.phase != .needsAttention: id = payload.sessionID
+        case .sessionCompleted(let payload): id = payload.sessionID
+        default: return event
+        }
+        guard desktopPendingRequestIDs[id]?.isEmpty == false else { return event }
+        desktopDeferredActivity[id] = event
+        return .activityUpdated(SessionActivityUpdated(
+            sessionID: id, summary: "Needs attention in Codex.", phase: .needsAttention, timestamp: .now
+        ))
+    }
+
+    private func restoreDesktopAttentionAfterDiscovery() {
+        for (id, requests) in desktopPendingRequestIDs where !requests.isEmpty {
+            state.apply(.activityUpdated(SessionActivityUpdated(
+                sessionID: id, summary: "Needs attention in Codex.", phase: .needsAttention, timestamp: .now
+            )))
+        }
+    }
+
     func applyTrackedEvent(
         _ event: AgentEvent,
         updateLastActionMessage: Bool = true,
         ingress: TrackedEventIngress = .bridge
     ) {
-        let event = preservingCodexConfiguration(in: event, ingress: ingress)
+        let event = preservingDesktopAttention(in: preservingCodexConfiguration(in: event, ingress: ingress))
         if let internalSessionID = internalCodexAmbientSessionID(for: event) {
             state.removeSession(id: internalSessionID)
             dismissNotificationSurfaceIfPresent(for: internalSessionID)
@@ -1778,7 +1838,7 @@ final class AppModel {
             return
         }
 
-        guard suppressFrontmostNotifications else {
+        guard suppressFrontmostNotifications, desktopPendingRequestIDs[sessionID]?.isEmpty != false else {
             presentNotificationSurface(surface)
             return
         }

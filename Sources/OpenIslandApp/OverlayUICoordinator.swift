@@ -571,6 +571,7 @@ final class OverlayUICoordinator {
     }
 
     func handleNotificationAutoCollapseDeadline() {
+        guard islandSurface.autoDismissesWhenPresentedAsNotification(session: activeIslandCardSession) else { return }
         notificationAutoCollapseTask?.cancel()
         notificationAutoCollapseTask = nil
 

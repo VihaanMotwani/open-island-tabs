@@ -135,7 +135,7 @@ struct AppModelSessionListTests {
     }
 
     @Test
-    func desktopApprovalStatusOpensAttentionAndClearsOnResolution() throws {
+    func desktopApprovalStatusAloneDoesNotInventHumanAttention() throws {
         let model = AppModel()
         model.suppressFrontmostNotifications = false
         model.isSoundMuted = true
@@ -170,13 +170,10 @@ struct AppModelSessionListTests {
             .threadStatusChanged(threadId: "desktop-thread", status: waitingStatus)
         )
 
-        #expect(model.state.session(id: "desktop-thread")?.phase == .needsAttention)
+        #expect(model.state.session(id: "desktop-thread")?.phase == .running)
         #expect(model.state.session(id: "desktop-thread")?.permissionRequest == nil)
         #expect(model.state.session(id: "desktop-thread")?.jumpTarget == jumpTarget)
-        #expect(model.notchStatus == .opened)
-        #expect(model.notchOpenReason == .notification)
-        #expect(model.selectedIslandTab == .agents)
-        #expect(model.islandSurface == .sessionList(actionableSessionID: "desktop-thread"))
+        #expect(model.notchStatus == .closed)
 
         let runningStatus = try JSONDecoder().decode(CodexThreadStatus.self, from: Data("""
         {"type":"active","activeFlags":[]}
@@ -248,6 +245,113 @@ struct AppModelSessionListTests {
         }
         #expect(model.state.session(id: "yielded-permission")?.phase == .running)
         #expect(model.notchStatus == .closed)
+    }
+
+    @Test
+    func desktopHumanRequestStaysVisibleUntilOwnerRemovesIt() throws {
+        let model = AppModel()
+        model.isSoundMuted = true
+        model.suppressFrontmostNotifications = false
+        model.selectIslandTab(.spotify)
+        model.notchOpen(reason: .click)
+        model.state = SessionState(sessions: [AgentSession(
+            id: "desktop-human", title: "Human approval", tool: .codex,
+            attachmentState: .attached, phase: .running, summary: "Working",
+            updatedAt: .now, codexRuntimeSurface: .desktopApp
+        )])
+        var stream = CodexDesktopRequestStream()
+        func receive(_ change: [String: Any]) throws {
+            let data = try JSONSerialization.data(withJSONObject: [
+                "type": "broadcast", "method": "thread-stream-state-changed", "version": 11,
+                "sourceClientId": "owner", "params": [
+                    "hostId": "local", "conversationId": "desktop-human", "change": change,
+                ],
+            ])
+            if let update = stream.receive(data) {
+                model.applyCodexDesktopAttention(update)
+            }
+        }
+        // Shape captured from a real Calculator permission in Approve for me.
+        let request: [String: Any] = [
+            "id": 75, "method": "mcpServer/elicitation/request", "params": [
+                "threadId": "desktop-human", "mode": "form", "serverName": "cua_repl",
+                "message": "Allow Computer Use to use Calculator?",
+                "_meta": ["codex_approval_kind": "mcp_tool_call",
+                          "x-codex-turn-metadata": ["auto_review_enabled": true]],
+            ],
+        ]
+        try receive(["type": "snapshot", "revision": 1, "conversationState": ["requests": []]])
+        #expect(model.selectedIslandTab == .spotify)
+        try receive(["type": "patches", "baseRevision": 1, "revision": 2, "patches": [
+            ["op": "add", "path": ["requests", 0], "value": request],
+        ]])
+        #expect(model.state.session(id: "desktop-human")?.phase == .needsAttention)
+        #expect(model.selectedIslandTab == .agents)
+        #expect(model.islandSurface == .sessionList(actionableSessionID: "desktop-human"))
+        #expect(model.state.session(id: "desktop-human")?.permissionRequest == nil)
+        model.applyTrackedEvent(.activityUpdated(SessionActivityUpdated(
+            sessionID: "desktop-human", summary: "Unrelated parallel work", phase: .running, timestamp: .now
+        )), ingress: .rollout)
+        model.overlay.handleNotificationAutoCollapseDeadline()
+        #expect(model.notchStatus == .opened)
+        #expect(model.state.session(id: "desktop-human")?.phase == .needsAttention)
+        try receive(["type": "patches", "baseRevision": 2, "revision": 3, "patches": [
+            ["op": "replace", "path": ["requests"], "value": []],
+        ]])
+        #expect(model.state.session(id: "desktop-human")?.phase == .running)
+        #expect(model.selectedIslandTab == .spotify)
+        #expect(model.notchOpenReason == .click)
+    }
+
+    @Test
+    func desktopRequestSnapshotsRecoverGapsAndKeepOtherRequestsPending() throws {
+        let model = AppModel()
+        model.isSoundMuted = true
+        model.suppressFrontmostNotifications = true
+        model.state = SessionState(sessions: [AgentSession(
+            id: "desktop-human", title: "Human approval", tool: .codex,
+            attachmentState: .attached, phase: .running, summary: "Working",
+            updatedAt: .now, codexRuntimeSurface: .desktopApp
+        )])
+        var stream = CodexDesktopRequestStream()
+        func receive(_ change: [String: Any], version: Int = 11) throws {
+            let data = try JSONSerialization.data(withJSONObject: [
+                "type": "broadcast", "method": "thread-stream-state-changed", "version": version,
+                "sourceClientId": "owner", "params": [
+                    "hostId": "local", "conversationId": "desktop-human", "change": change,
+                ],
+            ])
+            if let update = stream.receive(data) { model.applyCodexDesktopAttention(update) }
+        }
+        func request(_ id: Int) -> [String: Any] {
+            ["id": id, "method": "item/commandExecution/requestApproval", "params": ["threadId": "desktop-human"]]
+        }
+        try receive(["type": "snapshot", "revision": 0, "conversationState": [
+            "requests": [], "threadRuntimeStatus": ["type": "active", "activeFlags": ["waitingOnApproval"]],
+            "automaticApprovalReviewItems": [["status": "inProgress"]],
+        ]])
+        #expect(model.notchStatus == .closed)
+        try receive(["type": "snapshot", "revision": 1, "conversationState": ["requests": [request(1), request(2)]]])
+        #expect(model.notchStatus == .opened)
+        try receive(["type": "patches", "baseRevision": 1, "revision": 2, "patches": [
+            ["op": "remove", "path": ["requests", 0]],
+        ]])
+        #expect(model.state.session(id: "desktop-human")?.phase == .needsAttention)
+        // Missing revisions and unknown protocol versions cannot resolve a prompt.
+        try receive(["type": "patches", "baseRevision": 3, "revision": 4, "patches": [
+            ["op": "replace", "path": ["requests"], "value": []],
+        ]])
+        #expect(stream.needsSnapshot == ["desktop-human"])
+        try receive(["type": "snapshot", "revision": 5, "conversationState": ["requests": []]], version: 12)
+        #expect(model.state.session(id: "desktop-human")?.phase == .needsAttention)
+        model.notchClose()
+        try receive(["type": "snapshot", "revision": 5, "conversationState": ["requests": [request(2)]]])
+        #expect(model.notchStatus == .closed)
+        #expect(stream.needsSnapshot.isEmpty)
+        // Reconnect replaces cached state with an authoritative empty snapshot.
+        stream.reset()
+        try receive(["type": "snapshot", "revision": 0, "conversationState": ["requests": []]])
+        #expect(model.state.session(id: "desktop-human")?.phase == .running)
     }
 
     @Test

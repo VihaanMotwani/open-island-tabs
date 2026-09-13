@@ -80,19 +80,28 @@ establish that a person needs to act in any permission mode:
 - **Full access:** ordinary tool execution must stay quiet; a separate app-level
   human permission request can still need attention.
 
-The app-server status renderer can display a non-actionable `waitingOnApproval`
-notification with a link to the Codex task, but **live Desktop approval detection
-is not implemented**. Open Island launches its own `codex app-server` process;
-that process reports Desktop-owned tasks as `notLoaded` and does not receive the
-owning window's pending approval requests. Transcript inspection is not a
-substitute. Direct approve/reject is also unavailable without the owning
-connection's request ID and response channel.
+Open Island follows the owning Desktop window through the same-user IPC socket
+at `~/.codex/ipc/ipc.sock`. The supported internal protocol is
+`thread-stream-state-changed` version 11. Snapshots and revision-checked patches
+provide the actual pending `requests` list, separately from automatic-review
+items. Command, file, permission, and MCP elicitation requests produce persistent
+**Needs attention in Codex** with a task jump target. A real Calculator app
+permission was observed in this list with `auto_review_enabled: true`.
 
-The integration needs an authoritative human-request feed from the owning
-Desktop connection, with resolution events. Once connected, a human request
-must remain visible until resolved and must not be cleared by unrelated tool
-activity. This persistence and the human-vs-automatic distinction still require
-live end-to-end verification; synthetic status tests only verify rendering.
+The notification remains pending across unrelated activity and clears when the
+owning window removes the last request. Repeated observations do not reopen a
+manually dismissed notification. Real human requests can notify even when Codex
+is foreground. Revision gaps trigger a new snapshot; reconnects resubscribe.
+A disconnect or unknown protocol version does not establish resolution. Only
+request state is retained in memory; the received conversation history is
+discarded. This is an internal versioned protocol, not a documented stable
+companion API; Codex updates may require adapting the reader.
+
+The connection is read-only: it does not start a router, take thread ownership,
+or answer approvals. Direct allow/deny remains unavailable in this slice.
+The separate `codex app-server` subprocess continues providing metadata; its
+`waitingOnApproval` flag alone no longer creates a human-attention notification.
+
 See [Codex permission modes](https://learn.chatgpt.com/docs/permission-modes),
 [automatic review](https://learn.chatgpt.com/docs/sandboxing/auto-review), and
 [app-server approval protocol](https://learn.chatgpt.com/docs/app-server).

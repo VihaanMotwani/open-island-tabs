@@ -231,7 +231,7 @@ struct CodexAppServerCoordinatorTests {
 
     @MainActor
     @Test
-    func repeatedDesktopApprovalStatusEmitsOneNonActionableAttentionUpdate() throws {
+    func repeatedDesktopApprovalStatusDoesNotInferHumanAttention() throws {
         let coordinator = CodexAppServerCoordinator()
         var events: [AgentEvent] = []
         coordinator.onEvent = { events.append($0) }
@@ -246,20 +246,12 @@ struct CodexAppServerCoordinatorTests {
         coordinator.handleNotification(.threadStatusChanged(threadId: "desktop-thread", status: status))
         coordinator.handleNotification(.threadStatusChanged(threadId: "desktop-thread", status: status))
 
-        #expect(events.count == 1)
-        guard case let .activityUpdated(payload) = events.first else {
-            Issue.record("Desktop attention must not create an actionable permission request")
-            return
-        }
-        #expect(payload.sessionID == "desktop-thread")
-        #expect(payload.summary == "Needs attention in Codex.")
-        #expect(payload.phase == .needsAttention)
-        #expect(!events.contains { if case .permissionRequested = $0 { true } else { false } })
+        #expect(events.isEmpty)
     }
 
     @MainActor
     @Test
-    func desktopAttentionStatusIsClearedBeforeItCanBeReportedAgain() throws {
+    func desktopOrdinaryStatusStillUpdatesActivity() throws {
         let coordinator = CodexAppServerCoordinator()
         var events: [AgentEvent] = []
         coordinator.onEvent = { events.append($0) }
@@ -278,16 +270,12 @@ struct CodexAppServerCoordinatorTests {
         coordinator.handleNotification(.threadStatusChanged(threadId: "desktop-thread", status: workingStatus))
         coordinator.handleNotification(.threadStatusChanged(threadId: "desktop-thread", status: waitingStatus))
 
-        #expect(events.count == 3)
-        guard case let .activityUpdated(first) = events[0],
-              case let .activityUpdated(second) = events[1],
-              case let .activityUpdated(third) = events[2] else {
-            Issue.record("Desktop status changes must remain non-actionable activity updates")
+        #expect(events.count == 1)
+        guard case let .activityUpdated(payload) = events.first else {
+            Issue.record("Expected ordinary activity update")
             return
         }
-        #expect(first.phase == .needsAttention)
-        #expect(second.phase == .running)
-        #expect(second.summary == "Codex is working…")
-        #expect(third.phase == .needsAttention)
+        #expect(payload.phase == .running)
+
     }
 }

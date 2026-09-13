@@ -23,12 +23,6 @@ final class CodexAppServerCoordinator {
     @ObservationIgnored
     private var lastThreadSyncDate = Date.distantPast
 
-    /// Desktop status notifications can repeat while a thread waits for
-    /// attention. They contain no approval payload or resolution callback, so
-    /// remember the current status to avoid producing repeated interruptions.
-    @ObservationIgnored
-    private var desktopThreadsNeedingAttention: Set<String> = []
-
     /// Callback to emit AgentEvents into AppModel.
     @ObservationIgnored
     var onEvent: ((AgentEvent) -> Void)?
@@ -202,20 +196,11 @@ final class CodexAppServerCoordinator {
             switch status.type {
             case .active:
                 if status.isWaitingOnApproval {
-                    guard trackedRuntimeSurface(threadId) == .desktopApp,
-                          desktopThreadsNeedingAttention.insert(threadId).inserted else {
-                        return
-                    }
-                    onEvent?(.activityUpdated(
-                        SessionActivityUpdated(
-                            sessionID: threadId,
-                            summary: "Needs attention in Codex.",
-                            phase: .needsAttention,
-                            timestamp: .now
-                        )
-                    ))
+                    // This is a separate app-server process, not the Desktop
+                    // window's request owner. Only the Desktop IPC pending
+                    // request list can establish a human approval wait.
+                    return
                 } else if status.isWaitingOnUserInput {
-                    desktopThreadsNeedingAttention.remove(threadId)
                     onEvent?(.questionAsked(
                         QuestionAsked(
                             sessionID: threadId,
@@ -227,7 +212,6 @@ final class CodexAppServerCoordinator {
                         )
                     ))
                 } else {
-                    desktopThreadsNeedingAttention.remove(threadId)
                     onEvent?(.activityUpdated(
                         SessionActivityUpdated(
                             sessionID: threadId,
@@ -238,7 +222,6 @@ final class CodexAppServerCoordinator {
                     ))
                 }
             case .idle:
-                desktopThreadsNeedingAttention.remove(threadId)
                 // Idle means "between turns" in the same thread — the thread
                 // is still open.  Only `thread/closed` truly ends a session.
                 onEvent?(.activityUpdated(
@@ -250,7 +233,6 @@ final class CodexAppServerCoordinator {
                     )
                 ))
             case .systemError:
-                desktopThreadsNeedingAttention.remove(threadId)
                 // Quota limits and other hard failures can leave the thread in
                 // systemError without a turn/completed notification. Mark the
                 // turn as finished so the island does not stay stuck running.
@@ -263,12 +245,10 @@ final class CodexAppServerCoordinator {
                     )
                 ))
             case .notLoaded:
-                desktopThreadsNeedingAttention.remove(threadId)
                 break
             }
 
         case .threadClosed(let threadId):
-            desktopThreadsNeedingAttention.remove(threadId)
             onEvent?(.sessionCompleted(
                 SessionCompleted(
                     sessionID: threadId,
@@ -282,7 +262,6 @@ final class CodexAppServerCoordinator {
             emitTitleUpdated(sessionID: threadId, title: name)
 
         case .turnStarted(let threadId, _):
-            desktopThreadsNeedingAttention.remove(threadId)
             onEvent?(.activityUpdated(
                 SessionActivityUpdated(
                     sessionID: threadId,
@@ -293,7 +272,6 @@ final class CodexAppServerCoordinator {
             ))
 
         case .turnCompleted(let threadId, let turn):
-            desktopThreadsNeedingAttention.remove(threadId)
             // A turn completing doesn't end the thread — the user can send
             // another message.  Use activityUpdated(phase: .completed) so the
             // session stays visible as "Completed" rather than being torn

@@ -1,8 +1,8 @@
 import Darwin
 import Foundation
 
-/// A read-only follower of Codex Desktop's same-user, versioned IPC stream.
-/// Never starts a router, takes thread ownership, or responds to approvals.
+/// Follows Codex Desktop's same-user, versioned IPC stream without taking
+/// ownership. Explicit user decisions can resolve plain app-access prompts.
 public final class CodexDesktopIPCClient: @unchecked Sendable {
     private let queue = DispatchQueue(label: "open-island.codex-desktop-ipc", qos: .utility)
     private let onUpdate: @Sendable (CodexDesktopAttentionUpdate) -> Void
@@ -14,6 +14,7 @@ public final class CodexDesktopIPCClient: @unchecked Sendable {
     private var buffer = Data()
     private var clientID: String?
     private var stream = CodexDesktopRequestStream()
+    private var pendingResponses: [String: CheckedContinuation<Bool, Never>] = [:]
     private var retryScheduled = false
     private var lastRefresh = Date.distantPast
     private let maxFrameBytes = 256 * 1024 * 1024
@@ -30,6 +31,32 @@ public final class CodexDesktopIPCClient: @unchecked Sendable {
             if desired.isEmpty { disconnect(); return }
             if socketFD < 0 { connectIfNeeded() }
             else { synchronizeSubscriptions() }
+        }
+    }
+
+    public func respond(to approval: CodexDesktopAppApproval, allow: Bool) async -> Bool {
+        await withCheckedContinuation { continuation in
+            queue.async { [self] in
+                // Revalidate the exact displayed request against current owner
+                // state. Never answer a cached prompt after a disconnect.
+                guard let clientID, socketFD >= 0,
+                      stream.currentAppApproval(sessionID: approval.sessionID) == approval,
+                      !stream.needsSnapshot.contains(approval.sessionID) else {
+                    continuation.resume(returning: false)
+                    return
+                }
+                let id = UUID().uuidString
+                pendingResponses[id] = continuation
+                send(["type": "request", "method": "thread-follower-submit-mcp-server-elicitation-response",
+                      "version": 1, "requestId": id, "sourceClientId": clientID,
+                      "targetClientId": approval.ownerClientID,
+                      "params": ["conversationId": approval.sessionID, "requestId": approval.wireRequestID,
+                                 "response": ["action": allow ? "accept" : "decline",
+                                              "content": allow ? ([:] as [String: String]) as Any : NSNull() as Any]]])
+                queue.asyncAfter(deadline: .now() + 10) { [weak self] in
+                    self?.pendingResponses.removeValue(forKey: id)?.resume(returning: false)
+                }
+            }
         }
     }
 
@@ -91,6 +118,8 @@ public final class CodexDesktopIPCClient: @unchecked Sendable {
         subscribed.removeAll()
         buffer.removeAll(keepingCapacity: false)
         stream.reset()
+        for response in pendingResponses.values { response.resume(returning: false) }
+        pendingResponses.removeAll()
         // A lost connection does not prove that a pending request resolved.
         // Retain attention in the app until an authoritative snapshot arrives.
     }
@@ -118,6 +147,12 @@ public final class CodexDesktopIPCClient: @unchecked Sendable {
         guard let message = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             disconnect(); scheduleRetry(); return
         }
+        if message["type"] as? String == "response", let id = message["requestId"] as? String,
+           let continuation = pendingResponses.removeValue(forKey: id) {
+            let result = message["result"] as? [String: Any]
+            continuation.resume(returning: message["resultType"] as? String == "success" && result?["ok"] as? Bool == true)
+            return
+        }
         if message["type"] as? String == "response", message["method"] as? String == "initialize",
            message["resultType"] as? String == "success",
            let result = message["result"] as? [String: Any], let id = result["clientId"] as? String {
@@ -131,7 +166,7 @@ public final class CodexDesktopIPCClient: @unchecked Sendable {
             if message["method"] as? String == "thread-stream-following-status-requested" {
                 follow(id, following: true)
             } else if let update = stream.receive(data) { onUpdate(update) }
-            if stream.needsSnapshot.contains(id) { follow(id, following: true) }
+            if message["version"] as? Int == 11, stream.needsSnapshot.contains(id) { follow(id, following: true) }
         }
     }
 

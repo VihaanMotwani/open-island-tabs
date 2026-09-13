@@ -73,6 +73,10 @@ final class AppModel {
     @ObservationIgnored private lazy var desktopIPC = CodexDesktopIPCClient { [weak self] update in
         Task { @MainActor [weak self] in self?.applyCodexDesktopAttention(update) }
     }
+    @ObservationIgnored var desktopApprovalResponder: ((CodexDesktopAppApproval, Bool) async -> Bool)?
+    @ObservationIgnored private var desktopAppApprovals: [String: CodexDesktopAppApproval] = [:]
+    @ObservationIgnored private var desktopPresentedPermissions: [String: PermissionRequest] = [:]
+    @ObservationIgnored private var desktopDecisionsInFlight: Set<String> = []
     @ObservationIgnored private var desktopPendingRequestIDs: [String: Set<String>] = [:]
     @ObservationIgnored private var desktopDeferredActivity: [String: AgentEvent] = [:]
     let updateChecker = UpdateChecker()
@@ -1433,6 +1437,11 @@ final class AppModel {
         guard let session = focusedSession else {
             return
         }
+        if desktopAppApprovals[session.id] != nil {
+            sendDesktopAppDecision(sessionID: session.id, approved: approved)
+            return
+        }
+
 
         send(
             .resolvePermission(sessionID: session.id, resolution: permissionResolution(for: approved)),
@@ -1508,6 +1517,11 @@ final class AppModel {
         guard let session = state.session(id: sessionID) else {
             return
         }
+        if desktopAppApprovals[session.id] != nil {
+            lastActionMessage = "Respond to this request from the Island or Codex."
+            return
+        }
+
 
         let resolution = permissionResolution(for: approved)
         dismissNotificationSurfaceIfPresent(for: sessionID)
@@ -1523,10 +1537,24 @@ final class AppModel {
         )
     }
 
-    func approvePermission(for sessionID: String, action: ApprovalAction) {
+    func approvePermission(for sessionID: String, action: ApprovalAction, expectedRequestID: UUID? = nil) {
         guard let session = state.session(id: sessionID) else {
             return
         }
+        if desktopAppApprovals[session.id] != nil {
+            guard let expectedRequestID, session.permissionRequest?.id == expectedRequestID else {
+                lastActionMessage = "This request changed. Review the current request before responding."
+                return
+            }
+
+            switch action {
+            case .allowOnce: sendDesktopAppDecision(sessionID: session.id, approved: true)
+            case .deny: sendDesktopAppDecision(sessionID: session.id, approved: false)
+            case .allowWithUpdates: lastActionMessage = "Use Codex to change persistent permissions."
+            }
+            return
+        }
+
 
         let resolution: PermissionResolution
         let message: String
@@ -1630,6 +1658,8 @@ final class AppModel {
         guard state.session(id: update.sessionID)?.codexRuntimeSurface == .desktopApp else { return }
         let wasPending = desktopPendingRequestIDs[update.sessionID]?.isEmpty == false
         if update.pendingRequestIDs.isEmpty {
+            desktopAppApprovals.removeValue(forKey: update.sessionID)
+            desktopPresentedPermissions.removeValue(forKey: update.sessionID)
             desktopPendingRequestIDs.removeValue(forKey: update.sessionID)
             guard wasPending || state.session(id: update.sessionID)?.phase == .needsAttention else { return }
             let resumed = desktopDeferredActivity.removeValue(forKey: update.sessionID)
@@ -1639,9 +1669,40 @@ final class AppModel {
             applyTrackedEvent(resumed, updateLastActionMessage: false)
         } else {
             desktopPendingRequestIDs[update.sessionID] = update.pendingRequestIDs
-            applyTrackedEvent(.activityUpdated(SessionActivityUpdated(
-                sessionID: update.sessionID, summary: "Needs attention in Codex.", phase: .needsAttention, timestamp: .now
-            )), updateLastActionMessage: false)
+            if let approval = update.appApproval {
+                let unchanged = desktopAppApprovals[update.sessionID] == approval
+                desktopAppApprovals[update.sessionID] = approval
+                if unchanged, state.session(id: update.sessionID)?.permissionRequest != nil { return }
+                let request = PermissionRequest(title: "Codex app access", summary: approval.message,
+                    affectedPath: approval.appIdentifier, primaryActionTitle: "Allow once", secondaryActionTitle: "Deny",
+                    toolName: "Computer Use", toolUseID: approval.requestKey)
+                desktopPresentedPermissions[update.sessionID] = request
+                applyTrackedEvent(.permissionRequested(PermissionRequested(
+                    sessionID: update.sessionID, request: request, timestamp: .now
+                )), updateLastActionMessage: false)
+            } else {
+                desktopAppApprovals.removeValue(forKey: update.sessionID)
+                desktopPresentedPermissions.removeValue(forKey: update.sessionID)
+                applyTrackedEvent(.activityUpdated(SessionActivityUpdated(
+                    sessionID: update.sessionID, summary: "Needs attention in Codex.", phase: .needsAttention, timestamp: .now
+                )), updateLastActionMessage: false)
+            }
+        }
+    }
+
+    private func sendDesktopAppDecision(sessionID: String, approved: Bool) {
+        guard let approval = desktopAppApprovals[sessionID],
+              desktopDecisionsInFlight.insert(sessionID).inserted else { return }
+        lastActionMessage = "Sending decision to Codex…"
+        Task { [weak self] in
+            guard let self else { return }
+            let sent: Bool
+            if let responder = self.desktopApprovalResponder { sent = await responder(approval, approved) }
+            else { sent = await self.desktopIPC.respond(to: approval, allow: approved) }
+            self.desktopDecisionsInFlight.remove(sessionID)
+            self.lastActionMessage = sent ? "Decision sent to Codex." : "Could not confirm the decision. Open the task in Codex."
+            // The owner removing the request clears the card; a transport
+            // receipt or optimistic local update must never do so.
         }
     }
 
@@ -1654,13 +1715,19 @@ final class AppModel {
         }
         guard desktopPendingRequestIDs[id]?.isEmpty == false else { return event }
         desktopDeferredActivity[id] = event
+        let request = desktopPresentedPermissions[id]
         return .activityUpdated(SessionActivityUpdated(
-            sessionID: id, summary: "Needs attention in Codex.", phase: .needsAttention, timestamp: .now
+            sessionID: id, summary: request?.summary ?? "Needs attention in Codex.",
+            phase: request == nil ? .needsAttention : .waitingForApproval, timestamp: .now
         ))
     }
 
     private func restoreDesktopAttentionAfterDiscovery() {
         for (id, requests) in desktopPendingRequestIDs where !requests.isEmpty {
+            if let request = desktopPresentedPermissions[id] {
+                state.apply(.permissionRequested(PermissionRequested(sessionID: id, request: request, timestamp: .now)))
+                continue
+            }
             state.apply(.activityUpdated(SessionActivityUpdated(
                 sessionID: id, summary: "Needs attention in Codex.", phase: .needsAttention, timestamp: .now
             )))

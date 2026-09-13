@@ -780,7 +780,7 @@ struct IslandPanelView: View {
                     presentation: .notification,
                     sideInset: ExpandedNotchLayoutMetrics.agentCardHorizontalPadding,
                     lang: model.lang,
-                    onApprove: { model.approvePermission(for: session.id, action: $0) },
+                    onApprove: { model.approvePermission(for: session.id, action: $0, expectedRequestID: session.permissionRequest?.id) },
                     onAnswer: { model.answerQuestion(for: session.id, answer: $0) },
                     onReply: TerminalTextSender.canReply(to: session, enabled: model.completionReplyEnabled)
                         ? { model.replyToSession(session, text: $0) } : nil,
@@ -822,7 +822,7 @@ struct IslandPanelView: View {
                                 isInteractive: model.notchStatus == .opened,
                                 sideInset: sessionListSideInset,
                                 lang: model.lang,
-                                onApprove: { model.approvePermission(for: session.id, action: $0) },
+                                onApprove: { model.approvePermission(for: session.id, action: $0, expectedRequestID: session.permissionRequest?.id) },
                                 onAnswer: { model.answerQuestion(for: session.id, answer: $0) },
                                 onReply: TerminalTextSender.canReply(to: session, enabled: model.completionReplyEnabled)
                                     ? { model.replyToSession(session, text: $0) } : nil,
@@ -874,7 +874,7 @@ struct IslandPanelView: View {
                             isInteractive: model.notchStatus == .opened,
                             sideInset: ExpandedNotchLayoutMetrics.agentCardHorizontalPadding,
                             lang: model.lang,
-                            onApprove: { model.approvePermission(for: session.id, action: $0) },
+                            onApprove: { model.approvePermission(for: session.id, action: $0, expectedRequestID: session.permissionRequest?.id) },
                             onAnswer: { model.answerQuestion(for: session.id, answer: $0) },
                             onReply: TerminalTextSender.canReply(to: session, enabled: model.completionReplyEnabled)
                                 ? { model.replyToSession(session, text: $0) } : nil,

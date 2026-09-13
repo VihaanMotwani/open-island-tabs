@@ -3,6 +3,22 @@ import Foundation
 public struct CodexDesktopAttentionUpdate: Sendable, Equatable {
     public var sessionID: String
     public var pendingRequestIDs: Set<String>
+    public var appApproval: CodexDesktopAppApproval?
+}
+
+/// Only a plain Computer Use app-access prompt can be represented fully by
+/// two buttons. Other forms and execution-bound approvals remain in Codex.
+public struct CodexDesktopAppApproval: Sendable, Equatable {
+    public var sessionID: String
+    public var ownerClientID: String
+    public var requestKey: String
+    public var message: String
+    public var appIdentifier: String
+
+    var wireRequestID: Any {
+        if requestKey.hasPrefix("number:"), let number = Int(requestKey.dropFirst(7)) { return number }
+        return String(requestKey.dropFirst(7))
+    }
 }
 
 /// Read-only projection of the versioned Desktop window-to-window stream.
@@ -31,8 +47,11 @@ public struct CodexDesktopRequestStream {
               params["hostId"] as? String == "local",
               let id = params["conversationId"] as? String,
               let owner = message["sourceClientId"] as? String else { return nil }
-        guard message["version"] as? Int == 11,
-              let change = params["change"] as? [String: Any],
+        guard message["version"] as? Int == 11 else {
+            needsSnapshot.insert(id)
+            return nil
+        }
+        guard let change = params["change"] as? [String: Any],
               let revision = change["revision"] as? Int else { return nil }
 
         let previous = states[id]
@@ -69,8 +88,42 @@ public struct CodexDesktopRequestStream {
         } else { return nil }
         states[id] = next
         let result = Self.pendingIDs(next.requests, sessionID: id)
-        guard previous == nil || result != Self.pendingIDs(previous!.requests, sessionID: id) else { return nil }
-        return CodexDesktopAttentionUpdate(sessionID: id, pendingRequestIDs: result)
+        let approval = currentAppApproval(sessionID: id)
+        let previousApproval = previous.flatMap { Self.appApproval($0, sessionID: id) }
+        guard previous == nil || result != Self.pendingIDs(previous!.requests, sessionID: id)
+                || approval != previousApproval else { return nil }
+        return CodexDesktopAttentionUpdate(sessionID: id, pendingRequestIDs: result, appApproval: approval)
+    }
+
+    public func currentAppApproval(sessionID: String) -> CodexDesktopAppApproval? {
+        states[sessionID].flatMap { Self.appApproval($0, sessionID: sessionID) }
+    }
+
+    private static func appApproval(_ state: State, sessionID: String) -> CodexDesktopAppApproval? {
+        for request in state.requests {
+            guard request["method"] as? String == "mcpServer/elicitation/request",
+                  let params = request["params"] as? [String: Any],
+                  params["threadId"] as? String == sessionID,
+                  params["mode"] as? String == "form",
+                  let schema = params["requestedSchema"] as? [String: Any],
+                  schema["type"] as? String == "object",
+                  let properties = schema["properties"] as? [String: Any], properties.isEmpty,
+                  (schema["required"] as? [String] ?? []).isEmpty,
+                  let meta = params["_meta"] as? [String: Any],
+                  meta["codex_approval_kind"] as? String == "mcp_tool_call",
+                  meta["connector_id"] as? String == "computer-use",
+                  meta["tool_name"] as? String == "get_app_state",
+                  let toolParams = meta["tool_params"] as? [String: Any], toolParams.count == 1,
+                  let app = toolParams["app"] as? String, !app.isEmpty,
+                  let message = params["message"] as? String, !message.isEmpty, message.count <= 500 else { continue }
+            let key: String
+            if let id = request["id"] as? String { key = "string:\(id)" }
+            else if let id = request["id"] as? Int { key = "number:\(id)" }
+            else { continue }
+            return CodexDesktopAppApproval(sessionID: sessionID, ownerClientID: state.owner,
+                requestKey: key, message: message, appIdentifier: app)
+        }
+        return nil
     }
 
     private static func pendingIDs(_ requests: [[String: Any]], sessionID: String) -> Set<String> {

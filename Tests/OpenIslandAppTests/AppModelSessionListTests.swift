@@ -354,6 +354,42 @@ struct AppModelSessionListTests {
         #expect(model.state.session(id: "desktop-human")?.phase == .running)
     }
 
+    @Test(arguments: [true, false], [true, false])
+    func desktopAppPermissionSendsExactUserDecisionAndWaitsForOwner(allowed: Bool, delivered: Bool) async throws {
+        let model = AppModel()
+        model.isSoundMuted = true
+        model.suppressFrontmostNotifications = false
+        model.state = SessionState(sessions: [AgentSession(
+            id: "desktop-human", title: "Human approval", tool: .codex,
+            attachmentState: .attached, phase: .running, summary: "Working",
+            updatedAt: .now, codexRuntimeSurface: .desktopApp
+        )])
+        var stream = CodexDesktopRequestStream()
+        let data = Data(#"{"type":"broadcast","method":"thread-stream-state-changed","version":11,"sourceClientId":"owner","params":{"hostId":"local","conversationId":"desktop-human","change":{"type":"snapshot","revision":1,"conversationState":{"requests":[{"id":75,"method":"mcpServer/elicitation/request","params":{"threadId":"desktop-human","serverName":"cua_repl","mode":"form","message":"Allow Computer Use to use Calculator?","requestedSchema":{"type":"object","properties":{}},"_meta":{"codex_approval_kind":"mcp_tool_call","connector_id":"computer-use","tool_name":"get_app_state","tool_params":{"app":"com.apple.calculator"}}}}]}}}}"#.utf8)
+        let received = stream.receive(data)
+        let update = try #require(received)
+        model.applyCodexDesktopAttention(update)
+        #expect(model.state.session(id: "desktop-human")?.phase == .waitingForApproval)
+        #expect(model.state.session(id: "desktop-human")?.permissionRequest?.summary == "Allow Computer Use to use Calculator?")
+        var decisions: [Bool] = []
+        model.desktopApprovalResponder = { approval, allowed in
+            #expect(approval.sessionID == "desktop-human")
+            #expect(approval.ownerClientID == "owner")
+            #expect(approval.requestKey == "number:75")
+            decisions.append(allowed)
+            return delivered
+        }
+        model.approvePermission(for: "desktop-human", action: .allowOnce, expectedRequestID: UUID())
+        #expect(decisions.isEmpty)
+        model.approvePermission(for: "desktop-human", action: allowed ? .allowOnce : .deny,
+            expectedRequestID: model.state.session(id: "desktop-human")?.permissionRequest?.id)
+        for _ in 0..<20 where decisions.isEmpty { await Task.yield() }
+        #expect(decisions == [allowed])
+        // Transport acknowledgment alone does not resolve the visible request.
+        #expect(model.state.session(id: "desktop-human")?.phase == .waitingForApproval)
+        #expect(model.notchStatus == .opened)
+    }
+
     @Test
     func desktopStatusDoesNotOverwriteHookBackedCLIApproval() throws {
         let model = AppModel()

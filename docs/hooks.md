@@ -97,8 +97,20 @@ request state is retained in memory; the received conversation history is
 discarded. This is an internal versioned protocol, not a documented stable
 companion API; Codex updates may require adapting the reader.
 
-The connection is read-only: it does not start a router, take thread ownership,
-or answer approvals. Direct allow/deny remains unavailable in this slice.
+The connection never starts a router or takes thread ownership. Plain Computer
+Use app-access prompts (`get_app_state`, one app identifier, no form fields)
+can show **Allow once** and **Deny**. A user click carries the displayed request's
+identity; the client revalidates its owner and full prompt against current
+stream state, then sends the corresponding follower response. It never adds a
+persistent grant. Disconnected, outdated, and replaced requests cannot be
+answered, and the card only clears when the owner removes the request.
+
+Other command, file, permission, and richer elicitation requests keep the
+non-actionable jump-to-Codex notification. This avoids presenting a decision
+without the complete review UI required by that request. Tests cover the actual
+Calculator payload, both decisions, transport failure, stale clicks, multiple
+requests, revision gaps, and reconnect snapshots. A fresh human click through
+the installed Island remains the final end-to-end verification step.
 The separate `codex app-server` subprocess continues providing metadata; its
 `waitingOnApproval` flag alone no longer creates a human-attention notification.
 

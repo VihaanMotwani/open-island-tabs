@@ -307,6 +307,54 @@ struct AppModelSessionListTests {
         #expect(model.notchStatus == .closed)
     }
 
+    @Test(arguments: [CodexRuntimeSurface.unknown, .external], ["Unknown", "Ghostty"])
+    func desktopOwnerIdentifiesUnknownSessionBeforeNotifying(runtime: CodexRuntimeSurface, terminalApp: String) throws {
+        let model = AppModel()
+        model.isSoundMuted = true
+        model.suppressFrontmostNotifications = true
+        model.state = SessionState(sessions: [AgentSession(
+            id: "ephemeral-desktop", title: "Codex · tweet", tool: .codex,
+            origin: .live, attachmentState: .attached, phase: .running,
+            summary: "Working", updatedAt: .now,
+            jumpTarget: JumpTarget(terminalApp: terminalApp,
+                workspaceName: "tweet", paneTitle: "Codex", workingDirectory: "/tmp/tweet"),
+            codexRuntimeSurface: runtime
+        )])
+        var stream = CodexDesktopRequestStream()
+        func receive(_ requests: [[String: Any]], revision: Int) throws {
+            let data = try JSONSerialization.data(withJSONObject: [
+                "type": "broadcast", "method": "thread-stream-state-changed", "version": 11,
+                "sourceClientId": "desktop-owner", "params": ["hostId": "local",
+                    "conversationId": "ephemeral-desktop", "change": ["type": "snapshot",
+                        "revision": revision, "conversationState": ["requests": requests]]]
+            ])
+            let update = stream.receive(data)
+            model.applyCodexDesktopAttention(try #require(update))
+        }
+        try receive([], revision: 1)
+        #expect(model.notchStatus == .closed)
+        #expect(model.state.session(id: "ephemeral-desktop")?.codexRuntimeSurface ==
+            (runtime == .unknown && terminalApp == "Unknown" ? .desktopApp : runtime))
+        try receive([["id": 92, "method": "mcpServer/elicitation/request", "params": [
+            "threadId": "ephemeral-desktop", "mode": "form", "message": "Review automation change",
+            "requestedSchema": ["type": "object", "properties": ["schedule": ["type": "string"]]]
+        ]]], revision: 2)
+        if runtime == .external || terminalApp != "Unknown" {
+            #expect(model.notchStatus == .closed)
+            #expect(model.state.session(id: "ephemeral-desktop")?.jumpTarget?.terminalApp == terminalApp)
+            return
+        }
+        #expect(model.state.session(id: "ephemeral-desktop")?.phase == .needsAttention)
+        #expect(model.state.session(id: "ephemeral-desktop")?.permissionRequest == nil)
+        #expect(model.state.session(id: "ephemeral-desktop")?.jumpTarget?.terminalApp == "Codex.app")
+        #expect(model.state.session(id: "ephemeral-desktop")?.jumpTarget?.codexThreadID == "ephemeral-desktop")
+        model.handlePointerPressedOutsideIslandSurface()
+        #expect(model.notchStatus == .opened)
+        try receive([], revision: 3)
+        #expect(model.state.session(id: "ephemeral-desktop")?.phase == .running)
+        #expect(model.notchStatus == .closed)
+    }
+
     @Test
     func desktopRequestSnapshotsRecoverGapsAndKeepOtherRequestsPending() throws {
         let model = AppModel()

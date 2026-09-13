@@ -698,6 +698,7 @@ struct SessionStateTests {
             model: "gpt-5-codex",
             permissionMode: .default,
             sessionID: "codex-session-1",
+            terminalApp: "Ghostty",
             transcriptPath: nil,
             turnID: "turn-1",
             toolName: "Bash",
@@ -743,6 +744,7 @@ struct SessionStateTests {
             model: "gpt-5-codex",
             permissionMode: .default,
             sessionID: "codex-permission-allow",
+            terminalApp: "Ghostty",
             transcriptPath: nil,
             turnID: "turn-1",
             toolName: "apply_patch",
@@ -793,6 +795,7 @@ struct SessionStateTests {
             model: "gpt-5-codex",
             permissionMode: .default,
             sessionID: "codex-permission-deny",
+            terminalApp: "Ghostty",
             transcriptPath: nil,
             turnID: "turn-1",
             toolName: "Bash",
@@ -949,6 +952,43 @@ struct SessionStateTests {
         var iterator = stream.makeAsyncIterator()
         let firstEvent = try await nextEvent(from: &iterator)
         #expect(firstEvent.isSessionStarted)
+    }
+
+    @Test(arguments: [CodexHookEventName.preToolUse, .permissionRequest])
+    func unknownCodexApprovalHookDefersWithoutCreatingAPermission(hookEventName: CodexHookEventName) async throws {
+        let socketURL = BridgeSocketLocation.uniqueTestURL()
+        let server = BridgeServer(socketURL: socketURL)
+        try server.start()
+        defer { server.stop() }
+        let observer = LocalBridgeClient(socketURL: socketURL)
+        let stream = try observer.connect()
+        defer { observer.disconnect() }
+        try await observer.send(.registerClient(role: .observer))
+        let payload = CodexHookPayload(
+            cwd: "/tmp/tweet", hookEventName: hookEventName, model: "gpt-6-astra",
+            permissionMode: .default, sessionID: "ephemeral-desktop", transcriptPath: nil,
+            toolName: "mcp__codex_app__automation_update", toolUseID: "automation-request"
+        )
+        let result = await sendWithTimeout(.processCodexHook(payload), socketURL: socketURL,
+            onTimeout: { server.stop() })
+        guard case .response(.acknowledged) = result else {
+            Issue.record("An unclassified hook must defer to Codex without waiting for an Island decision")
+            return
+        }
+        var iterator = stream.makeAsyncIterator()
+        let started = try await nextEvent(from: &iterator)
+        #expect(started.isSessionStarted)
+        // A later prompt is an ordering barrier: no permission event may precede it.
+        var followup = payload
+        followup.hookEventName = .userPromptSubmit
+        followup.prompt = "continue"
+        _ = try BridgeCommandClient(socketURL: socketURL).send(.processCodexHook(followup))
+        for _ in 0..<4 {
+            let event = try await nextEvent(from: &iterator)
+            #expect(!event.isPermissionRequested)
+            if event.activityUpdate?.summary == "Prompt: continue" { return }
+        }
+        Issue.record("Expected the subsequent prompt without a permission blocker")
     }
 
     @Test

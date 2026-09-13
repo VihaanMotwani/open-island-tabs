@@ -68,8 +68,11 @@ Codex Desktop can emit `PreToolUse` and `PermissionRequest` hooks even when its
 own approval policy resolves the tool automatically. When rollout discovery
 classifies the session as Desktop-owned—or `terminal_app` is `Codex.app`—Open
 Island acknowledges those interactive hooks without creating a local approval
-request. Codex Desktop remains responsible for deciding or presenting the
-approval. An unresolved `require_escalated` or `request_permissions` call is
+request. Unclassified hooks also defer to Codex unless a terminal name or TTY
+positively identifies an interactive terminal. An absent Desktop marker or
+transcript is not evidence that Open Island should intercept the decision.
+Codex Desktop remains responsible for deciding or presenting the approval.
+An unresolved `require_escalated` or `request_permissions` call is
 ordinary tool activity, including across yielded execution cells. It does not
 establish that a person needs to act in any permission mode:
 
@@ -87,6 +90,14 @@ provide the actual pending `requests` list, separately from automatic-review
 items. Command, file, permission, and MCP elicitation requests produce persistent
 **Needs attention in Codex** with a task jump target. A real Calculator app
 permission was observed in this list with `auto_review_enabled: true`.
+
+Hook-created Codex sessions without a runtime or terminal identity are also
+subscribed to this stream. A valid owner snapshot classifies them as Desktop
+sessions and supplies their task jump target, even when the task is ephemeral
+and has no rollout file. Empty request lists stay quiet. Positively identified
+terminal sessions are never reclassified by this fallback. This covers the
+transcriptless `automation_update` request that previously appeared as an
+"Unknown" terminal approval.
 
 The notification remains visible across unrelated activity and clicks outside
 the Island, and clears when the owning window removes the last request.

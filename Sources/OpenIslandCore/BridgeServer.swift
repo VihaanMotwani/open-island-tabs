@@ -509,6 +509,21 @@ public final class BridgeServer: @unchecked Sendable {
             return
         }
 
+        // Missing Desktop markers are common in ephemeral tasks. Unknown is
+        // not evidence of an interactive terminal: leave the native approval
+        // policy in charge, and expose the session for Desktop IPC discovery.
+        let knownTarget = localState.session(id: payload.sessionID)?.jumpTarget
+        let terminalName = (payload.terminalApp ?? knownTarget?.terminalApp)?
+            .trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let hasTerminalIdentity = terminalName.map { !$0.isEmpty && $0 != "unknown" && $0 != "codex.app" } == true
+            || (payload.terminalTTY ?? knownTarget?.terminalTTY)?.hasPrefix("/dev/tty") == true
+        if !hasTerminalIdentity,
+           payload.hookEventName == .preToolUse || payload.hookEventName == .permissionRequest {
+            ensureSessionExists(for: payload)
+            send(.response(.acknowledged), to: clientID)
+            return
+        }
+
         switch payload.hookEventName {
         case .sessionStart:
             let event = AgentEvent.sessionStarted(

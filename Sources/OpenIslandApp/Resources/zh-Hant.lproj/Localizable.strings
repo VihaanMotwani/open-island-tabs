@@ -266,3 +266,23 @@
 
 /* Window Titles */
 "window.settings" = "Open Island 設定";
+
+// Calendar
+"island.tab.calendar" = "行事曆";
+"settings.appearance.tabs.calendar.note" = "查看 macOS 行事曆中的每日安排。";
+"calendar.today" = "今天";
+"calendar.loading" = "正在載入行程";
+"calendar.loadError" = "無法載入行程。";
+"calendar.retry" = "重試";
+"calendar.empty" = "這一天沒有行程";
+"calendar.connectionTitle" = "今日安排，一目了然";
+"calendar.connectionNote" = "連接 Mac 上的行事曆，在這裡查看每日安排。";
+"calendar.connect" = "連接行事曆";
+"calendar.connecting" = "正在連接…";
+"calendar.settings" = "開啟行事曆權限設定";
+"calendar.appBundleRequired" = "請開啟 Open Island Dev.app 以連接行事曆。";
+"calendar.connectError" = "無法連接行事曆，請重試。";
+"calendar.denied" = "請在系統設定中允許完整取用行事曆，以顯示您的行程。";
+"calendar.restricted" = "此 Mac 限制了行事曆存取。";
+"calendar.allDay" = "全天";
+"calendar.untitled" = "無標題行程";

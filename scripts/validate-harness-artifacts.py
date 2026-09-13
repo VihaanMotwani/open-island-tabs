@@ -401,6 +401,22 @@ def main() -> None:
             "tasksList text values",
         )
 
+    elif scenario in ("calendarAgenda", "calendarConnect", "calendarEmpty", "calendarDenied"):
+        if notch_status != "opened" or report.get("selectedTab") != "calendar":
+            fail("Calendar scenario did not open the Calendar tab")
+        require_frame_between(overlay_frame, width=(440, 510), height=(290, 390), context="Calendar overlay frame")
+        assert_contains_any(button_labels, ["Calendar"], "Calendar tab")
+        assert_contains_any(button_labels, ["Today"], "Calendar date navigation")
+        if scenario == "calendarAgenda":
+            assert_contains_any(text_values | labels, ["Product review"], "Calendar events")
+            assert_contains_any(text_values | labels, ["All-day"], "Calendar all-day event")
+        elif scenario == "calendarConnect":
+            assert_contains_any(button_labels, ["Connect Calendar"], "Calendar connection")
+        elif scenario == "calendarDenied":
+            assert_contains_any(button_labels, ["Open Calendar Settings"], "Calendar denied state")
+        else:
+            assert_contains_any(text_values | labels, ["No events on this day"], "Calendar empty state")
+
     else:
         fail(f"unsupported scenario {scenario!r}")
 

@@ -14,6 +14,7 @@ struct IslandDebugSnapshot {
     let selectedTab: IslandTab
     let mediaSnapshot: MediaPlaybackSnapshot?
     let tasks: [TaskItem]
+    let calendarPreview: CalendarPreviewProvider?
 
     init(
         title: String,
@@ -26,7 +27,8 @@ struct IslandDebugSnapshot {
         selectedSessionID: String?,
         selectedTab: IslandTab = .agents,
         mediaSnapshot: MediaPlaybackSnapshot? = nil,
-        tasks: [TaskItem] = []
+        tasks: [TaskItem] = [],
+        calendarPreview: CalendarPreviewProvider? = nil
     ) {
         self.title = title
         self.summary = summary
@@ -39,6 +41,7 @@ struct IslandDebugSnapshot {
         self.selectedTab = selectedTab
         self.mediaSnapshot = mediaSnapshot
         self.tasks = tasks
+        self.calendarPreview = calendarPreview
     }
 }
 
@@ -53,6 +56,10 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
     case spotifyPlayer
     case spotifyTrackPreview
     case tasksList
+    case calendarAgenda
+    case calendarConnect
+    case calendarEmpty
+    case calendarDenied
 
     var id: String { rawValue }
 
@@ -78,6 +85,10 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
             "Spotify Track Preview"
         case .tasksList:
             "To-do List"
+        case .calendarAgenda: "Calendar Agenda"
+        case .calendarConnect: "Connect Calendar"
+        case .calendarEmpty: "Empty Calendar"
+        case .calendarDenied: "Calendar Access Denied"
         }
     }
 
@@ -103,6 +114,10 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
             "Compact now-playing preview shown briefly after Spotify changes tracks."
         case .tasksList:
             "Expanded To-do tab with active, completed, editable, and scrollable tasks."
+        case .calendarAgenda: "Calendar tab with synthetic all-day and timed events."
+        case .calendarConnect: "Calendar tab before calendar access is requested."
+        case .calendarEmpty: "Connected Calendar tab with no events."
+        case .calendarDenied: "Calendar tab after access has been denied."
         }
     }
 
@@ -241,6 +256,16 @@ enum IslandDebugScenario: String, CaseIterable, Identifiable {
                 selectedSessionID: nil,
                 selectedTab: .tasks,
                 tasks: Self.demoTasks
+            )
+        case .calendarAgenda, .calendarConnect, .calendarEmpty, .calendarDenied:
+            let day = Calendar.current.startOfDay(for: now)
+            let events = self == .calendarAgenda ? CalendarPreviewProvider.demoEvents(on: day) : []
+            let access: CalendarAccess = self == .calendarConnect ? .notDetermined : self == .calendarDenied ? .denied : .authorized
+            return IslandDebugSnapshot(
+                title: title, summary: summary, previewHeight: 330,
+                notchStatus: .opened, notchOpenReason: .click, islandSurface: .sessionList(),
+                sessions: [], selectedSessionID: nil, selectedTab: .calendar,
+                calendarPreview: CalendarPreviewProvider(access: access, items: events)
             )
         }
     }

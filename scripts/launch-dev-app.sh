@@ -42,6 +42,7 @@ command cp "$app_binary" "$bundle_binary"
 command cp "$hooks_binary" "$bundle_dir/Contents/Helpers/OpenIslandHooks"
 command cp "$setup_binary" "$bundle_dir/Contents/Helpers/OpenIslandSetup"
 command cp "$brand_icon" "$bundle_dir/Contents/Resources/OpenIsland.icns"
+command cp "$repo_root/LICENSE" "$repo_root/THIRD_PARTY_NOTICES.md" "$bundle_dir/Contents/Resources/"
 chmod +x "$bundle_binary" "$bundle_dir/Contents/Helpers/OpenIslandHooks" "$bundle_dir/Contents/Helpers/OpenIslandSetup"
 
 # Add rpath so the binary can find Sparkle.framework in Contents/Frameworks/.
@@ -89,6 +90,8 @@ cat > "$plist_path" <<EOF
     <string>14.0</string>
     <key>NSAppleEventsUsageDescription</key>
     <string>Open Island uses automation to control Spotify playback and focus Terminal or iTerm sessions for jump-back.</string>
+    <key>NSCalendarsFullAccessUsageDescription</key>
+    <string>Open Island displays your calendar events in the notch. It does not create, change, or delete events.</string>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSPrincipalClass</key>

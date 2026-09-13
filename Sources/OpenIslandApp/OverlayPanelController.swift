@@ -573,6 +573,8 @@ final class OverlayPanelController {
         switch model.selectedIslandTab {
         case .spotify:
             return ExpandedNotchLayoutMetrics.spotifyContentHeight
+        case .calendar:
+            return ExpandedNotchLayoutMetrics.calendarContentHeight
         case .tasks:
             return ExpandedNotchLayoutMetrics.tasksContentHeight(
                 totalCount: model.taskStore.tasks.count,
@@ -653,6 +655,11 @@ final class OverlayPanelController {
         switch model.selectedIslandTab {
         case .agents:
             return openedPanelWidth(for: screen)
+        case .calendar:
+            return ExpandedNotchLayoutMetrics.calendarSurfaceWidth(
+                availableScreenWidth: screen.visibleFrame.width,
+                notchWidth: screen.safeAreaInsets.top > 0 ? screen.notchSize.width : 0
+            )
         case .spotify:
             return ExpandedNotchLayoutMetrics.spotifySurfaceWidth(
                 availableScreenWidth: screen.visibleFrame.width,

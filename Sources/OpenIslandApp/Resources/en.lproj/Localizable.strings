@@ -267,3 +267,23 @@
 
 /* Window Titles */
 "window.settings" = "Open Island Settings";
+
+// Calendar
+"island.tab.calendar" = "Calendar";
+"settings.appearance.tabs.calendar.note" = "Your daily agenda from macOS Calendar.";
+"calendar.today" = "Today";
+"calendar.loading" = "Loading events";
+"calendar.loadError" = "Couldn’t load your events.";
+"calendar.retry" = "Try again";
+"calendar.empty" = "No events on this day";
+"calendar.connectionTitle" = "Your day, at a glance";
+"calendar.connectionNote" = "Connect the calendars on your Mac to see your daily agenda here.";
+"calendar.connect" = "Connect Calendar";
+"calendar.connecting" = "Connecting…";
+"calendar.settings" = "Open Calendar Settings";
+"calendar.appBundleRequired" = "Open Open Island Dev.app to connect Calendar.";
+"calendar.connectError" = "Couldn’t connect to Calendar. Please try again.";
+"calendar.denied" = "Allow full calendar access in System Settings to display your events.";
+"calendar.restricted" = "Calendar access is restricted on this Mac.";
+"calendar.allDay" = "All-day";
+"calendar.untitled" = "Untitled event";

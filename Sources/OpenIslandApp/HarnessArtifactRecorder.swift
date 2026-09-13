@@ -311,6 +311,8 @@ enum HarnessArtifactRecorder {
             "spotify"
         case .tasks:
             "tasks"
+        case .calendar:
+            "calendar"
         }
     }
 

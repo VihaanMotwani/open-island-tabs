@@ -400,7 +400,6 @@ struct IslandPanelView: View {
 
                 openedTabSwitcher
                     .frame(height: Self.openedTabSwitcherHeight)
-                    .offset(y: -2)
 
                 openedContent
                     .frame(width: openedWidth)
@@ -498,34 +497,13 @@ struct IslandPanelView: View {
     }
 
     private var openedTabSwitcher: some View {
-        ZStack(alignment: .topLeading) {
-            Picker("", selection: openedTabSelection) {
-                ForEach(model.visibleIslandTabs) { tab in
-                    Text(islandTabTitle(tab)).tag(tab)
-                }
-            }
-            .labelsHidden()
-            .pickerStyle(.segmented)
-            .controlSize(.small)
-
-            if model.liveAttentionCount > 0 {
-                Circle()
-                    .fill(IslandDesignPalette.Status.waitingAggregate)
-                    .frame(width: 5, height: 5)
-                    .overlay {
-                        Circle().stroke(V6Palette.ink, lineWidth: 1)
-                    }
-                    .offset(x: 63, y: 2)
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-            }
-        }
-        .frame(
-            width: ExpandedNotchLayoutMetrics.tabSegmentedControlWidth(
-                visibleTabCount: model.visibleIslandTabs.count
-            )
+        IslandTabSwitcher(
+            tabs: model.visibleIslandTabs,
+            selection: openedTabSelection,
+            showsAgentAttention: model.liveAttentionCount > 0,
+            title: islandTabTitle
         )
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .padding(.horizontal, ExpandedNotchLayoutMetrics.safeContentHorizontalInset)
         .accessibilityLabel(model.lang.t("island.tab.accessibility"))
     }
 

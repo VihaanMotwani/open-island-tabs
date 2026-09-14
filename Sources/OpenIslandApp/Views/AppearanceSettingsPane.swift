@@ -1219,32 +1219,14 @@ private struct SessionListPanelPreview: View {
     }
 
     private var previewTabSwitcher: some View {
-        HStack(spacing: 0) {
-            ForEach(visibleTabs) { tab in
-                Text(title(for: tab))
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(
-                        tab == .agents
-                            ? ExpandedNotchVisualStyle.textColor(.primary)
-                            : ExpandedNotchVisualStyle.textColor(.secondary)
-                    )
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(
-                        tab == .agents ? Color.white.opacity(0.12) : Color.clear,
-                        in: RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    )
-            }
-        }
-        .padding(2)
-        .frame(
-            width: ExpandedNotchLayoutMetrics.tabSegmentedControlWidth(
-                visibleTabCount: visibleTabs.count
-            ),
-            height: ExpandedNotchLayoutMetrics.tabControlHeight
+        IslandTabSwitcher(
+            tabs: visibleTabs,
+            selection: .constant(.agents),
+            title: { title(for: $0) }
         )
-        .background(.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-        .frame(maxWidth: .infinity)
-        .frame(height: ExpandedNotchLayoutMetrics.tabSwitcherHeight, alignment: .top)
+        .padding(.horizontal, sideInset)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 
     private var sessionListHeader: some View {

@@ -30,9 +30,11 @@ struct ExpandedNotchLayoutMetrics: Equatable, Sendable {
         (headerControlButtonSize * headerControlCount)
         + (headerControlSpacing * (headerControlCount - 1))
     static let notchHeaderHorizontalPadding = safeContentHorizontalInset
-    static let tabSwitcherHeight: CGFloat = 36
-    static let tabControlHeight: CGFloat = 26
-    static let tabSegmentWidth: CGFloat = 72
+    static let tabSwitcherHeight: CGFloat = 44
+    static let tabControlHeight: CGFloat = 32
+    static let tabSegmentWidth: CGFloat = 78
+    static let tabSpacing: CGFloat = 4
+    static let tabTopPadding: CGFloat = 4
     static let minimumTabSegmentedControlWidth: CGFloat = 96
     static let sessionHeaderHeight: CGFloat = 30
     static let sessionFooterHeight: CGFloat = 22
@@ -68,6 +70,7 @@ struct ExpandedNotchLayoutMetrics: Equatable, Sendable {
         max(
             minimumTabSegmentedControlWidth,
             CGFloat(max(visibleTabCount, 1)) * tabSegmentWidth
+                + CGFloat(max(visibleTabCount - 1, 0)) * tabSpacing
         )
     }
 

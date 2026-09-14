@@ -299,3 +299,5 @@
 "calendar.restricted" = "Calendar access is restricted on this Mac.";
 "calendar.allDay" = "All-day";
 "calendar.untitled" = "Untitled event";
+
+"approval.codexAlwaysAllow" = "Always Allow";

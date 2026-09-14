@@ -200,6 +200,8 @@ public struct PermissionRequest: Equatable, Identifiable, Codable, Sendable {
     public var toolName: String?
     public var toolUseID: String?
     public var suggestedUpdates: [ClaudePermissionUpdate]
+    /// Nil for hook-backed requests; Desktop advertises the exact supported scopes.
+    public var codexAppPersistence: [CodexDesktopApprovalPersistence]?
     public var requiresTerminalApproval: Bool
 
     public init(
@@ -212,6 +214,7 @@ public struct PermissionRequest: Equatable, Identifiable, Codable, Sendable {
         toolName: String? = nil,
         toolUseID: String? = nil,
         suggestedUpdates: [ClaudePermissionUpdate] = [],
+        codexAppPersistence: [CodexDesktopApprovalPersistence]? = nil,
         requiresTerminalApproval: Bool = false
     ) {
         self.id = id
@@ -223,6 +226,7 @@ public struct PermissionRequest: Equatable, Identifiable, Codable, Sendable {
         self.toolName = toolName
         self.toolUseID = toolUseID
         self.suggestedUpdates = suggestedUpdates
+        self.codexAppPersistence = codexAppPersistence
         self.requiresTerminalApproval = requiresTerminalApproval
     }
 }
@@ -351,6 +355,7 @@ public enum ApprovalAction: Sendable {
     case deny
     case allowOnce
     case allowWithUpdates([ClaudePermissionUpdate])
+    case allowAlways
 }
 
 public enum PermissionResolution: Equatable, Codable, Sendable {

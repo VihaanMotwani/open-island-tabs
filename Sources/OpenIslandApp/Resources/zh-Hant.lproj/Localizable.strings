@@ -298,3 +298,5 @@
 "calendar.restricted" = "此 Mac 限制了行事曆存取。";
 "calendar.allDay" = "全天";
 "calendar.untitled" = "無標題行程";
+
+"approval.codexAlwaysAllow" = "始終允許";

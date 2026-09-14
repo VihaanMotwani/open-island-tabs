@@ -423,7 +423,9 @@ struct AppModelSessionListTests {
         model.applyCodexDesktopAttention(update)
         #expect(model.state.session(id: "desktop-human")?.phase == .waitingForApproval)
         #expect(model.state.session(id: "desktop-human")?.permissionRequest?.summary == "Allow Computer Use to use Calculator?")
-        var decisions: [Bool] = []
+        // A Desktop app prompt must never advertise the generic Claude rule action.
+        #expect(model.state.session(id: "desktop-human")?.permissionRequest?.toolName == nil)
+        var decisions: [CodexDesktopAppDecision] = []
         model.desktopApprovalResponder = { approval, allowed in
             #expect(approval.sessionID == "desktop-human")
             #expect(approval.ownerClientID == "owner")
@@ -436,10 +438,67 @@ struct AppModelSessionListTests {
         model.approvePermission(for: "desktop-human", action: allowed ? .allowOnce : .deny,
             expectedRequestID: model.state.session(id: "desktop-human")?.permissionRequest?.id)
         for _ in 0..<20 where decisions.isEmpty { await Task.yield() }
-        #expect(decisions == [allowed])
+        #expect(decisions == [allowed ? .allowOnce : .deny])
         // Transport acknowledgment alone does not resolve the visible request.
         #expect(model.state.session(id: "desktop-human")?.phase == .waitingForApproval)
         #expect(model.notchStatus == .opened)
+    }
+
+    @Test(arguments: [["session", "always"], ["always"], ["session"], []])
+    func desktopAppPermissionOffersAndSendsOnlyAdvertisedScopes(scopes: [String]) async throws {
+        let model = AppModel()
+        model.isSoundMuted = true
+        model.state = SessionState(sessions: [AgentSession(
+            id: "desktop-human", title: "Human approval", tool: .codex,
+            attachmentState: .attached, phase: .running, summary: "Working",
+            updatedAt: .now, codexRuntimeSurface: .desktopApp
+        )])
+        var stream = CodexDesktopRequestStream()
+        func receive(scopes: [String], revision: Int) throws {
+            let data = try JSONSerialization.data(withJSONObject: [
+                "type": "broadcast", "method": "thread-stream-state-changed", "version": 11,
+                "sourceClientId": "owner", "params": ["hostId": "local", "conversationId": "desktop-human",
+                    "change": ["type": "snapshot", "revision": revision, "conversationState": ["requests": [[
+                        "id": 75, "method": "mcpServer/elicitation/request", "params": [
+                            "threadId": "desktop-human", "mode": "form", "message": "Allow Calculator?",
+                            "requestedSchema": ["type": "object", "properties": [:]],
+                            "_meta": ["codex_approval_kind": "mcp_tool_call", "connector_id": "computer-use",
+                                "tool_name": "get_app_state", "tool_params": ["app": "com.apple.calculator"],
+                                "persist": scopes]
+                        ]
+                    ]]]]]
+            ])
+            let received = stream.receive(data)
+            model.applyCodexDesktopAttention(try #require(received))
+        }
+        try receive(scopes: scopes, revision: 1)
+        let request = try #require(model.state.session(id: "desktop-human")?.permissionRequest)
+        #expect(request.toolName == nil)
+        #expect(request.codexAppPersistence?.map(\.rawValue).sorted() == scopes.sorted())
+        #expect(request.primaryActionTitle == (scopes.contains("session") ? "Allow this conversation" : "Allow once"))
+        var decisions: [CodexDesktopAppDecision] = []
+        model.desktopApprovalResponder = { _, decision in
+            decisions.append(decision)
+            return true
+        }
+        model.approvePermission(for: "desktop-human", action: .allowAlways, expectedRequestID: request.id)
+        for _ in 0..<30 { await Task.yield() }
+        #expect(decisions == (scopes.contains("always") ? [.allowAlways] : []))
+        #expect(model.state.session(id: "desktop-human")?.phase == .waitingForApproval)
+        // Changing only permission scopes invalidates the old button's request identity.
+        try receive(scopes: scopes.contains("always") ? ["session"] : ["session", "always"], revision: 2)
+        let changed = try #require(model.state.session(id: "desktop-human")?.permissionRequest)
+        do {
+            #expect(changed.id != request.id)
+            let before = decisions
+            model.approvePermission(for: "desktop-human", action: .allowAlways, expectedRequestID: request.id)
+            for _ in 0..<10 { await Task.yield() }
+            #expect(decisions == before)
+        }
+        decisions.removeAll()
+        model.approvePermission(for: "desktop-human", action: .allowOnce, expectedRequestID: changed.id)
+        for _ in 0..<30 { await Task.yield() }
+        #expect(decisions == [.allowForSession])
     }
 
     @Test(arguments: [false, true])

@@ -114,17 +114,27 @@ companion API; Codex updates may require adapting the reader.
 
 The connection never starts a router or takes thread ownership. Plain Computer
 Use app-access prompts (`get_app_state`, one app identifier, no form fields)
-can show **Allow once** and **Deny**. A user click carries the displayed request's
-identity; the client revalidates its owner and full prompt against current
-stream state, then sends the corresponding follower response. It never adds a
-persistent grant. Disconnected, outdated, and replaced requests cannot be
-answered, and the card only clears when the owner removes the request.
+show **Deny** and **Allow once**, or **Allow this conversation** when the request
+advertises the `session` persistence scope. **Always Allow** appears only when
+Codex advertises the `always` scope in the request's `_meta.persist` (a string or
+array). These are Codex actions, not Claude permission-rule updates.
+
+A user click carries the displayed request's identity; the client revalidates
+its owner, prompt, and supported scopes against current stream state. It sends
+an `accept` follower response with empty `content` and `_meta.persist` set to
+`session` or `always` only for that explicit choice. Allow once and Deny send no
+persistence scope. A scope-only change invalidates the old card just like a
+changed prompt. Disconnected, outdated, unsupported-scope, and replaced requests
+cannot be answered, and the card only clears when the owner removes the request.
+The response shape was checked against the installed Codex Computer Use approval
+handler; this remains an internal, versioned integration.
 
 Other command, file, permission, and richer elicitation requests keep the
 non-actionable jump-to-Codex notification. This avoids presenting a decision
 without the complete review UI required by that request. Tests cover the actual
-Calculator payload, both decisions, transport failure, stale clicks, multiple
-requests, revision gaps, reconnect snapshots, and clearing app-access cards
+Calculator payload, all four decision scopes, exact framed socket responses,
+transport failure, stale clicks, scope changes, multiple requests, revision gaps,
+reconnect snapshots, and clearing app-access cards
 when the user responds inside Codex, including after an Island restart. Manual
 verification should cover automatic-review silence, Island Allow/Deny actions,
 and notification clearing after a response inside Codex.

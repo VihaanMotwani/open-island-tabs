@@ -1948,7 +1948,12 @@ private struct IslandSessionRow: View {
                     .buttonStyle(IslandActionButtonStyle(kind: .secondary, expands: true))
                 Button(session.permissionRequest?.primaryActionTitle ?? lang.t("approval.allowOnce")) { onApprove?(.allowOnce) }
                     .buttonStyle(IslandActionButtonStyle(kind: .primary, expands: true))
-                if let toolName = session.permissionRequest?.toolName {
+                if let persistence = session.permissionRequest?.codexAppPersistence {
+                    if persistence.contains(.always) {
+                        Button(lang.t("approval.codexAlwaysAllow")) { onApprove?(.allowAlways) }
+                            .buttonStyle(IslandActionButtonStyle(kind: .primary, expands: true))
+                    }
+                } else if let toolName = session.permissionRequest?.toolName {
                     Button(lang.t("approval.alwaysAllow", toolName)) {
                         let rule = ClaudePermissionRuleValue(toolName: toolName)
                         let update = ClaudePermissionUpdate.addRules(

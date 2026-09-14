@@ -74,7 +74,7 @@ final class AppModel {
     @ObservationIgnored private lazy var desktopIPC = CodexDesktopIPCClient { [weak self] update in
         Task { @MainActor [weak self] in self?.applyCodexDesktopAttention(update) }
     }
-    @ObservationIgnored var desktopApprovalResponder: ((CodexDesktopAppApproval, Bool) async -> Bool)?
+    @ObservationIgnored var desktopApprovalResponder: ((CodexDesktopAppApproval, CodexDesktopAppDecision) async -> Bool)?
     @ObservationIgnored private var desktopAppApprovals: [String: CodexDesktopAppApproval] = [:]
     @ObservationIgnored private var desktopPresentedPermissions: [String: PermissionRequest] = [:]
     @ObservationIgnored private var desktopDecisionsInFlight: Set<String> = []
@@ -1463,7 +1463,8 @@ final class AppModel {
             return
         }
         if desktopAppApprovals[session.id] != nil {
-            sendDesktopAppDecision(sessionID: session.id, approved: approved)
+            approvePermission(for: session.id, action: approved ? .allowOnce : .deny,
+                expectedRequestID: session.permissionRequest?.id)
             return
         }
 
@@ -1573,8 +1574,12 @@ final class AppModel {
             }
 
             switch action {
-            case .allowOnce: sendDesktopAppDecision(sessionID: session.id, approved: true)
-            case .deny: sendDesktopAppDecision(sessionID: session.id, approved: false)
+            case .allowOnce:
+                let decision: CodexDesktopAppDecision = desktopAppApprovals[session.id]?.persistenceOptions.contains(.session) == true
+                    ? .allowForSession : .allowOnce
+                sendDesktopAppDecision(sessionID: session.id, decision: decision)
+            case .deny: sendDesktopAppDecision(sessionID: session.id, decision: .deny)
+            case .allowAlways: sendDesktopAppDecision(sessionID: session.id, decision: .allowAlways)
             case .allowWithUpdates: lastActionMessage = "Use Codex to change persistent permissions."
             }
             return
@@ -1591,6 +1596,9 @@ final class AppModel {
         case .allowOnce:
             resolution = .allowOnce()
             message = "Approving permission for \(session.title)."
+        case .allowAlways:
+            lastActionMessage = "This request no longer supports persistent Codex approval."
+            return
         case let .allowWithUpdates(updates):
             resolution = .allowOnce(updatedPermissions: updates)
             message = "Always allowing for \(session.title)."
@@ -1728,8 +1736,10 @@ final class AppModel {
                 desktopAppApprovals[update.sessionID] = approval
                 if unchanged, state.session(id: update.sessionID)?.permissionRequest != nil { return }
                 let request = PermissionRequest(title: "Codex app access", summary: approval.message,
-                    affectedPath: approval.appIdentifier, primaryActionTitle: "Allow once", secondaryActionTitle: "Deny",
-                    toolName: "Computer Use", toolUseID: approval.requestKey)
+                    affectedPath: approval.appIdentifier,
+                    primaryActionTitle: approval.persistenceOptions.contains(.session) ? "Allow this conversation" : "Allow once",
+                    secondaryActionTitle: "Deny", toolUseID: approval.requestKey,
+                    codexAppPersistence: CodexDesktopApprovalPersistence.allCases.filter { approval.persistenceOptions.contains($0) })
                 desktopPresentedPermissions[update.sessionID] = request
                 applyTrackedEvent(.permissionRequested(PermissionRequested(
                     sessionID: update.sessionID, request: request, timestamp: .now
@@ -1744,15 +1754,19 @@ final class AppModel {
         }
     }
 
-    private func sendDesktopAppDecision(sessionID: String, approved: Bool) {
-        guard let approval = desktopAppApprovals[sessionID],
-              desktopDecisionsInFlight.insert(sessionID).inserted else { return }
+    private func sendDesktopAppDecision(sessionID: String, decision: CodexDesktopAppDecision) {
+        guard let approval = desktopAppApprovals[sessionID] else { return }
+        guard approval.supports(decision) else {
+            lastActionMessage = "Codex does not offer that permission scope for this request."
+            return
+        }
+        guard desktopDecisionsInFlight.insert(sessionID).inserted else { return }
         lastActionMessage = "Sending decision to Codex…"
         Task { [weak self] in
             guard let self else { return }
             let sent: Bool
-            if let responder = self.desktopApprovalResponder { sent = await responder(approval, approved) }
-            else { sent = await self.desktopIPC.respond(to: approval, allow: approved) }
+            if let responder = self.desktopApprovalResponder { sent = await responder(approval, decision) }
+            else { sent = await self.desktopIPC.respond(to: approval, decision: decision) }
             self.desktopDecisionsInFlight.remove(sessionID)
             self.lastActionMessage = sent ? "Decision sent to Codex." : "Could not confirm the decision. Open the task in Codex."
             // The owner removing the request clears the card; a transport

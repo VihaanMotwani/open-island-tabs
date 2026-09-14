@@ -6,14 +6,39 @@ public struct CodexDesktopAttentionUpdate: Sendable, Equatable {
     public var appApproval: CodexDesktopAppApproval?
 }
 
-/// Only a plain Computer Use app-access prompt can be represented fully by
-/// two buttons. Other forms and execution-bound approvals remain in Codex.
+public enum CodexDesktopApprovalPersistence: String, Codable, Sendable, CaseIterable {
+    case session
+    case always
+}
+
+public enum CodexDesktopAppDecision: Sendable, Equatable {
+    case deny
+    case allowOnce
+    case allowForSession
+    case allowAlways
+
+    var persistence: CodexDesktopApprovalPersistence? {
+        switch self {
+        case .deny, .allowOnce: nil
+        case .allowForSession: .session
+        case .allowAlways: .always
+        }
+    }
+}
+
+/// Only plain Computer Use app-access prompts have direct Island actions.
+/// Other forms and execution-bound approvals remain in Codex.
 public struct CodexDesktopAppApproval: Sendable, Equatable {
     public var sessionID: String
     public var ownerClientID: String
     public var requestKey: String
     public var message: String
     public var appIdentifier: String
+    public var persistenceOptions: Set<CodexDesktopApprovalPersistence> = []
+
+    public func supports(_ decision: CodexDesktopAppDecision) -> Bool {
+        decision.persistence.map { persistenceOptions.contains($0) } ?? true
+    }
 
     var wireRequestID: Any {
         if requestKey.hasPrefix("number:"), let number = Int(requestKey.dropFirst(7)) { return number }
@@ -121,9 +146,21 @@ public struct CodexDesktopRequestStream {
             else if let id = request["id"] as? Int { key = "number:\(id)" }
             else { continue }
             return CodexDesktopAppApproval(sessionID: sessionID, ownerClientID: state.owner,
-                requestKey: key, message: message, appIdentifier: app)
+                requestKey: key, message: message, appIdentifier: app,
+                persistenceOptions: persistenceOptions(meta["persist"]))
         }
         return nil
+    }
+
+    private static func persistenceOptions(_ value: Any?) -> Set<CodexDesktopApprovalPersistence> {
+        let values: [String]
+        if let single = value as? String { values = [single] }
+        else if let multiple = value as? [String] { values = multiple }
+        else { return [] }
+        let options = values.compactMap(CodexDesktopApprovalPersistence.init(rawValue:))
+        // Unknown metadata must never broaden the actions offered by the owner.
+        guard options.count == values.count else { return [] }
+        return Set(options)
     }
 
     private static func pendingIDs(_ requests: [[String: Any]], sessionID: String) -> Set<String> {

@@ -299,3 +299,5 @@
 "calendar.restricted" = "此 Mac 限制了日历访问。";
 "calendar.allDay" = "全天";
 "calendar.untitled" = "无标题日程";
+
+"approval.codexAlwaysAllow" = "始终允许";

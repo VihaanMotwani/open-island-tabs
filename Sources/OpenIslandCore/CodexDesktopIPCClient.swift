@@ -34,25 +34,30 @@ public final class CodexDesktopIPCClient: @unchecked Sendable {
         }
     }
 
-    public func respond(to approval: CodexDesktopAppApproval, allow: Bool) async -> Bool {
+    public func respond(to approval: CodexDesktopAppApproval, decision: CodexDesktopAppDecision) async -> Bool {
         await withCheckedContinuation { continuation in
             queue.async { [self] in
                 // Revalidate the exact displayed request against current owner
                 // state. Never answer a cached prompt after a disconnect.
-                guard let clientID, socketFD >= 0,
+                guard let clientID, socketFD >= 0, approval.supports(decision),
                       stream.currentAppApproval(sessionID: approval.sessionID) == approval,
                       !stream.needsSnapshot.contains(approval.sessionID) else {
                     continuation.resume(returning: false)
                     return
                 }
+                let allow = decision != .deny
+                let response: [String: Any] = [
+                    "action": allow ? "accept" : "decline",
+                    "content": allow ? ([:] as [String: String]) as Any : NSNull() as Any,
+                    "_meta": decision.persistence.map { ["persist": $0.rawValue] } as Any? ?? NSNull()
+                ]
                 let id = UUID().uuidString
                 pendingResponses[id] = continuation
                 send(["type": "request", "method": "thread-follower-submit-mcp-server-elicitation-response",
                       "version": 1, "requestId": id, "sourceClientId": clientID,
                       "targetClientId": approval.ownerClientID,
                       "params": ["conversationId": approval.sessionID, "requestId": approval.wireRequestID,
-                                 "response": ["action": allow ? "accept" : "decline",
-                                              "content": allow ? ([:] as [String: String]) as Any : NSNull() as Any]]])
+                                 "response": response]])
                 queue.asyncAfter(deadline: .now() + 10) { [weak self] in
                     self?.pendingResponses.removeValue(forKey: id)?.resume(returning: false)
                 }

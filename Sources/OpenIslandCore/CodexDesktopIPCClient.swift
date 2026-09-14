@@ -142,7 +142,12 @@ public final class CodexDesktopIPCClient: @unchecked Sendable {
                 guard length > 0, length <= maxFrameBytes else { disconnect(); scheduleRetry(); return }
                 guard buffer.count >= length + 4 else { break }
                 let frame = Data(buffer.dropFirst(4).prefix(length))
-                buffer.removeFirst(length + 4)
+                // Data.removeFirst advances the slice's start index while
+                // retaining consumed bytes in its backing allocation. Compact
+                // the unread tail instead, and release storage when drained.
+                let consumedEnd = buffer.index(buffer.startIndex, offsetBy: length + 4)
+                buffer.removeSubrange(buffer.startIndex..<consumedEnd)
+                if buffer.isEmpty { buffer = Data() }
                 handle(frame)
             }
         }

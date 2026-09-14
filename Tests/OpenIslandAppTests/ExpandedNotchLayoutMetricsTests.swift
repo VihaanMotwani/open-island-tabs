@@ -29,8 +29,8 @@ struct ExpandedNotchLayoutMetricsTests {
         #expect(ExpandedNotchLayoutMetrics.contentHorizontalInset == 15)
         #expect(ExpandedNotchLayoutMetrics.silhouetteHorizontalInset == 15)
         #expect(ExpandedNotchLayoutMetrics.safeContentHorizontalInset == 30)
-        #expect(ExpandedNotchLayoutMetrics.tabSwitcherHeight == 36)
-        #expect(ExpandedNotchLayoutMetrics.tabControlHeight == 26)
+        #expect(ExpandedNotchLayoutMetrics.tabSwitcherHeight == 44)
+        #expect(ExpandedNotchLayoutMetrics.tabControlHeight == 32)
         #expect(ExpandedNotchLayoutMetrics.sessionHeaderHeight == 30)
         #expect(ExpandedNotchLayoutMetrics.sessionFooterHeight == 22)
         #expect(ExpandedNotchLayoutMetrics.spotifyContentHeight == 156)
@@ -39,8 +39,8 @@ struct ExpandedNotchLayoutMetricsTests {
 
     @Test
     func tabSwitcherCompactsWhenOptionalTabsAreHidden() {
-        #expect(ExpandedNotchLayoutMetrics.tabSegmentedControlWidth(visibleTabCount: 3) == 216)
-        #expect(ExpandedNotchLayoutMetrics.tabSegmentedControlWidth(visibleTabCount: 2) == 144)
+        #expect(ExpandedNotchLayoutMetrics.tabSegmentedControlWidth(visibleTabCount: 3) == 242)
+        #expect(ExpandedNotchLayoutMetrics.tabSegmentedControlWidth(visibleTabCount: 2) == 160)
         #expect(ExpandedNotchLayoutMetrics.tabSegmentedControlWidth(visibleTabCount: 1) == 96)
     }
 

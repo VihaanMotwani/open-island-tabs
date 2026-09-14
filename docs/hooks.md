@@ -112,6 +112,14 @@ request state is retained in memory; the received conversation history is
 discarded. This is an internal versioned protocol, not a documented stable
 companion API; Codex updates may require adapting the reader.
 
+The socket reader compacts consumed frame bytes and releases the buffer when
+drained. Advancing a `Data` slice with `removeFirst` retains the consumed prefix,
+so a per-message size limit alone does not bound that storage. The CI harness
+runs `zsh scripts/check-codex-ipc-memory.sh` in an isolated process: it sends
+256 MiB through the production client's socket API and checks peak memory
+before disconnecting. Socket tests also cover split headers, large payloads,
+and adjacent frames while preserving the approval response.
+
 The connection never starts a router or takes thread ownership. Plain Computer
 Use app-access prompts (`get_app_state`, one app identifier, no form fields)
 show **Deny** and **Allow once**, or **Allow this conversation** when the request

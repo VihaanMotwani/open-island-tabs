@@ -44,6 +44,16 @@ struct CodexDesktopIPCClientTests {
         #expect(response["_meta"] is NSNull)
     }
 
+    @Test(arguments: [1, 2, 3, 4, 64 * 1024])
+    func preservesApprovalWhenFramesAreSplitAndCoalesced(split: Int) async throws {
+        let payload = try await exchange(decision: .allowAlways, scopes: ["always"], frameSplit: split)
+        #expect(payload["targetClientId"] as? String == "owner")
+        let params = try #require(payload["params"] as? [String: Any])
+        #expect(params["requestId"] as? Int == 75)
+        let response = try #require(params["response"] as? [String: Any])
+        #expect(response["_meta"] as? [String: String] == ["persist": "always"])
+    }
+
     @Test(arguments: ["always", "session", "unknown"])
     func acceptsKnownSingleScopeAndRejectsUnknownScope(scope: String) throws {
         var stream = CodexDesktopRequestStream()
@@ -55,14 +65,15 @@ struct CodexDesktopIPCClientTests {
     }
 
     private func exchange(
-        decision: CodexDesktopAppDecision, scopes: [String], attemptUnsupported: Bool = false
+        decision: CodexDesktopAppDecision, scopes: [String], attemptUnsupported: Bool = false,
+        frameSplit: Int? = nil
     ) async throws -> [String: Any] {
         let peer = try DesktopPeer()
         defer { peer.close() }
         let (updates, continuation) = AsyncThrowingStream<CodexDesktopAttentionUpdate, Error>.makeStream()
-        let snapshot = try Self.snapshot(scopes: scopes)
+        let snapshot = try Self.snapshot(scopes: scopes, padding: frameSplit == nil ? 0 : 192 * 1024)
         let received = Task.detached {
-            do { return try peer.exchange(snapshot: snapshot) }
+            do { return try await peer.exchange(snapshot: snapshot, frameSplit: frameSplit) }
             catch { continuation.finish(throwing: error); throw error }
         }
         let client = CodexDesktopIPCClient(socketPath: peer.path) { continuation.yield($0) }
@@ -83,8 +94,9 @@ struct CodexDesktopIPCClientTests {
         return try #require(JSONSerialization.jsonObject(with: try await received.value) as? [String: Any])
     }
 
-    private static func snapshot(scopes: Any) throws -> Data {
+    private static func snapshot(scopes: Any, padding: Int = 0) throws -> Data {
         try JSONSerialization.data(withJSONObject: [
+            "padding": String(repeating: "x", count: padding),
             "type": "broadcast", "method": "thread-stream-state-changed", "version": 11,
             "sourceClientId": "owner", "params": ["hostId": "local", "conversationId": "desktop-human",
                 "change": ["type": "snapshot", "revision": 1, "conversationState": ["requests": [[
@@ -130,7 +142,17 @@ private final class DesktopPeer: @unchecked Sendable {
         try? FileManager.default.removeItem(at: directory)
     }
 
-    func exchange(snapshot: Data) throws -> Data {
+    func exchange(snapshot: Data, frameSplit: Int? = nil) async throws -> Data {
+        // Blocking poll/read calls must not occupy the cooperative executor:
+        // concurrent peers would prevent the client's async decisions running.
+        try await withCheckedThrowingContinuation { result in
+            DispatchQueue.global().async {
+                result.resume(with: Result { try self.exchangeBlocking(snapshot: snapshot, frameSplit: frameSplit) })
+            }
+        }
+    }
+
+    private func exchangeBlocking(snapshot: Data, frameSplit: Int?) throws -> Data {
         try readable(listener)
         let fd = Darwin.accept(listener, nil, nil)
         guard fd >= 0 else { throw POSIXError(.EIO) }
@@ -146,7 +168,20 @@ private final class DesktopPeer: @unchecked Sendable {
             let data = try readFrame(fd)
             let request = try object(data)
             if request["method"] as? String == "thread-stream-following-changed" {
-                try send(fd, snapshot)
+                if let frameSplit {
+                    // A complete frame precedes a split header/body; another
+                    // follows it. The large snapshot also forces multiple
+                    // 64 KiB reads even if the socket coalesces our writes.
+                    let noop = framed(Data(#"{"type":"test-noop"}"#.utf8))
+                    var batch = noop
+                    batch.append(framed(snapshot))
+                    batch.append(noop)
+                    let split = noop.count + frameSplit
+                    try write(fd, Data(batch.prefix(split)))
+                    try write(fd, Data(batch.dropFirst(split)))
+                } else {
+                    try send(fd, snapshot)
+                }
                 continue
             }
             try send(fd, JSONSerialization.data(withJSONObject: [
@@ -187,10 +222,18 @@ private final class DesktopPeer: @unchecked Sendable {
     }
 
     private func send(_ fd: Int32, _ data: Data) throws {
+        try write(fd, framed(data))
+    }
+
+    private func framed(_ data: Data) -> Data {
         var length = UInt32(data.count).littleEndian
         var frame = withUnsafeBytes(of: &length) { Data($0) }
         frame.append(data)
-        try frame.withUnsafeBytes { bytes in
+        return frame
+    }
+
+    private func write(_ fd: Int32, _ data: Data) throws {
+        try data.withUnsafeBytes { bytes in
             var sent = 0
             while sent < bytes.count {
                 let n = Darwin.write(fd, bytes.baseAddress!.advanced(by: sent), bytes.count - sent)

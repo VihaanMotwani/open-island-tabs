@@ -146,20 +146,42 @@ struct SpotifyPlaybackProvider: MediaPlaybackProviding {
 }
 
 struct SystemSpotifyScriptExecutor: SpotifyScriptExecuting {
+    // OSA execution shares process state. Serialize across executor instances,
+    // including error handling, so one script cannot interfere with another.
+    private static let runner = SpotifyScriptRunner()
+
     func execute(_ source: String) async throws -> [String] {
-        try await Task.detached(priority: .utility) {
-            guard let script = NSAppleScript(source: source) else {
+        try await Self.runner.execute(source)
+    }
+}
+
+private actor SpotifyScriptRunner {
+    // Polling repeatedly executes the same stateless snapshot script. Keep one
+    // compiled script, isolated from concurrent execution; changing seek/volume
+    // commands replace it instead of accumulating an unbounded script cache.
+    private var cached: (source: String, script: NSAppleScript)?
+
+    func execute(_ source: String) async throws -> [String] {
+        try autoreleasepool {
+            let script: NSAppleScript
+            if let cached, cached.source == source {
+                script = cached.script
+            } else if let compiled = NSAppleScript(source: source) {
+                script = compiled
+            } else {
                 throw SpotifyScriptError.compilationFailed
             }
 
             var errorInfo: NSDictionary?
             let result = script.executeAndReturnError(&errorInfo)
             if let errorInfo {
+                cached = nil
                 let message = errorInfo[NSAppleScript.errorMessage] as? String
                     ?? "Spotify rejected the AppleScript command."
                 throw SpotifyScriptError.executionFailed(message)
             }
 
+            cached = (source, script)
             guard result.numberOfItems > 0 else {
                 return []
             }
@@ -167,7 +189,7 @@ struct SystemSpotifyScriptExecutor: SpotifyScriptExecuting {
             return (1...result.numberOfItems).map {
                 result.atIndex($0)?.stringValue ?? ""
             }
-        }.value
+        }
     }
 }
 

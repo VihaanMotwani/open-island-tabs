@@ -82,3 +82,25 @@ private actor SpotifyScriptExecutorStub: SpotifyScriptExecuting {
         return responses.isEmpty ? [] : responses.removeFirst()
     }
 }
+
+
+struct SystemSpotifyScriptExecutorTests {
+    @Test
+    func repeatedAndChangedScriptsReturnFreshResults() async throws {
+        let executor = SystemSpotifyScriptExecutor()
+        #expect(try await executor.execute("return {\"first\"}") == ["first"])
+        #expect(try await executor.execute("return {\"first\"}") == ["first"])
+        #expect(try await executor.execute("return {\"second\"}") == ["second"])
+        #expect(try await executor.execute("return {\"first\"}") == ["first"])
+    }
+
+    @Test
+    func executionFailureDoesNotPoisonTheNextScript() async throws {
+        let executor = SystemSpotifyScriptExecutor()
+        do {
+            _ = try await executor.execute("error \"test failure\"")
+            Issue.record("Expected the AppleScript error to be propagated")
+        } catch { }
+        #expect(try await executor.execute("return {\"recovered\"}") == ["recovered"])
+    }
+}

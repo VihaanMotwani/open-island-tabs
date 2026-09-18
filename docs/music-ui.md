@@ -11,6 +11,10 @@ area. Clicking sets an absolute position; dragging follows the pointer in either
 direction and commits on release. Keyboard and accessibility adjustments use
 the same seek callback. Playback commands run in input order, and polling cannot
 replace the requested position with a response from before or during a seek.
+The AppleScript executor serializes calls in an actor and retains only the last
+compiled script. Repeated snapshot polls reuse that script; changed commands
+replace it, and execution errors discard it. This avoids recompilation and
+macOS script scanning on every poll without slowing track-change detection.
 
 The closed notch retains its animated equalizer while music is playing and a
 static equalizer while paused. Album artwork does not replace that indicator.

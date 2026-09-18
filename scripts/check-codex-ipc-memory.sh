@@ -12,3 +12,5 @@ swiftc -swift-version 6 -module-cache-path "$probe_dir/module-cache" \
     "$repo_root/scripts/fixtures/CodexIPCMemoryProbe.swift" \
     -o "$probe_dir/probe"
 "$probe_dir/probe" "$probe_dir/ipc.sock"
+
+"$probe_dir/probe" "$probe_dir/ipc-history.sock" --history

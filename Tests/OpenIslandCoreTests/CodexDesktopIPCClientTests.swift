@@ -64,6 +64,30 @@ struct CodexDesktopIPCClientTests {
         #expect(approval.supports(.allowForSession) == (scope == "session"))
     }
 
+    @Test
+    func historyPatchesAdvanceRevisionWithoutChangingApproval() throws {
+        var stream = CodexDesktopRequestStream()
+        let initialUpdate = stream.receive(try Self.snapshot(scopes: ["always"]))
+        let initial = try #require(initialUpdate)
+        let approval = try #require(initial.appApproval)
+        func patch(_ revision: Int, _ patches: [[String: Any]]) throws -> Data {
+            try JSONSerialization.data(withJSONObject: [
+                "type": "broadcast", "method": "thread-stream-state-changed", "version": 11,
+                "sourceClientId": "owner", "params": ["hostId": "local", "conversationId": "desktop-human",
+                    "change": ["type": "patches", "baseRevision": revision - 1,
+                        "revision": revision, "patches": patches]]
+            ])
+        }
+        #expect(stream.receive(try patch(2, [["op": "replace", "path": ["turns"],
+            "value": [["text": String(repeating: "tool output", count: 20_000)]]]])) == nil)
+        #expect(stream.currentAppApproval(sessionID: "desktop-human") == approval)
+        let clearedUpdate = stream.receive(try patch(3, [["op": "replace", "path": ["requests"], "value": []]]))
+        let cleared = try #require(clearedUpdate)
+        #expect(cleared.pendingRequestIDs.isEmpty)
+        #expect(cleared.appApproval == nil)
+        #expect(stream.needsSnapshot.isEmpty)
+    }
+
     private func exchange(
         decision: CodexDesktopAppDecision, scopes: [String], attemptUnsupported: Bool = false,
         frameSplit: Int? = nil

@@ -16,16 +16,19 @@ struct CodexThreadTitleStoreTests {
                 ("thread-a", "  查找 VibeIsland 项目  "),
                 ("thread-b", "调研AI智能小车方案"),
                 ("thread-blank", "   "),
+                ("thread-'quoted", "Literal ID"),
+                ("unrequested", "Leave out"),
             ]
         )
 
         let titles = CodexThreadTitleStore(databasePath: databaseURL.path).titles(
-            for: ["thread-a", "thread-b", "thread-blank", "missing"]
+            for: ["thread-a", "thread-b", "thread-blank", "thread-'quoted", "missing"]
         )
 
         #expect(titles == [
             "thread-a": "查找 VibeIsland 项目",
             "thread-b": "调研AI智能小车方案",
+            "thread-'quoted": "Literal ID",
         ])
     }
 

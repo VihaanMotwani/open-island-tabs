@@ -73,7 +73,7 @@ public struct CodexThreadTitleStore: Sendable {
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(
             database,
-            "SELECT id, title FROM threads WHERE title != '';",
+            "SELECT title FROM threads WHERE id = ? AND title != '' LIMIT 1;",
             -1,
             &statement,
             nil
@@ -84,22 +84,17 @@ public struct CodexThreadTitleStore: Sendable {
         defer { sqlite3_finalize(statement) }
 
         var result: [String: String] = [:]
-        while sqlite3_step(statement) == SQLITE_ROW {
-            guard let idBytes = sqlite3_column_text(statement, 0),
-                  let titleBytes = sqlite3_column_text(statement, 1) else {
+        // Seek requested IDs through the primary-key index. Scanning every
+        // saved thread here makes a periodic live-title refresh grow with the
+        // user's entire archive, including large titles on overflow pages.
+        for id in threadIDs {
+            sqlite3_reset(statement)
+            guard sqlite3_bind_text(statement, 1, id, -1, sqliteTransient) == SQLITE_OK,
+                  sqlite3_step(statement) == SQLITE_ROW,
+                  let title = trimmedColumn(statement, index: 0) else {
                 continue
             }
-
-            let id = String(cString: idBytes)
-            guard threadIDs.contains(id) else {
-                continue
-            }
-
-            let title = String(cString: titleBytes)
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            if !title.isEmpty {
-                result[id] = title
-            }
+            result[id] = title
         }
 
         return result

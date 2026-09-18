@@ -37,6 +37,12 @@ struct CodexDesktopIPCClientTests {
     }
 
     @Test
+    func subscribesOnceAcrossRepeatedMaintenanceSyncs() async throws {
+        let payload = try await exchange(decision: .allowOnce, scopes: [], resynchronize: true)
+        #expect(payload["observedFollowCount"] as? Int == 1)
+    }
+
+    @Test
     func refusesUnadvertisedScopeBeforeSendingAnything() async throws {
         let payload = try await exchange(decision: .allowOnce, scopes: [], attemptUnsupported: true)
         let params = try #require(payload["params"] as? [String: Any])
@@ -90,7 +96,7 @@ struct CodexDesktopIPCClientTests {
 
     private func exchange(
         decision: CodexDesktopAppDecision, scopes: [String], attemptUnsupported: Bool = false,
-        frameSplit: Int? = nil
+        frameSplit: Int? = nil, resynchronize: Bool = false
     ) async throws -> [String: Any] {
         let peer = try DesktopPeer()
         defer { peer.close() }
@@ -106,6 +112,9 @@ struct CodexDesktopIPCClientTests {
         var iterator = updates.makeAsyncIterator()
         let update = try #require(try await iterator.next())
         let approval = try #require(update.appApproval)
+        if resynchronize {
+            for _ in 0..<20 { client.sync(sessionIDs: ["desktop-human"]) }
+        }
         // Matching ID alone is insufficient: a changed displayed prompt is stale.
         var stale = approval
         stale.appIdentifier = "different.app"
@@ -188,10 +197,12 @@ private final class DesktopPeer: @unchecked Sendable {
             "type": "response", "method": "initialize", "requestId": initialize["requestId"]!,
             "resultType": "success", "result": ["clientId": "island"]
         ]))
+        var followCount = 0
         for _ in 0..<8 {
             let data = try readFrame(fd)
             let request = try object(data)
             if request["method"] as? String == "thread-stream-following-changed" {
+                followCount += 1
                 if let frameSplit {
                     // A complete frame precedes a split header/body; another
                     // follows it. The large snapshot also forces multiple
@@ -212,7 +223,9 @@ private final class DesktopPeer: @unchecked Sendable {
                 "type": "response", "requestId": request["requestId"]!,
                 "resultType": "success", "result": ["ok": true]
             ]))
-            return data
+            var observed = request
+            observed["observedFollowCount"] = followCount
+            return try JSONSerialization.data(withJSONObject: observed)
         }
         throw POSIXError(.ETIMEDOUT)
     }

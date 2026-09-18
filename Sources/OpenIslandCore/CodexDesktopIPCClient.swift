@@ -17,7 +17,6 @@ public final class CodexDesktopIPCClient: @unchecked Sendable {
     private var stream = CodexDesktopRequestStream()
     private var pendingResponses: [String: CheckedContinuation<Bool, Never>] = [:]
     private var retryScheduled = false
-    private var lastRefresh = Date.distantPast
     private let maxFrameBytes = 256 * 1024 * 1024
 
     public init(socketPath: String? = nil, onUpdate: @escaping @Sendable (CodexDesktopAttentionUpdate) -> Void) {
@@ -185,11 +184,10 @@ public final class CodexDesktopIPCClient: @unchecked Sendable {
         for id in subscribed.subtracting(desired) { follow(id, following: false) }
         for id in desired.subtracting(subscribed) { follow(id, following: true) }
         subscribed = desired
-        // Recover owner changes and requests resolved during a missed interval.
-        if Date.now.timeIntervalSince(lastRefresh) > 15 {
-            lastRefresh = .now
-            for id in desired { follow(id, following: true) }
-        }
+        // The socket is an ordered stream. Request another snapshot only on
+        // reconnect, revision/owner mismatch, or an owner's following-status
+        // request (handled above). Re-announcing every maintenance interval
+        // retransmits entire conversation histories even when nothing changed.
     }
 
     private func follow(_ id: String, following: Bool) {

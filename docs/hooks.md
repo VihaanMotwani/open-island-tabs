@@ -106,7 +106,10 @@ resolve the permission card before replaying running activity: ordinary updates
 intentionally preserve unresolved approvals. An empty owner snapshot also
 clears a restored Desktop permission after restarting Open Island. Repeated
 observations do not reopen a manually dismissed notification. Real human
-requests can notify even when Codex is foreground. Revision gaps trigger a new snapshot; reconnects resubscribe.
+requests can notify even when Codex is foreground. Revision gaps and owner
+mismatches trigger a new snapshot; reconnects resubscribe and owner requests
+reaffirm following. Ordinary maintenance syncs only announce subscription
+changes. They do not periodically download complete conversation snapshots.
 A disconnect or unknown protocol version does not establish resolution. Only
 request state is retained in memory; the received conversation history is
 discarded. This is an internal versioned protocol, not a documented stable

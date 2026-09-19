@@ -106,7 +106,10 @@ resolve the permission card before replaying running activity: ordinary updates
 intentionally preserve unresolved approvals. An empty owner snapshot also
 clears a restored Desktop permission after restarting Open Island. Repeated
 observations do not reopen a manually dismissed notification. Real human
-requests can notify even when Codex is foreground. Revision gaps trigger a new snapshot; reconnects resubscribe.
+requests can notify even when Codex is foreground. Revision gaps and owner
+mismatches trigger a new snapshot; reconnects resubscribe and owner requests
+reaffirm following. Ordinary maintenance syncs only announce subscription
+changes. They do not periodically download complete conversation snapshots.
 A disconnect or unknown protocol version does not establish resolution. Only
 request state is retained in memory; the received conversation history is
 discarded. This is an internal versioned protocol, not a documented stable
@@ -118,7 +121,12 @@ so a per-message size limit alone does not bound that storage. The CI harness
 runs `zsh scripts/check-codex-ipc-memory.sh` in an isolated process: it sends
 256 MiB through the production client's socket API and checks peak memory
 before disconnecting. Socket tests also cover split headers, large payloads,
-and adjacent frames while preserving the approval response.
+and adjacent frames while preserving the approval response. Frames are decoded
+once into an approval-only projection: conversation turns and unrelated patch
+values are skipped, while request patches and revisions remain authoritative.
+The socket read buffer is reused and temporary Foundation objects are drained
+per frame. A second probe replays eight large history snapshots, bounding peak
+memory and CPU time so duplicate full-history parsing cannot silently return.
 
 The connection never starts a router or takes thread ownership. Plain Computer
 Use app-access prompts (`get_app_state`, one app identifier, no form fields)

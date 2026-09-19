@@ -65,8 +65,12 @@ public struct CodexDesktopRequestStream {
     }
 
     public mutating func receive(_ data: Data) -> CodexDesktopAttentionUpdate? {
-        guard let message = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              message["type"] as? String == "broadcast",
+        guard let message = try? CodexDesktopMessage.decode(data) else { return nil }
+        return receive(message)
+    }
+
+    mutating func receive(_ message: [String: Any]) -> CodexDesktopAttentionUpdate? {
+        guard message["type"] as? String == "broadcast",
               message["method"] as? String == "thread-stream-state-changed",
               let params = message["params"] as? [String: Any],
               params["hostId"] as? String == "local",
@@ -215,5 +219,98 @@ public struct CodexDesktopRequestStream {
             return object
         }
         throw PatchError.invalid
+    }
+}
+
+
+/// Decode the approval projection without materializing conversation history.
+/// JSONDecoder still validates/skips the wire JSON, but turns, tool output and
+/// unrelated patch values never become Foundation dictionaries or strings.
+enum CodexDesktopMessage {
+    static func decode(_ data: Data) throws -> [String: Any] {
+        try JSONDecoder().decode(Projection.self, from: data).object
+    }
+
+    private struct Key: CodingKey {
+        let stringValue: String
+        let intValue: Int? = nil
+        init(_ value: String) { stringValue = value }
+        init?(stringValue: String) { self.init(stringValue) }
+        init?(intValue: Int) { return nil }
+    }
+
+    private struct Projection: Decodable {
+        let object: [String: Any]
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: Key.self)
+            let fields: [String]
+            switch decoder.codingPath.map(\.stringValue) {
+            case []:
+                fields = ["type", "method", "version", "requestId", "sourceClientId", "resultType", "result", "params"]
+            case ["params"]:
+                fields = ["hostId", "conversationId", "change"]
+            case ["params", "change"]:
+                fields = ["type", "revision", "baseRevision", "conversationState", "patches"]
+            case ["params", "change", "conversationState"]:
+                fields = ["requests"]
+            case ["result"]:
+                fields = ["clientId", "ok"]
+            default:
+                fields = []
+            }
+            var result: [String: Any] = [:]
+            for name in fields {
+                let key = Key(name)
+                guard container.contains(key) else { continue }
+                if ["params", "change", "conversationState", "result"].contains(name) {
+                    // Preserve invalid/missing object shapes as invalid state;
+                    // never fabricate an empty requests snapshot from them.
+                    if let nested = try? container.decode(Projection.self, forKey: key) {
+                        result[name] = nested.object
+                    }
+                } else if name == "patches" {
+                    if let patches = try? container.decode([Patch].self, forKey: key) {
+                        result[name] = patches.map(\.object)
+                    }
+                } else {
+                    result[name] = try container.decode(Value.self, forKey: key).value
+                }
+            }
+            object = result
+        }
+    }
+
+    private struct Patch: Decodable {
+        let object: [String: Any]
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: Key.self)
+            var result: [String: Any] = [:]
+            if let path = try container.decodeIfPresent(Value.self, forKey: Key("path"))?.value {
+                result["path"] = path
+            }
+            if (result["path"] as? [Any])?.first as? String == "requests" {
+                for name in ["op", "value"] where container.contains(Key(name)) {
+                    result[name] = try container.decode(Value.self, forKey: Key(name)).value
+                }
+            }
+            object = result
+        }
+    }
+
+    /// Only approval payloads need heterogeneous values, including null and
+    /// numeric request IDs. Leave their existing protocol validation unchanged.
+    private struct Value: Decodable {
+        let value: Any
+        init(from decoder: Decoder) throws {
+            let container = try decoder.singleValueContainer()
+            if container.decodeNil() { value = NSNull() }
+            else if let bool = try? container.decode(Bool.self) { value = bool }
+            else if let int = try? container.decode(Int.self) { value = int }
+            else if let number = try? container.decode(Double.self) { value = number }
+            else if let string = try? container.decode(String.self) { value = string }
+            else if let array = try? container.decode([Value].self) { value = array.map(\.value) }
+            else { value = try container.decode([String: Value].self).mapValues(\.value) }
+        }
     }
 }

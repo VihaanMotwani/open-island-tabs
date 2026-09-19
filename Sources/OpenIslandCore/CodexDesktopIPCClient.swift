@@ -12,11 +12,11 @@ public final class CodexDesktopIPCClient: @unchecked Sendable {
     private var socketFD: Int32 = -1
     private var reader: DispatchSourceRead?
     private var buffer = Data()
+    private var readBytes = [UInt8](repeating: 0, count: 64 * 1024)
     private var clientID: String?
     private var stream = CodexDesktopRequestStream()
     private var pendingResponses: [String: CheckedContinuation<Bool, Never>] = [:]
     private var retryScheduled = false
-    private var lastRefresh = Date.distantPast
     private let maxFrameBytes = 256 * 1024 * 1024
 
     public init(socketPath: String? = nil, onUpdate: @escaping @Sendable (CodexDesktopAttentionUpdate) -> Void) {
@@ -130,13 +130,12 @@ public final class CodexDesktopIPCClient: @unchecked Sendable {
     }
 
     private func readAvailable() {
-        var bytes = [UInt8](repeating: 0, count: 64 * 1024)
         while socketFD >= 0 {
-            let count = Darwin.read(socketFD, &bytes, bytes.count)
+            let count = Darwin.read(socketFD, &readBytes, readBytes.count)
             if count < 0, errno == EAGAIN || errno == EWOULDBLOCK { return }
             if count < 0, errno == EINTR { continue }
             guard count > 0 else { disconnect(); scheduleRetry(); return }
-            buffer.append(contentsOf: bytes.prefix(count))
+            buffer.append(contentsOf: readBytes.prefix(count))
             while buffer.count >= 4 {
                 let length = buffer.prefix(4).enumerated().reduce(0) { $0 | Int($1.element) << ($1.offset * 8) }
                 guard length > 0, length <= maxFrameBytes else { disconnect(); scheduleRetry(); return }
@@ -148,13 +147,13 @@ public final class CodexDesktopIPCClient: @unchecked Sendable {
                 let consumedEnd = buffer.index(buffer.startIndex, offsetBy: length + 4)
                 buffer.removeSubrange(buffer.startIndex..<consumedEnd)
                 if buffer.isEmpty { buffer = Data() }
-                handle(frame)
+                autoreleasepool { handle(frame) }
             }
         }
     }
 
     private func handle(_ data: Data) {
-        guard let message = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+        guard let message = try? CodexDesktopMessage.decode(data) else {
             disconnect(); scheduleRetry(); return
         }
         if message["type"] as? String == "response", let id = message["requestId"] as? String,
@@ -175,7 +174,7 @@ public final class CodexDesktopIPCClient: @unchecked Sendable {
                   let id = params["conversationId"] as? String, desired.contains(id) {
             if message["method"] as? String == "thread-stream-following-status-requested" {
                 follow(id, following: true)
-            } else if let update = stream.receive(data) { onUpdate(update) }
+            } else if let update = stream.receive(message) { onUpdate(update) }
             if message["version"] as? Int == 11, stream.needsSnapshot.contains(id) { follow(id, following: true) }
         }
     }
@@ -185,11 +184,10 @@ public final class CodexDesktopIPCClient: @unchecked Sendable {
         for id in subscribed.subtracting(desired) { follow(id, following: false) }
         for id in desired.subtracting(subscribed) { follow(id, following: true) }
         subscribed = desired
-        // Recover owner changes and requests resolved during a missed interval.
-        if Date.now.timeIntervalSince(lastRefresh) > 15 {
-            lastRefresh = .now
-            for id in desired { follow(id, following: true) }
-        }
+        // The socket is an ordered stream. Request another snapshot only on
+        // reconnect, revision/owner mismatch, or an owner's following-status
+        // request (handled above). Re-announcing every maintenance interval
+        // retransmits entire conversation histories even when nothing changed.
     }
 
     private func follow(_ id: String, following: Bool) {

@@ -11,6 +11,8 @@ final class OverlayUICoordinator {
 
     var notchStatus: NotchStatus = .closed
     var notchOpenReason: NotchOpenReason?
+    // A SwiftUI popover is a separate window outside the main panel's hit area.
+    var isSpotifyVolumePopoverPresented = false
     var islandSurface: IslandSurface = .sessionList()
     private(set) var tabSelection = IslandTabSelectionState()
     private(set) var visibleIslandTabs = Set(IslandTab.allCases)
@@ -220,6 +222,7 @@ final class OverlayUICoordinator {
     }
 
     func notchClose() {
+        isSpotifyVolumePopoverPresented = false
         if tabSelection.activeTakeover != nil {
             tabSelection.resolveAgentTakeover()
             clearSpotifyTakeoverResumeContext()
@@ -355,7 +358,7 @@ final class OverlayUICoordinator {
     // MARK: - Pointer tracking
 
     var shouldAutoCollapseOnMouseLeave: Bool {
-        if ignoresPointerExitDuringHarness {
+        if ignoresPointerExitDuringHarness || isSpotifyVolumePopoverPresented {
             return false
         }
 

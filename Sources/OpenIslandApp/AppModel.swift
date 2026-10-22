@@ -1384,9 +1384,15 @@ final class AppModel {
     func refreshOverlayDisplayConfiguration() { overlay.refreshOverlayDisplayConfiguration() }
     func refreshOverlayPlacement() { overlay.refreshOverlayPlacement() }
     private func refreshOverlayPlacementIfVisible() { overlay.refreshOverlayPlacementIfVisible() }
+    var isSpotifyVolumePopoverPresented: Bool {
+        get { overlay.isSpotifyVolumePopoverPresented }
+        set { overlay.isSpotifyVolumePopoverPresented = newValue }
+    }
     func notePointerInsideIslandSurface() { overlay.notePointerInsideIslandSurface() }
     func handlePointerExitedIslandSurface() { overlay.handlePointerExitedIslandSurface() }
     func handlePointerPressedOutsideIslandSurface() {
+        // The volume popup owns its presses and outside-click dismissal.
+        guard !isSpotifyVolumePopoverPresented else { return }
         // Working in another app must not dismiss a real pending Codex request.
         // Explicit Island dismissal and request resolution still close the card.
         if let sessionID = islandSurface.sessionID,

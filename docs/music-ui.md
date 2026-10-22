@@ -16,6 +16,11 @@ compiled script. Repeated snapshot polls reuse that script; changed commands
 replace it, and execution errors discard it. This avoids recompilation and
 macOS script scanning on every poll without slowing track-change detection.
 
+The volume popup shares its presentation state with the overlay. While it is
+open, moving into or clicking its slider keeps the notch open and retains panel
+focus. Dismissing the popup restores normal pointer-exit and outside-click
+behavior. Closing the notch or removing the volume control clears that state.
+
 The closed notch retains its animated equalizer while music is playing and a
 static equalizer while paused. Album artwork does not replace that indicator.
 The track-change preview and expanded player share one artwork presentation.

@@ -556,11 +556,14 @@ struct IslandPanelView: View {
 
     @ViewBuilder
     private var openedContent: some View {
+        @Bindable var model = model
         ZStack(alignment: .top) {
             Group {
                 switch model.selectedIslandTab {
                 case .spotify:
-                    SpotifyPlayerView(model: model.spotifyPlayback, artworkNamespace: musicArtworkNamespace,
+                    SpotifyPlayerView(model: model.spotifyPlayback,
+                        isVolumePopoverPresented: $model.isSpotifyVolumePopoverPresented,
+                        artworkNamespace: musicArtworkNamespace,
                         artworkIsSource: usesOpenedVisualState)
                 case .calendar:
                     CalendarAgendaView(model: model.calendarAgenda, lang: model.lang, isActive: model.notchStatus == .opened)

@@ -11,6 +11,7 @@ enum SpotifyArtworkDestination {
 
 struct SpotifyPlayerView: View {
     let model: SpotifyPlaybackModel
+    @Binding var isVolumePopoverPresented: Bool
     var artworkNamespace: Namespace.ID?
     var artworkIsSource = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -107,6 +108,7 @@ struct SpotifyPlayerView: View {
                                 Spacer()
                                 SpotifyVolumeButton(
                                     volume: $volume,
+                                    isPresented: $isVolumePopoverPresented,
                                     onEditingChanged: handleVolumeChanged
                                 )
                             }
@@ -284,11 +286,11 @@ private struct SpotifyPlayPauseButton: View {
 
 private struct SpotifyVolumeButton: View {
     @Binding var volume: Double
+    @Binding var isPresented: Bool
     let onEditingChanged: (Bool) -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHovered = false
-    @State private var isPresented = false
 
     var body: some View {
         Button {
@@ -333,6 +335,7 @@ private struct SpotifyVolumeButton: View {
             }
             .padding(12)
         }
+        .onDisappear { isPresented = false }
         .accessibilityLabel("Spotify volume")
         .accessibilityValue("\(Int((volume * 100).rounded())) percent")
         .help("Spotify volume")

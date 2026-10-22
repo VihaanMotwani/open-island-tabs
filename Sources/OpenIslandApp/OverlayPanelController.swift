@@ -272,7 +272,7 @@ final class OverlayPanelController {
             cancelHoverOpen()
         }
 
-        if Self.shouldResignPanelKey(
+        if !model.isSpotifyVolumePopoverPresented, Self.shouldResignPanelKey(
             isPointerInsideExpandedArea: inExpandedArea,
             isPanelKey: panel?.isKeyWindow == true
         ) {

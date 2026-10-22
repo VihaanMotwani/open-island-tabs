@@ -2065,6 +2065,57 @@ struct AppModelSessionListTests {
     }
 
     @Test
+    func volumePopoverKeepsHoverOpenedSpotifyOpenUntilDismissed() {
+        let model = AppModel()
+        model.notchStatus = .opened
+        model.notchOpenReason = .hover
+        model.selectIslandTab(.spotify)
+        model.isSpotifyVolumePopoverPresented = true
+
+        // Moving from the speaker button into its separate popup exits the panel.
+        model.handlePointerExitedIslandSurface()
+        #expect(model.notchStatus == .opened)
+
+        model.isSpotifyVolumePopoverPresented = false
+        model.handlePointerExitedIslandSurface()
+        #expect(model.notchStatus == .closed)
+    }
+
+    @Test
+    func volumePopoverAcceptsClicksOutsideThePanelUntilDismissed() {
+        let model = AppModel()
+        model.notchStatus = .opened
+        model.notchOpenReason = .hover
+        model.selectIslandTab(.spotify)
+        model.isSpotifyVolumePopoverPresented = true
+
+        // Slider presses are outside the main panel's rectangle.
+        model.handlePointerPressedOutsideIslandSurface()
+        #expect(model.notchStatus == .opened)
+
+        model.isSpotifyVolumePopoverPresented = false
+        model.handlePointerPressedOutsideIslandSurface()
+        #expect(model.notchStatus == .closed)
+    }
+
+    @Test
+    func closingTheNotchClearsVolumePopoverBeforeTheNextHoverOpen() {
+        let model = AppModel()
+        model.notchStatus = .opened
+        model.notchOpenReason = .hover
+        model.selectIslandTab(.spotify)
+        model.isSpotifyVolumePopoverPresented = true
+
+        model.notchClose()
+        #expect(!model.isSpotifyVolumePopoverPresented)
+
+        model.notchStatus = .opened
+        model.notchOpenReason = .hover
+        model.handlePointerExitedIslandSurface()
+        #expect(model.notchStatus == .closed)
+    }
+
+    @Test
     func closeTransitionSetsStateImmediatelyAndClearsPending() {
         let model = AppModel()
         model.notchStatus = .opened
